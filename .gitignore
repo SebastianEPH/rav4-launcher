@@ -1,0 +1,19 @@
+# Artefactos de compilación
+/build/
+*.apk
+*.apk.idsig
+*.dex
+
+# Firma (no subir la clave)
+debug.keystore
+
+# Fotos originales pesadas (RAW) — el recorte usable sí se versiona
+*.DNG
+
+# Sistema operativo
+.DS_Store
+
+# Editores
+.idea/
+*.iml
+.vscode/

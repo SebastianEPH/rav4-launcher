@@ -1,0 +1,234 @@
+package pe.radio.rav4;
+
+import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.LinearGradient;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.RectF;
+import android.graphics.Shader;
+import android.view.View;
+
+/** Vistas dibujadas a mano; toman los colores de Theme.P. */
+public class Views {
+
+    public static final int RIGHT = 0, LEFT = 1, DOWN = 2, UP = 3;
+
+    /** Contenedor raíz que detecta deslizamientos en las 4 direcciones sin romper los toques normales. */
+    public static class GestureFrame extends android.widget.FrameLayout {
+        public interface Listener { boolean wants(int dir); void swipe(int dir); }
+        private final Listener l;
+        private float sx, sy;
+        private boolean fired;
+        private final float slop;
+
+        public GestureFrame(Context c, Listener l) {
+            super(c);
+            this.l = l;
+            slop = 70 * c.getResources().getDisplayMetrics().density;
+        }
+
+        private boolean track(android.view.MotionEvent e) {
+            switch (e.getActionMasked()) {
+                case android.view.MotionEvent.ACTION_DOWN:
+                    sx = e.getX(); sy = e.getY(); fired = false; return false;
+                case android.view.MotionEvent.ACTION_MOVE:
+                    if (fired) return true;
+                    float dx = e.getX() - sx, dy = e.getY() - sy;
+                    int dir = -1;
+                    if (Math.abs(dx) > slop && Math.abs(dx) > 1.6f * Math.abs(dy)) dir = dx > 0 ? RIGHT : LEFT;
+                    else if (Math.abs(dy) > slop && Math.abs(dy) > 1.6f * Math.abs(dx)) dir = dy > 0 ? DOWN : UP;
+                    if (dir >= 0 && l.wants(dir)) { fired = true; l.swipe(dir); return true; }
+                    return false;
+                default:
+                    return fired;
+            }
+        }
+
+        @Override
+        public boolean onInterceptTouchEvent(android.view.MotionEvent e) { return track(e); }
+
+        @Override
+        public boolean onTouchEvent(android.view.MotionEvent e) { track(e); return true; }
+    }
+
+    /** Velocímetro: segmentado (terminal) o anillo continuo (glass). */
+    public static class Gauge extends View {
+        private float target = 0, shown = 0;
+        private final float max = 180;
+        private String sub = "";
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF r = new RectF();
+
+        public Gauge(Context c) { super(c); }
+
+        public void setSpeed(float kmh) { target = Math.max(0, Math.min(max, kmh)); invalidate(); }
+        public void setSub(String s) { sub = s; invalidate(); }
+
+        @Override
+        protected void onDraw(Canvas c) {
+            Theme.Pal P = Theme.P;
+            shown += (target - shown) * 0.18f;
+            if (Math.abs(target - shown) > 0.2f) postInvalidateOnAnimation(); else shown = target;
+
+            float w = getWidth(), h = getHeight();
+            float rad = Math.min(w * 0.42f, h * 0.44f);
+            float cx = w / 2f, cy = h * 0.52f;
+            float start = 135, sweep = 270, frac = shown / max;
+            r.set(cx - rad, cy - rad, cx + rad, cy + rad);
+            p.setStyle(Paint.Style.STROKE);
+            p.setShader(null);
+
+            if (!P.glass) {
+                int segs = 36;
+                float gap = 2.2f, seg = sweep / segs;
+                p.setStrokeWidth(rad * 0.09f);
+                p.setStrokeCap(Paint.Cap.BUTT);
+                for (int i = 0; i < segs; i++) {
+                    float f = (i + 1f) / segs;
+                    p.setColor(f <= frac ? (f > 0.67f ? P.err : f > 0.5f ? P.warn : P.accent) : P.track);
+                    c.drawArc(r, start + i * seg + gap / 2, seg - gap, false, p);
+                }
+            } else {
+                p.setStrokeWidth(rad * 0.12f);
+                p.setStrokeCap(Paint.Cap.ROUND);
+                p.setColor(P.track);
+                c.drawArc(r, start, sweep, false, p);
+                if (frac > 0.003f) {
+                    p.setShader(new LinearGradient(cx - rad, cy + rad, cx + rad, cy - rad,
+                            new int[]{P.ok, P.accent, frac > 0.6f ? P.err : P.accent}, null, Shader.TileMode.CLAMP));
+                    c.drawArc(r, start, sweep * frac, false, p);
+                    p.setShader(null);
+                }
+            }
+
+            p.setStyle(Paint.Style.FILL);
+            p.setTextAlign(Paint.Align.CENTER);
+            p.setTypeface(P.font);
+            p.setTextSize(rad * 0.075f);
+            p.setColor(P.dim);
+            if (!P.glass) for (int v = 0; v <= max; v += 30) {
+                double a = Math.toRadians(start + sweep * v / max);
+                float rr = rad * 0.76f;
+                c.drawText(String.valueOf(v), cx + (float) Math.cos(a) * rr, cy + (float) Math.sin(a) * rr + rad * 0.025f, p);
+            }
+
+            p.setTypeface(P.fontBold);
+            p.setTextSize(rad * (P.glass ? 0.62f : 0.5f));
+            p.setColor(P.text);
+            String val = P.glass ? String.valueOf(Math.round(shown)) : String.format("%03d", Math.round(shown));
+            c.drawText(val, cx, cy + rad * (P.glass ? 0.2f : 0.16f), p);
+            p.setTypeface(P.font);
+            p.setTextSize(rad * 0.1f);
+            p.setColor(P.dim);
+            c.drawText("km/h", cx, cy + rad * 0.4f, p);
+            p.setTextSize(rad * 0.075f);
+            c.drawText(sub, cx, cy + rad * 0.92f, p);
+        }
+    }
+
+    /** Gráfico de línea (historial de velocidad). */
+    public static class Spark extends View {
+        private static final float[] data = new float[120]; // persiste al cambiar de tema
+        private static int n = 0;
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        public Spark(Context c) { super(c); }
+
+        public static void push(float v) {
+            System.arraycopy(data, 1, data, 0, data.length - 1);
+            data[data.length - 1] = v;
+            if (n < data.length) n++;
+        }
+
+        @Override
+        protected void onDraw(Canvas c) {
+            Theme.Pal P = Theme.P;
+            float w = getWidth(), h = getHeight(), pad = 4;
+            float max = 60;
+            for (float v : data) if (v > max) max = v;
+            max = (float) Math.ceil(max / 20) * 20;
+            p.setShader(null);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1);
+            p.setColor(P.track);
+            for (int i = 0; i <= 2; i++) { float y = pad + (h - 2 * pad) * i / 2f; c.drawLine(0, y, w, y, p); }
+            p.setStyle(Paint.Style.FILL);
+            p.setTypeface(P.font);
+            p.setTextSize(11);
+            p.setColor(P.dim);
+            c.drawText(String.valueOf((int) max), 2, pad + 11, p);
+            c.drawText("0", 2, h - pad - 2, p);
+            if (n < 2) return;
+            Path line = new Path(), fill = new Path();
+            float step = w / (data.length - 1);
+            for (int i = data.length - n; i < data.length; i++) {
+                float x = i * step, y = h - pad - (h - 2 * pad) * data[i] / max;
+                if (i == data.length - n) { line.moveTo(x, y); fill.moveTo(x, h); fill.lineTo(x, y); }
+                else { line.lineTo(x, y); fill.lineTo(x, y); }
+            }
+            fill.lineTo(w, h); fill.close();
+            int a = P.accent & 0x00FFFFFF;
+            p.setShader(new LinearGradient(0, 0, 0, h, 0x55000000 | a, a, Shader.TileMode.CLAMP));
+            c.drawPath(fill, p);
+            p.setShader(null);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(2);
+            p.setColor(P.accent);
+            c.drawPath(line, p);
+        }
+    }
+
+    /** Fondo de pantalla dibujado (original): "ondas", "noche", "atardecer" o "rav4". */
+    public static class Wallpaper extends View {
+        private final String style;
+        private final android.graphics.Bitmap photo;
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        public Wallpaper(Context c, String style, android.graphics.Bitmap photo) {
+            super(c);
+            this.style = style;
+            this.photo = photo;
+        }
+
+        @Override
+        protected void onDraw(Canvas c) {
+            float w = getWidth(), h = getHeight();
+            boolean dark = Theme.P.dark;
+            p.setShader(null);
+            if ("rav4".equals(style) && photo != null) {
+                c.drawColor(0xFF000000);
+                float s = Math.max(w / photo.getWidth(), h / photo.getHeight()) * 0.85f;
+                float bw = photo.getWidth() * s, bh = photo.getHeight() * s;
+                c.drawBitmap(photo, null, new RectF((w - bw) / 2, h - bh, (w + bw) / 2, h), p);
+                p.setShader(new LinearGradient(0, 0, 0, h, dark ? 0xEE000000 : 0x99FFFFFF, 0x33000000, Shader.TileMode.CLAMP));
+                c.drawRect(0, 0, w, h, p);
+                return;
+            }
+            if ("noche".equals(style)) {
+                p.setShader(new LinearGradient(0, 0, w, h, dark ? new int[]{0xFF0B132B, 0xFF1C2541, 0xFF000000}
+                        : new int[]{0xFFDDE7F7, 0xFFC4D3EE, 0xFFF5F7FB}, null, Shader.TileMode.CLAMP));
+                c.drawRect(0, 0, w, h, p);
+                return;
+            }
+            if ("atardecer".equals(style)) {
+                p.setShader(new LinearGradient(0, 0, 0, h, dark ? new int[]{0xFFE58FA6, 0xFF8E5C9E, 0xFF231A3A}
+                        : new int[]{0xFFFFC9A8, 0xFFF6B9C9, 0xFFB9D4F5}, null, Shader.TileMode.CLAMP));
+                c.drawRect(0, 0, w, h, p);
+                return;
+            }
+            // "ondas": base oscura con dos grandes arcos de color
+            c.drawColor(dark ? 0xFF05080F : 0xFFEAF1F8);
+            p.setShader(new LinearGradient(0, 0, w * 0.7f, h, dark ? 0xFF0E6B5C : 0xFF9FE3D3, dark ? 0xFF062A33 : 0xFFD4F1EA, Shader.TileMode.CLAMP));
+            c.drawCircle(w * 0.25f, -h * 0.55f, h * 1.35f, p);
+            p.setShader(new LinearGradient(w, h, w * 0.4f, 0, dark ? 0xFF1F4FD1 : 0xFF8FB0F5, dark ? 0xFF0A1C55 : 0xFFD6E2FB, Shader.TileMode.CLAMP));
+            c.drawCircle(w * 1.05f, h * 1.25f, h * 0.95f, p);
+            p.setShader(null);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(2);
+            p.setColor(dark ? 0x553D8BFF : 0x553D8BFF);
+            c.drawCircle(w * 1.05f, h * 1.25f, h * 0.97f, p);
+            p.setStyle(Paint.Style.FILL);
+        }
+    }
+}
