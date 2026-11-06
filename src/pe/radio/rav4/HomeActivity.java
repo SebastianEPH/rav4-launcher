@@ -271,6 +271,8 @@ public class HomeActivity extends Activity {
         LinearLayout bar = new LinearLayout(this);
         bar.setGravity(Gravity.CENTER_VERTICAL);
         prompt = txt("", 15, P.ok);
+        prompt.setSingleLine(true);
+        prompt.setEllipsize(android.text.TextUtils.TruncateAt.END);
         bar.addView(prompt, new LinearLayout.LayoutParams(0, -2, 1f));
         date = txt("", 14, P.dim);
         bar.addView(date);
@@ -280,6 +282,8 @@ public class HomeActivity extends Activity {
         bar.addView(clock);
         chips = txt("", 13, P.dim);
         chips.setGravity(Gravity.END);
+        chips.setSingleLine(true);
+        chips.setEllipsize(android.text.TextUtils.TruncateAt.END);
         bar.addView(chips, new LinearLayout.LayoutParams(0, -2, 1f));
         col.addView(bar, new LinearLayout.LayoutParams(-1, dp(42)));
 
@@ -327,6 +331,8 @@ public class HomeActivity extends Activity {
         p.setPadding(dp(14), dp(10), dp(14), dp(12));
         TextView t = txt("▸ " + title, 13, P.accent);
         t.setTypeface(P.fontBold);
+        t.setSingleLine(true);
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
         p.addView(t);
         return p;
     }
@@ -452,10 +458,17 @@ public class HomeActivity extends Activity {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
         c.setBackground(box(P.panel, P.border, P.radius));
-        c.setPadding(dp(14), dp(10), dp(14), dp(10));
-        TextView t = txt(title, 14, color);
+        c.setPadding(dp(14), dp(12), dp(14), dp(12));
+        c.setClipToPadding(true);
+        TextView t = txt(title, 13, color);
         t.setTypeface(P.fontBold);
-        c.addView(t);
+        t.setSingleLine(true);
+        t.setAllCaps(true);
+        t.setLetterSpacing(0.04f);
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(-1, -2);
+        tl.bottomMargin = dp(8);
+        c.addView(t, tl);
         return c;
     }
 
@@ -597,45 +610,45 @@ public class HomeActivity extends Activity {
         date = txt("", 20, P.text);
         when.addView(date);
         head.addView(when, new LinearLayout.LayoutParams(0, -2, 1f));
-        chips = txt("", 15, P.text);
-        chips.setPadding(dp(16), dp(8), dp(16), dp(8));
-        chips.setBackground(box(P.panel, P.border, 20));
+        chips = txt("", 14, P.text);
+        chips.setGravity(Gravity.CENTER);
+        chips.setPadding(dp(18), dp(10), dp(18), dp(10));
+        chips.setBackground(box(P.panel, P.border, 22));
         head.addView(chips, new LinearLayout.LayoutParams(-2, -2));
-        col.addView(head, new LinearLayout.LayoutParams(-1, 0, 1f));
+        col.addView(head, new LinearLayout.LayoutParams(-1, -2));
 
-        // fila de tarjetas
+        // fila de tarjetas: ocupa el alto restante con peso (no alto fijo -> no desborda)
         LinearLayout cards = new LinearLayout(this);
-        cards.setPadding(dp(18), 0, dp(18), dp(12));
+        cards.setPadding(dp(24), dp(16), dp(24), dp(14));
 
         LinearLayout sp = dCard("Velocidad");
         gauge = new Views.Gauge(this);
         sp.addView(gauge, new LinearLayout.LayoutParams(-1, 0, 1f));
-        cards.addView(sp, dWeight(0.9f));
+        cards.addView(sp, dWeight(0.9f, true));
 
         LinearLayout car = dCard("Mi RAV4");
         car.addView(carImage(), new LinearLayout.LayoutParams(-1, 0, 1f));
         car.addView(tripRow(true));
-        cards.addView(car, dWeight(1.45f));
+        cards.addView(car, dWeight(1.45f, true));
 
         LinearLayout ctl = dCard("Controles");
         View q = quickControls();
         ctl.addView(q, new LinearLayout.LayoutParams(-1, 0, 1f));
-        cards.addView(ctl, dWeight(0.8f));
+        cards.addView(ctl, dWeight(0.8f, true));
 
         LinearLayout gps = dCard("GPS");
         gnssMini = txt("", 15, P.text);
-        gnssMini.setLineSpacing(0, 1.25f);
-        gps.addView(gnssMini);
-        LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(0, -1, 0.85f);
-        cards.addView(gps, gl);
-        col.addView(cards, new LinearLayout.LayoutParams(-1, dp(290)));
+        gnssMini.setLineSpacing(0, 1.3f);
+        gps.addView(gnssMini, new LinearLayout.LayoutParams(-1, 0, 1f));
+        cards.addView(gps, dWeight(0.85f, false));
+        col.addView(cards, new LinearLayout.LayoutParams(-1, 0, 1f));
 
         // barra inferior con las apps (empieza por la izquierda, lado del conductor)
         dock = new LinearLayout(this);
         dock.setGravity(Gravity.CENTER_VERTICAL);
-        dock.setPadding(dp(16), 0, dp(16), 0);
+        dock.setPadding(dp(16), dp(6), dp(16), dp(6));
         dock.setBackgroundColor(P.dark ? 0xF0161618 : 0xF2FFFFFF);
-        col.addView(dock, new LinearLayout.LayoutParams(-1, dp(84)));
+        col.addView(dock, new LinearLayout.LayoutParams(-1, dp(96)));
         return col;
     }
 
@@ -643,16 +656,22 @@ public class HomeActivity extends Activity {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
         c.setBackground(box(P.panel, P.border, P.radius));
-        c.setPadding(dp(16), dp(12), dp(16), dp(12));
-        TextView t = txt(title, 14, P.dim);
+        c.setPadding(dp(16), dp(14), dp(16), dp(14));
+        c.setClipToPadding(true);
+        TextView t = txt(title, 13, P.dim);
         t.setTypeface(P.fontBold);
-        c.addView(t);
+        t.setSingleLine(true);
+        t.setAllCaps(true);
+        t.setLetterSpacing(0.04f);
+        LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(-1, -2);
+        tl.bottomMargin = dp(10);
+        c.addView(t, tl);
         return c;
     }
 
-    private LinearLayout.LayoutParams dWeight(float w) {
+    private LinearLayout.LayoutParams dWeight(float w, boolean gap) {
         LinearLayout.LayoutParams l = new LinearLayout.LayoutParams(0, -1, w);
-        l.rightMargin = dp(12);
+        if (gap) l.rightMargin = dp(12);
         return l;
     }
 
@@ -744,12 +763,15 @@ public class HomeActivity extends Activity {
         c.setOrientation(LinearLayout.VERTICAL);
         c.setBackground(box(P.panel, P.border, P.radius));
         c.setPadding(dp(20), dp(16), dp(20), dp(16));
+        c.setClipToPadding(true);
         return c;
     }
 
     private TextView gTitle(String s) {
-        TextView t = txt(s, 18, P.text);
+        TextView t = txt(s, 17, P.text);
         t.setTypeface(P.fontBold);
+        t.setSingleLine(true);
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
         return t;
     }
 
@@ -774,11 +796,18 @@ public class HomeActivity extends Activity {
     private TextView stat(LinearLayout parent, String k) {
         LinearLayout b = new LinearLayout(this);
         b.setOrientation(LinearLayout.VERTICAL);
-        b.addView(txt(k, 11, P.dim));
-        TextView v = txt("--", 18, P.text);
+        b.setPadding(dp(2), 0, dp(2), 0);
+        TextView lab = txt(k, 12, P.dim);
+        lab.setSingleLine(true);
+        lab.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        b.addView(lab);
+        TextView v = txt("--", 20, P.text);
         v.setTypeface(P.fontBold);
+        v.setSingleLine(true);
+        v.setEllipsize(android.text.TextUtils.TruncateAt.END);
         b.addView(v);
-        parent.addView(b, new LinearLayout.LayoutParams(0, -2, 1f));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f);
+        parent.addView(b, lp);
         return v;
     }
 
