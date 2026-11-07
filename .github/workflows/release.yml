@@ -1,0 +1,60 @@
+name: Release APK
+
+# Se dispara al empujar un tag tipo v1.3, o a mano desde la pestaña Actions.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # necesario para crear el Release y subir el APK
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repo (historial completo para las notas)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Instalar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instalar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar build-tools y plataforma
+        run: sdkmanager "platform-tools" "platforms;android-33" "build-tools;34.0.0"
+
+      - name: Compilar APK
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Renombrar APK con la versión del tag
+        id: apk
+        run: |
+          NAME="RAV4Launcher-${GITHUB_REF_NAME}.apk"
+          cp RAV4Launcher.apk "$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          sha256sum "$NAME"
+
+      - name: Publicar Release con el APK y las notas
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: RAV4 Launcher ${{ github.ref_name }}
+          files: ${{ steps.apk.outputs.name }}
+          generate_release_notes: true
+          body: |
+            **Launcher RAV4** — compilado automáticamente desde el tag `${{ github.ref_name }}`.
+
+            Instalación: descarga el `.apk`, cópialo a un USB, instálalo en la radio
+            y elígelo como launcher por defecto.
+
+            Abajo el detalle de qué se agregó/cambió desde la versión anterior.
