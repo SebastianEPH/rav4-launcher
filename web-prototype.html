@@ -693,6 +693,16 @@
             </div>
 
             <div class="section">
+                <h3 style="font-size:14px; margin-top:5px;">Actualizaciones</h3>
+                <button id="checkUpdates" style="width:100%; padding:12px; background:var(--accent); color:var(--bg); border:none; border-radius:8px; cursor:pointer; font-weight:bold; margin-bottom:8px;">🔄 Buscar Actualizaciones</button>
+                <div style="font-size:11px; color:var(--dim); margin-top:10px; line-height:1.6;" id="updateStatus">
+                    <div>Versión: <strong id="versionNum">1.0.0</strong></div>
+                    <div>Último commit:</div>
+                    <div id="lastCommit" style="word-break:break-all;">—</div>
+                </div>
+            </div>
+
+            <div class="section">
                 <h3 style="font-size:14px; margin-top:5px;">Información del Sistema</h3>
                 <div style="font-size:12px; color:var(--dim); margin-top:10px; line-height:1.6;">
                     <div>📱 Android 10 (API 29)</div>
@@ -909,6 +919,77 @@
 
         // Inicializar datos
         updateTelemetry();
+
+        // === GESTOR DE ACTUALIZACIONES ===
+        const checkUpdatesBtn = document.getElementById('checkUpdates');
+        const GITHUB_REPO = 'sebastianeph/rav4-launcher';
+        const GITHUB_API = 'https://api.github.com/repos';
+
+        checkUpdatesBtn.addEventListener('click', async () => {
+            checkUpdatesBtn.disabled = true;
+            checkUpdatesBtn.textContent = '⏳ Buscando...';
+
+            try {
+                // Obtener último release
+                const releaseRes = await fetch(`${GITHUB_API}/${GITHUB_REPO}/releases/latest`);
+                if (!releaseRes.ok) throw new Error('No releases found');
+                const release = await releaseRes.json();
+
+                // Obtener último commit
+                const commitRes = await fetch(`${GITHUB_API}/${GITHUB_REPO}/commits/main`);
+                if (!commitRes.ok) throw new Error('Could not fetch commits');
+                const commit = await commitRes.json();
+
+                // Actualizar UI
+                const tag = release.tag_name || '—';
+                const sha = commit.sha?.substring(0, 7) || '—';
+                const message = commit.commit?.message?.split('\n')[0] || '—';
+                const date = new Date(commit.commit?.author?.date).toLocaleDateString('es-ES');
+
+                document.getElementById('versionNum').textContent = tag;
+                document.getElementById('lastCommit').innerHTML = `
+                    <div style="margin-top:5px;">Hash: ${sha}</div>
+                    <div style="margin-top:3px;">Mensaje: ${message}</div>
+                    <div style="margin-top:3px;">Fecha: ${date}</div>
+                    <div style="margin-top:8px;">
+                        <a href="https://github.com/${GITHUB_REPO}/releases/latest" target="_blank" style="color:var(--accent); text-decoration:none;">
+                            → Ver en GitHub
+                        </a>
+                    </div>
+                `;
+
+                checkUpdatesBtn.textContent = '✅ Actualizado';
+            } catch (err) {
+                document.getElementById('lastCommit').innerHTML = `
+                    <div style="color:var(--err);">Error: ${err.message}</div>
+                    <div style="margin-top:5px; font-size:10px;">
+                        Asegúrate que el repo sea público:<br>
+                        github.com/${GITHUB_REPO}
+                    </div>
+                `;
+                checkUpdatesBtn.textContent = '❌ Error';
+            } finally {
+                setTimeout(() => {
+                    checkUpdatesBtn.disabled = false;
+                    checkUpdatesBtn.textContent = '🔄 Buscar Actualizaciones';
+                }, 3000);
+            }
+        });
+
+        // Cargar versión al iniciar
+        async function loadVersionInfo() {
+            try {
+                const res = await fetch(`${GITHUB_API}/${GITHUB_REPO}/releases/latest`);
+                if (res.ok) {
+                    const release = await res.json();
+                    document.getElementById('versionNum').textContent = release.tag_name || '1.0.0';
+                }
+            } catch (e) {
+                // Fallar silenciosamente al iniciar
+            }
+        }
+
+        // loadVersionInfo(); // Descomenta para cargar automáticamente
     </script>
 </body>
 </html>
