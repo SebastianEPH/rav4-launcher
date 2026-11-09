@@ -117,7 +117,7 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
 # copiar el APK a un USB, instalarlo en la radio, elegirlo como launcher por defecto
 ```
 ### Releases automáticos (CI)
-Cada push a `main` (salvo cambios solo en `.md`) dispara `.github/workflows/release.yml`: compila,
+Cada push a `main` (salvo cambios solo en `.md`, `site/` o `docs/`) dispara `.github/workflows/release.yml`: compila,
 firma con la keystore guardada en el secreto `KEYSTORE_B64` (la misma del Mac, para que la radio
 instale encima sin desinstalar) y publica un Release `v1.3.<n>` con el APK. No hace falta crear tags.
 El repo es **público**: nunca subir claves, tokens ni la `debug.keystore`.

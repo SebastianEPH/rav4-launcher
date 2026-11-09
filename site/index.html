@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAV4 Launcher — demo</title>
+<meta name="description" content="Launcher animado para una autorradio Android NWD en un Toyota RAV4: demo interactiva de los 5 temas.">
+<style>
+  :root {
+    --bg: #07080c; --panel: #11131a; --line: rgba(255,255,255,.08); --fg: #f2f4f8; --dim: #9aa3b2;
+    --acc: #0a84ff; --acc2: #bf5af2;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg: #f4f6fa; --panel: #ffffff; --line: rgba(0,0,0,.08); --fg: #0b0c10; --dim: #5b6372; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--fg); font: 16px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--acc); text-decoration: none; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+  header { padding: 56px 0 28px; }
+  .tag { display: inline-block; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+  h1 { font-size: clamp(34px, 6vw, 58px); line-height: 1.05; margin: 10px 0 14px; letter-spacing: -.02em;
+    background: linear-gradient(100deg, var(--fg) 30%, var(--acc) 70%, var(--acc2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { font-size: 19px; color: var(--dim); max-width: 760px; }
+  .cta { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn { padding: 12px 20px; border-radius: 12px; font-weight: 600; border: 1px solid var(--line); color: var(--fg); background: var(--panel); }
+  .btn.primary { background: linear-gradient(120deg, var(--acc), var(--acc2)); border: 0; color: #fff; }
+
+  .demo { margin-top: 24px; border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: #000;
+    box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+  .screen { position: relative; width: 100%; padding-top: 62.5%; }
+  .screen iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px; background: var(--panel); border-top: 1px solid var(--line); }
+  .bar button { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
+  .bar button.on { background: var(--acc); border-color: var(--acc); color: #fff; }
+  .bar .hint { margin-left: auto; font-size: 13px; color: var(--dim); }
+
+  h2 { font-size: 28px; margin: 56px 0 18px; letter-spacing: -.01em; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; transition: transform .25s; }
+  .card:hover { transform: translateY(-4px); }
+  .card img { display: block; width: 100%; height: auto; }
+  .card div { padding: 14px 16px 18px; }
+  .card b { font-size: 17px; }
+  .card p { color: var(--dim); font-size: 14px; margin-top: 4px; }
+  .feat { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .feat div { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+  .feat b { display: block; margin-bottom: 4px; }
+  .feat p { color: var(--dim); font-size: 14px; }
+  footer { padding: 56px 0 40px; color: var(--dim); font-size: 14px; }
+  @media (max-width: 640px) { .bar .hint { margin-left: 0; width: 100%; } header { padding-top: 32px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="tag">Toyota RAV4 2013 · Radio NWD K4811 · Android 10</span>
+    <h1>RAV4 Launcher</h1>
+    <p class="lead">Una pantalla de inicio hecha a medida para la radio del auto: velocidad y viaje por GPS,
+      voltaje de la batería por CAN, volumen real de la radio, 5 temas animados y actualizaciones desde GitHub.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/SebastianEPH/rav4-launcher/releases/latest">Descargar APK</a>
+      <a class="btn" href="demo/?theme=cockpit" target="_blank" rel="noopener">Abrir demo a pantalla completa</a>
+      <a class="btn" href="https://github.com/SebastianEPH/rav4-launcher">Código en GitHub</a>
+    </div>
+  </header>
+
+  <section class="demo" aria-label="Demo interactiva">
+    <div class="screen"><iframe id="live" src="demo/?theme=cockpit" title="Demo del launcher"></iframe></div>
+    <div class="bar" id="bar">
+      <button data-t="terminal">Terminal</button>
+      <button data-t="glass">Glass</button>
+      <button data-t="dusk">Dusk</button>
+      <button data-t="cockpit" class="on">Cockpit</button>
+      <button data-t="home">Inicio</button>
+      <span class="hint">Arrastra → para el panel · ← para las apps · datos simulados</span>
+    </div>
+  </section>
+
+  <h2>Los 5 temas</h2>
+  <div class="grid">
+    <a class="card" href="demo/?theme=terminal" target="_blank" rel="noopener"><img src="img/terminal.png" alt="Tema Terminal" loading="lazy"><div><b>Terminal</b><p>Efecto CRT, comandos que se teclean solos y log en vivo del GPS, WiFi y CAN.</p></div></a>
+    <a class="card" href="demo/?theme=glass" target="_blank" rel="noopener"><img src="img/glass.png" alt="Tema Glass" loading="lazy"><div><b>Glass</b><p>Tarjetas de vidrio sobre una aurora animada y anillo de velocidad.</p></div></a>
+    <a class="card" href="demo/?theme=dusk" target="_blank" rel="noopener"><img src="img/dusk.png" alt="Tema Dusk" loading="lazy"><div><b>Dusk</b><p>El cielo cambia con la hora real: sol, luna, nubes y estrellas.</p></div></a>
+    <a class="card" href="demo/?theme=cockpit" target="_blank" rel="noopener"><img src="img/cockpit.png" alt="Tema Cockpit" loading="lazy"><div><b>Cockpit</b><p>Velocímetro con aguja, brújula y carretera neón que corre con el auto.</p></div></a>
+    <a class="card" href="demo/?theme=home" target="_blank" rel="noopener"><img src="img/home.png" alt="Tema Inicio" loading="lazy"><div><b>Inicio</b><p>Íconos grandes en páginas, con widgets de velocidad, viaje y batería.</p></div></a>
+    <a class="card" href="demo/?theme=glass&amp;panel=1" target="_blank" rel="noopener"><img src="img/panel.png" alt="Panel de control" loading="lazy"><div><b>Panel</b><p>Volumen, brillo, WiFi, Bluetooth, tema, efectos y actualización.</p></div></a>
+  </div>
+
+  <h2>Qué hace</h2>
+  <div class="feat">
+    <div><b>🚗 Velocidad y viaje</b><p>GPS a 2 Hz: velocidad, máxima, promedio, distancia, rumbo y altitud.</p></div>
+    <div><b>🔋 Batería del auto</b><p>Voltaje leído por el bus CAN de la radio, con aviso de carga o batería baja.</p></div>
+    <div><b>🔊 Volumen real</b><p>Usa el sistema de volumen propio de NWD (0–40), descubierto descompilando el firmware.</p></div>
+    <div><b>☀️ Brillo seguro</b><p>Nunca baja del 18 %, porque por debajo la pantalla de esta radio se apaga.</p></div>
+    <div><b>⬆️ Se actualiza solo</b><p>Cada push publica un APK firmado; el launcher lo descarga e instala encima.</p></div>
+    <div><b>🗑️ Limpia la radio</b><p>Desinstala apps del sistema con el servicio root del firmware, con lista de protegidas.</p></div>
+  </div>
+
+  <footer>Proyecto personal · la demo usa datos simulados; en la radio son reales.</footer>
+</div>
+<script>
+  var live = document.getElementById('live');
+  document.getElementById('bar').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-t]');
+    if (!b) return;
+    document.querySelectorAll('#bar button').forEach(function (x) { x.classList.toggle('on', x === b); });
+    live.src = 'demo/?theme=' + b.getAttribute('data-t');
+  });
+</script>
+</body>
+</html>

@@ -6,6 +6,9 @@ on:
     branches: [main]
     paths-ignore:
       - '**.md'
+      - 'site/**'
+      - 'docs/**'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
