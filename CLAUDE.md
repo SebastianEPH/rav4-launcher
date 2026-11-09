@@ -57,16 +57,37 @@ y se descompilan con `jadx`. Hallazgos que ya se usan en el launcher:
 Proyecto Android nativo **sin Gradle** — se compila con `./build.sh` (aapt2 + javac + d8 + apksigner).
 SDK en `/opt/homebrew/share/android-commandlinetools`, Java 17 de Homebrew. minSdk 21, targetSdk 28.
 
-4 archivos de código, paquete `pe.radio.rav4`:
+Código Java en el paquete `pe.radio.rav4`:
 - `HomeActivity.java` — toda la lógica: layouts de los 5 temas, dock, cajón de apps, centro de
   control, ajustes, GPS/viaje, volumen NWD, batería, desinstalar, gestos.
 - `Theme.java` — paletas de color por tema y modo (claro/oscuro/auto), íconos squircle, fondos.
 - `Views.java` — vistas dibujadas a mano: velocímetro (Gauge), gráfico (Spark), detector de
+  gestos (GestureFrame), fondos de pantalla (Wallpaper).
+- `WebHome.java` — la interfaz web (ver abajo): WebView + puente JS `Radio`.
 - `Updater.java` — "Buscar actualización" (⚙ Ajustes → Sistema): lee el último Release de GitHub,
   compara su tag con `versionName`, descarga el APK y lo instala con `PackageInstaller`. La primera vez
   Android pide permitir "instalar apps de esta fuente". El CI pone `versionCode=100+run_number` y
   `versionName` = tag; el build local queda en `1.3-local` (versionCode 100).
-  gestos (GestureFrame), fondos de pantalla (Wallpaper).
+
+### Dos interfaces: Nativa y Web
+⚙ Ajustes → **Interfaz: Nativa / Web (animada)** (pref `engine`). La nativa son los 5 temas en Java.
+La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga en un WebView:
+- Los mismos 5 temas rehechos con efectos: aurora animada (Glass/Inicio), cielo que cambia con la
+  hora con sol/luna/nubes/estrellas (Dusk), carretera neón cuya velocidad sigue a la del auto +
+  velocímetro SVG con aguja (Cockpit), CRT + log en vivo + comando tecleándose (Terminal).
+- Gestos: **→ abre el Panel** (controles + ajustes, desde la izquierda) y **← abre las apps**.
+  Ya **no hay gesto hacia abajo** (el usuario pidió quitarlo: estorbaba). En Inicio ←/→ cambian de
+  página salvo que el gesto empiece en el borde izquierdo.
+- Efectos Altos / Suaves / Ninguno; si la radio no llega a ~35 fps se bajan solos una vez.
+- Puente `window.Radio` (WebHome.Bridge): `state()` JSON (GPS, viaje, voltaje, volumen, brillo,
+  wifi/bt), `apps()`, `launch`, `appMenu` (diálogo nativo), `setVolume`, `setBrightness`, `media`,
+  `open`, `toggle`, `pref/setPref` (SharedPreferences con prefijo `web.`), `checkUpdate`, `useNative`.
+  El WebView solo carga `file:///android_asset/` para que ninguna web externa toque el puente.
+- **Compatibilidad**: el WebView de la radio puede ser Chrome ~74 → nada de `?.`, `??`, `:is()`,
+  `inset`, `clamp()/min()`, `aspect-ratio`, ni `gap` en flex (en grid sí).
+- Probar en el Mac: abrir `assets/web/index.html` en Chrome (usa un simulador). Parámetros:
+  `?theme=cockpit&kmh=90&panel=1&drawer=1&fx=low&shot=1` (`shot` congela animaciones para capturas).
+  Capturas del README: `docs/img/` (Chrome headless, ver README).
 
 ### Temas (⚙ Ajustes del launcher → Tema, o centro de control → Tema)
 1. **Terminal** — estilo consola: monoespaciado, telemetría, gráficos, datos técnicos.
@@ -77,7 +98,7 @@ SDK en `/opt/homebrew/share/android-commandlinetools`, Java 17 de Homebrew. minS
 
 Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto del auto).
 
-### Gestos
+### Gestos (interfaz nativa)
 - Deslizar → / ← : abre/cierra el cajón de apps (en tema Inicio cambia de página).
 - Deslizar ↓ : abre el centro de control.
 - Deslizar ↑ : lo cierra.
@@ -113,19 +134,10 @@ En `../radio-diagnostico/`. App para exportar al USB el informe de la radio + la
 (o todas). Carpeta de salida: `RadioDiagnostico/` (informe .txt + carpeta `apps/`). Borra el
 diagnóstico anterior antes de guardar. Se usa para seguir analizando apps y encontrar más funciones.
 
-## Prototipo Web (web-prototype.html)
-Versión HTML/CSS/JS de los 5 temas para **experimentar animaciones y nuevas interacciones**:
-- **5 temas replicados**: Terminal, Glass, Dusk, Cockpit, Home
-- **Interfaz swipe**: derecha/izquierda abre panel de configuración (en lugar de deslizar hacia abajo)
-- **Telemetría simulada**: velocidad, viaje, batería, GPS, voltaje
-- **Sistema de actualizaciones**: botón que verifica versiones en GitHub API (repo público)
-- **Controles**: brillo, volumen, selector de temas
-- Se prueba abriendo `web-prototype.html` en navegador de escritorio / tablet
-
 ## Pendientes / ideas
 - Velocidad del auto por CAN (buscar en `com.nwd.can.setting`) para no depender solo del GPS.
 - Más controles de audio (navegación, BT, GPS tienen volúmenes separados).
 - Estado de puertas por CAN (hay acciones relacionadas).
 - Abrir CarPlay/Android Auto directo (ZLINK expone CarPlayActivity y HiCarActivity como LAUNCHER).
-- Integrar nuevas interacciones del prototipo web al Android nativo (swipe lateral para settings).
+- Información de lugares (nombre de la calle/distrito) a partir del GPS.
 - Dashboard completo del auto: consumo, temperatura, estado de sistemas (basado en CAN).

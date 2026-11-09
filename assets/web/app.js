@@ -1,0 +1,687 @@
+/* RAV4 Launcher — interfaz web.
+   En la radio, window.Radio es el puente nativo (WebHome.java). En un navegador se usa un simulador.
+   Sintaxis conservadora (ES2015, sin ?. ni ??) para el WebView de Android 10. */
+(function () {
+  'use strict';
+
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var body = document.body;
+  var params = {};
+  location.search.replace(/[?&]([^=]+)=([^&]*)/g, function (_, k, v) { params[k] = decodeURIComponent(v); });
+  var R = window.Radio || makeSim();
+  var SIM = !window.Radio;
+
+  // ---------- estado ----------
+  var S = {};                    // último estado de la radio
+  var shownKmh = 0;              // velocidad mostrada (suavizada)
+  var hist = [];                 // historial de velocidad (1 muestra/seg)
+  var apps = [];
+  var showHiddenApps = false;
+  var prefs = {
+    theme: params.theme || R.pref('theme', 'cockpit'),
+    mode: params.mode || R.pref('mode', 'dark'),
+    fx: params.fx || R.pref('fx', 'high')
+  };
+  var current = null;            // tema montado
+  if (params.shot) document.documentElement.classList.add('shot');
+
+  // ---------- utilidades ----------
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function setK(k, v) {
+    var els = document.querySelectorAll('[data-k="' + k + '"]');
+    for (var i = 0; i < els.length; i++) if (els[i].textContent !== String(v)) els[i].textContent = v;
+  }
+  function num(v, d) { return v == null || v < 0 || isNaN(v) ? '—' : Number(v).toFixed(d || 0); }
+  function fmtMin(m) { m = Math.round(m || 0); return m >= 60 ? Math.floor(m / 60) + 'h ' + pad(m % 60) + 'm' : m + ' min'; }
+  function hourNow() { var d = new Date(); return d.getHours() + d.getMinutes() / 60; }
+  var DAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  var MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  function dateLong(d) { return DAYS[d.getDay()] + ', ' + d.getDate() + ' de ' + MONTHS[d.getMonth()]; }
+  function greet() { var h = new Date().getHours(); return h < 6 ? 'Buenas noches' : h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches'; }
+  function battClass() { var v = S.batteryV; return v == null || v < 0 ? '' : v >= 13.3 ? 'chg' : v < 12.0 ? 'low' : ''; }
+  function battText() { var v = S.batteryV; if (v == null || v < 0) return 'Sin dato'; return v >= 13.3 ? 'Cargando' : v >= 12.4 ? 'Bien' : v >= 12.0 ? 'Baja' : 'Muy baja'; }
+  function battPct() { var v = S.batteryV; return v == null || v < 0 ? 0 : Math.max(0, Math.min(100, (v - 11.6) / (14.4 - 11.6) * 100)); }
+
+  var toastT;
+  function toast(msg) {
+    var t = $('#toast');
+    t.textContent = msg; t.classList.add('on');
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('on'); }, 2600);
+  }
+
+  function scale() { document.documentElement.style.fontSize = (16 * Math.min(innerWidth / 1280, innerHeight / 800)) + 'px'; }
+
+  function resolvedMode() {
+    if (prefs.mode !== 'auto') return prefs.mode;
+    var h = new Date().getHours();
+    return h < 6 || h >= 18 ? 'dark' : 'light';
+  }
+
+  // íconos SVG reutilizables
+  var IC = {
+    prev: '<svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>',
+    play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
+    next: '<svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>'
+  };
+  function mediaHtml() {
+    return '<div class="media"><button data-media="prev">' + IC.prev + '</button><button class="pp" data-media="play">' + IC.play +
+      '</button><button data-media="next">' + IC.next + '</button></div>';
+  }
+
+  // ================= TEMAS =================
+  var THEMES = {};
+
+  // ---------- Terminal ----------
+  var CMDS = ['gps --watch', 'can --battery', 'trip --stats', 'uptime', 'top -n 1', 'nwd volume --get'];
+  var termLog = [], termCmd = { i: 0, c: 0, t: 0 }, lastEv = {};
+  function logEv(cls, txt) {
+    var d = new Date();
+    termLog.push({ t: pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()), c: cls, x: txt });
+    if (termLog.length > 40) termLog.shift();
+    var el = $('#tlog');
+    if (el) {
+      var e = termLog[termLog.length - 1], div = document.createElement('div');
+      div.innerHTML = '<span class="t">[' + e.t + ']</span> <span class="' + e.c + '">' + esc(e.x) + '</span>';
+      el.appendChild(div);
+      while (el.children.length > 22) el.removeChild(el.firstChild);
+    }
+  }
+  function watchEvents() {
+    if (lastEv.fix !== S.fix) { if (lastEv.fix !== undefined || S.fix) logEv(S.fix ? 'ok' : 'wr', S.fix ? 'gnss: fix ok (' + S.satsUsed + ' sats)' : 'gnss: señal perdida'); lastEv.fix = S.fix; }
+    if (lastEv.wifi !== S.wifi) { logEv(S.wifi ? 'ok' : 'wr', 'wlan0: ' + (S.wifi ? 'conectado' : 'sin conexión')); lastEv.wifi = S.wifi; }
+    if (lastEv.bt !== S.bt) { logEv('in', 'bt: ' + (S.bt ? 'encendido' : 'apagado')); lastEv.bt = S.bt; }
+    if (S.batteryV > 0 && Math.abs((lastEv.batt || 0) - S.batteryV) >= 0.2) { logEv(S.batteryV < 12 ? 'wr' : 'in', 'can: batería ' + S.batteryV.toFixed(1) + ' V'); lastEv.batt = S.batteryV; }
+    if (lastEv.vol !== undefined && lastEv.vol !== S.vol) logEv('in', 'nwd: volumen ' + S.vol + '/' + S.volMax);
+    lastEv.vol = S.vol;
+    var fast = S.kmh >= 100;
+    if (lastEv.fast !== fast) { if (fast) logEv('wr', 'trip: velocidad alta ' + Math.round(S.kmh) + ' km/h'); lastEv.fast = fast; }
+  }
+  THEMES.terminal = {
+    name: 'Terminal', pv: ['#07090d', '#3cff8f', '#58a6ff'],
+    html: function () {
+      return '<div class="screen term stagger">' +
+        '<div class="prompt glow">rav4@k4811:~$ <span class="cmd" id="tcmd"></span><span class="cursor"></span></div>' +
+        '<div class="card speed"><h4>speed.gps</h4><div><span class="big glow" data-k="kmhInt">0</span><span class="unit">km/h</span></div>' +
+        '<div class="sub">max <b data-k="maxKmh">0</b> · prom <b data-k="avgKmh">0</b> km/h</div><canvas id="spark"></canvas></div>' +
+        '<div class="card"><h4>trip + gnss</h4>' +
+        kv('distancia', 'dist') + kv('en movimiento', 'moving') + kv('satélites', 'sats') + kv('rumbo', 'heading') +
+        kv('altitud', 'alt') + kv('precisión', 'acc') + kv('lat', 'lat') + kv('lon', 'lon') +
+        '<h4 style="margin-top:1rem">car.can</h4>' + kv('batería', 'battV') + kv('estado', 'battState') + kv('cpu', 'cpuTemp') + kv('volumen', 'volTxt') +
+        '</div>' +
+        '<div class="card"><h4>journalctl -f</h4><div class="log" id="tlog"></div></div>' +
+        '</div>';
+      function kv(l, k) { return '<div class="kv"><span>' + l + '</span><b data-k="' + k + '">—</b></div>'; }
+    },
+    mount: function () {
+      var el = $('#tlog');
+      termLog.slice(-22).forEach(function (e) {
+        var div = document.createElement('div');
+        div.innerHTML = '<span class="t">[' + e.t + ']</span> <span class="' + e.c + '">' + esc(e.x) + '</span>';
+        el.appendChild(div);
+      });
+      if (!termLog.length) { logEv('ok', 'boot: rav4-launcher web ui'); logEv('in', 'radio: NWD K4811 · ' + R.version()); }
+      termCmd = { i: 0, c: 0, t: 0 };
+    },
+    frame: function (dt) {
+      termCmd.t += dt;
+      var cmd = CMDS[termCmd.i % CMDS.length];
+      if (termCmd.c < cmd.length && termCmd.t > 0.07) { termCmd.c++; termCmd.t = 0; $('#tcmd').textContent = cmd.slice(0, termCmd.c); }
+      else if (termCmd.c >= cmd.length && termCmd.t > 6) { termCmd.i++; termCmd.c = 0; termCmd.t = 0; }
+      drawSpark($('#spark'), getComputedStyle(body).getPropertyValue('--acc').trim());
+    }
+  };
+
+  // ---------- Glass ----------
+  var RING_R = 150, RING_C = 2 * Math.PI * RING_R;
+  THEMES.glass = {
+    name: 'Glass', pv: ['#2a5bff', '#b44bff', '#00c2b8'],
+    html: function () {
+      return '<div class="screen glass stagger">' +
+        '<div class="card clock shine"><div><h4>Hoy</h4><div class="hh" data-k="time">--:--</div><div class="dd" data-k="dateLong"></div></div>' +
+        '<div><div class="sub">Batería del auto</div><div class="big"><span data-k="battV">—</span><span class="unit">V</span></div><div class="bar"><i data-w="batt"></i></div>' +
+        '<div class="sub" style="margin-top:1rem">GPS · <span data-k="satsTxt">—</span></div></div></div>' +
+        '<div class="card ringcard shine"><div class="ring"><svg viewBox="0 0 340 340"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">' +
+        '<stop offset="0" stop-color="#64d2ff"/><stop offset="1" stop-color="#bf5af2"/></linearGradient></defs>' +
+        '<circle class="trk" cx="170" cy="170" r="' + RING_R + '" stroke-dasharray="' + (RING_C * 0.75) + ' ' + RING_C + '"/>' +
+        '<circle class="val" id="ringVal" cx="170" cy="170" r="' + RING_R + '" stroke-dasharray="0 ' + RING_C + '"/></svg>' +
+        '<div class="center"><b data-k="kmhInt">0</b><span>km/h</span></div></div><div class="sub" data-k="gpsLine"></div></div>' +
+        '<div class="card tap shine"><h4>Viaje</h4><div class="big"><span data-k="dist">0.0</span><span class="unit">km</span></div>' +
+        '<div class="sub"><span data-k="moving">0 min</span> en movimiento</div><div class="sub">Prom. <b data-k="avgKmh">0</b> · Máx. <b data-k="maxKmh">0</b> km/h</div></div>' +
+        '<div class="card shine"><h4>Música</h4><div class="sub">Controla la app que esté sonando</div>' + mediaHtml() + '</div>' +
+        '</div>';
+    },
+    frame: function () {
+      var f = Math.min(1, shownKmh / 180);
+      var el = $('#ringVal');
+      if (el) el.setAttribute('stroke-dasharray', (RING_C * 0.75 * f).toFixed(1) + ' ' + RING_C);
+    }
+  };
+
+  // ---------- Dusk ----------
+  var SKIES = [
+    { h: 0, c: ['#0b1026', '#1b1f4a', '#2a1c48'], stars: 1 },
+    { h: 5, c: ['#2c2a5a', '#7b4f8e', '#f2a07b'], stars: .5 },
+    { h: 7, c: ['#ffc3a0', '#ffafbd', '#b9d4f5'], stars: 0 },
+    { h: 10, c: ['#3f8fe8', '#78b6f0', '#cfe6ff'], stars: 0 },
+    { h: 16.5, c: ['#4f86d9', '#f6b38e', '#f08a8a'], stars: 0 },
+    { h: 18.3, c: ['#e58fa6', '#8e5c9e', '#231a3a'], stars: .3 },
+    { h: 20, c: ['#151a3d', '#2a2050', '#3a2050'], stars: 1 },
+    { h: 24, c: ['#0b1026', '#1b1f4a', '#2a1c48'], stars: 1 }
+  ];
+  function paintSky() {
+    var h = hourNow(), a = SKIES[0], b = SKIES[1];
+    for (var i = 0; i < SKIES.length - 1; i++) if (h >= SKIES[i].h && h < SKIES[i + 1].h) { a = SKIES[i]; b = SKIES[i + 1]; }
+    var f = (h - a.h) / (b.h - a.h), st = body.style;
+    for (var j = 0; j < 3; j++) st.setProperty('--sky' + (j + 1), mix(a.c[j], b.c[j], f));
+    st.setProperty('--starsOp', String(a.stars + (b.stars - a.stars) * f));
+    var orb = $('#orb'), day = h >= 6 && h < 18.5;
+    var t = day ? (h - 6) / 12.5 : ((h >= 18.5 ? h - 18.5 : h + 5.5) / 11.5);
+    orb.classList.toggle('moon', !day);
+    orb.style.left = (8 + 78 * t) + '%';
+    orb.style.top = (48 - 36 * Math.sin(Math.PI * t)) + '%';
+  }
+  function mix(c1, c2, f) {
+    var a = parseInt(c1.slice(1), 16), b = parseInt(c2.slice(1), 16), out = '#';
+    for (var s = 16; s >= 0; s -= 8) { var v = Math.round(((a >> s) & 255) + ((((b >> s) & 255) - ((a >> s) & 255)) * f)); out += (v < 16 ? '0' : '') + v.toString(16); }
+    return out;
+  }
+  THEMES.dusk = {
+    name: 'Dusk', pv: ['#e58fa6', '#8e5c9e', '#231a3a'],
+    html: function () {
+      return '<div class="screen dusk"><div class="hero"><div class="hh" data-k="time">--:--</div><div class="dd" data-k="dateLong"></div><div class="greet" data-k="greet"></div></div>' +
+        '<div class="row stagger">' +
+        '<div class="card shine"><h4>Velocidad</h4><div class="big"><span data-k="kmhInt">0</span><span class="unit">km/h</span></div><div class="sub" data-k="gpsLine"></div></div>' +
+        '<div class="card shine"><h4>Viaje</h4><div class="big"><span data-k="dist">0.0</span><span class="unit">km</span></div><div class="sub">Máx. <b data-k="maxKmh">0</b> km/h · <span data-k="moving"></span></div></div>' +
+        '<div class="card shine battery-v"><h4>Batería</h4><div class="big"><span data-k="battV">—</span><span class="unit">V</span></div><div class="sub" data-k="battState"></div></div>' +
+        '<div class="card shine"><h4>Música</h4>' + mediaHtml() + '</div>' +
+        '</div></div>';
+    },
+    mount: paintSky
+  };
+
+  // ---------- Cockpit ----------
+  var G = { cx: 200, cy: 200, r: 170, max: 180 };
+  function pt(a, r) { var rad = a * Math.PI / 180; return (G.cx + r * Math.cos(rad)).toFixed(1) + ' ' + (G.cy + r * Math.sin(rad)).toFixed(1); }
+  var ARC_LEN = G.r * 270 * Math.PI / 180;
+  THEMES.cockpit = {
+    name: 'Cockpit', pv: ['#030406', '#00e5ff', '#ff2d95'],
+    html: function () {
+      var ticks = '';
+      for (var v = 0; v <= G.max; v += 10) {
+        var a = 135 + 270 * v / G.max, major = v % 20 === 0;
+        ticks += '<line class="tick' + (major ? ' major' : '') + '" x1="' + pt(a, 150).split(' ')[0] + '" y1="' + pt(a, 150).split(' ')[1] +
+          '" x2="' + pt(a, major ? 132 : 140).split(' ')[0] + '" y2="' + pt(a, major ? 132 : 140).split(' ')[1] + '"/>';
+        if (major) { var p = pt(a, 112).split(' '); ticks += '<text class="num" x="' + p[0] + '" y="' + p[1] + '">' + v + '</text>'; }
+      }
+      var arc = 'M ' + pt(135, G.r) + ' A ' + G.r + ' ' + G.r + ' 0 1 1 ' + pt(405, G.r);
+      return '<div class="screen cockpit">' +
+        '<div class="card gauge shine"><svg viewBox="0 0 400 400"><defs><linearGradient id="gGrad" x1="0" y1="1" x2="1" y2="0">' +
+        '<stop offset="0" stop-color="#00e5ff"/><stop offset=".6" stop-color="#7c4dff"/><stop offset="1" stop-color="#ff2d95"/></linearGradient></defs>' +
+        '<path class="arc-bg" d="' + arc + '"/><path class="arc" id="gArc" d="' + arc + '" stroke-dasharray="' + ARC_LEN.toFixed(1) + '" stroke-dashoffset="' + ARC_LEN.toFixed(1) + '"/>' +
+        ticks + '<g class="needle" id="gNeedle" transform="rotate(-135 200 200)"><path d="M196 205 L200 62 L204 205 Z"/></g><circle class="hub" cx="200" cy="200" r="13"/></svg>' +
+        '<div class="readout"><b data-k="kmhInt">0</b><span>KM/H</span></div><div class="gpsstate" data-k="gpsLine"></div></div>' +
+        '<div class="side stagger">' +
+        '<div class="card"><div class="compass"><div class="rose" id="rose"><b class="n">N</b><b class="e">E</b><b class="s">S</b><b class="w">O</b></div><i class="pointer"></i></div>' +
+        '<h4>Viaje</h4><div class="big"><span data-k="dist">0.0</span><span class="unit">km</span></div><div class="sub"><span data-k="moving"></span> · prom. <b data-k="avgKmh">0</b> · máx. <b data-k="maxKmh">0</b></div></div>' +
+        '<div class="two"><div class="card battery-v" id="battCard"><h4>Batería</h4><div class="big"><span data-k="battV">—</span><span class="unit">V</span></div><div class="bar"><i data-w="batt"></i></div></div>' +
+        '<div class="card"><h4>GPS</h4><div class="big"><span data-k="satsUsedTxt">—</span><span class="unit">sats</span></div><div class="sub"><span data-k="alt">—</span> · <span data-k="heading">—</span></div></div></div>' +
+        '<div class="card"><h4>Música</h4>' + mediaHtml() + '</div>' +
+        '</div></div>';
+    },
+    frame: function () {
+      var f = Math.min(1, shownKmh / G.max);
+      var arc = $('#gArc'), nd = $('#gNeedle');
+      if (arc) arc.setAttribute('stroke-dashoffset', (ARC_LEN * (1 - f)).toFixed(1));
+      if (nd) nd.setAttribute('transform', 'rotate(' + (270 * f - 135).toFixed(2) + ' 200 200)');
+    },
+    tick: function () {
+      var rose = $('#rose');
+      if (rose && S.bearing >= 0) rose.style.transform = 'rotate(' + (-S.bearing) + 'deg)';
+      $('#battCard').className = 'card battery-v ' + battClass();
+      // la cuadrícula del piso corre más rápido cuanto más rápido vas
+      var dur = S.kmh > 1 ? Math.max(0.35, 6 * 25 / (S.kmh + 25)) : 8;
+      var bucket = Math.round(dur * 4) / 4;
+      if (body.style.getPropertyValue('--roadDur') !== bucket + 's') body.style.setProperty('--roadDur', bucket + 's');
+    }
+  };
+
+  // ---------- Inicio ----------
+  var homePage = 0;
+  THEMES.home = {
+    name: 'Inicio', pv: ['#120c2a', '#ff375f', '#0a84ff'],
+    html: function () {
+      return '<div class="screen home"><div class="widgets stagger">' +
+        '<div class="card"><h4>Velocidad</h4><div class="big"><span data-k="kmhInt">0</span><span class="unit">km/h</span></div></div>' +
+        '<div class="card"><h4>Viaje</h4><div class="big"><span data-k="dist">0.0</span><span class="unit">km</span></div></div>' +
+        '<div class="card battery-v"><h4>Batería</h4><div class="big"><span data-k="battV">—</span><span class="unit">V</span></div></div>' +
+        '</div><div class="pages" id="pages"><div class="track" id="track"></div></div><div class="dots" id="dots"></div></div>';
+    },
+    mount: function () { renderHomePages(); },
+    apps: function () { renderHomePages(); }
+  };
+  function visibleApps() { return apps.filter(function (a) { return !a.hidden; }); }
+  function appHtml(a) {
+    return '<div class="app' + (a.hidden ? ' hid' : '') + '" data-app="' + esc(a.key) + '"><div class="ic"><img src="' + a.icon + '" alt=""></div><label>' + esc(a.label) + '</label></div>';
+  }
+  function renderHomePages() {
+    var track = $('#track'), pages = $('#pages');
+    if (!track) return;
+    var list = visibleApps(), per = 18, n = Math.max(1, Math.ceil(list.length / per)), w = pages.clientWidth, html = '';
+    for (var p = 0; p < n; p++) html += '<div class="page" style="width:' + w + 'px">' + list.slice(p * per, p * per + per).map(appHtml).join('') + '</div>';
+    track.innerHTML = html;
+    homePage = Math.min(homePage, n - 1);
+    $('#dots').innerHTML = n > 1 ? new Array(n + 1).join('<i></i>') : '';
+    showHomePage(homePage);
+  }
+  function showHomePage(p) {
+    var track = $('#track');
+    if (!track) return;
+    var n = track.children.length;
+    homePage = Math.max(0, Math.min(n - 1, p));
+    track.style.transform = 'translateX(' + (-homePage * $('#pages').clientWidth) + 'px)';
+    $$('#dots i').forEach(function (d, i) { d.classList.toggle('on', i === homePage); });
+  }
+
+  var ORDER = ['terminal', 'glass', 'dusk', 'cockpit', 'home'];
+
+  // ================= montaje =================
+  function applyLook() {
+    if (!THEMES[prefs.theme]) prefs.theme = 'cockpit';
+    body.setAttribute('data-theme', prefs.theme);
+    body.setAttribute('data-mode', resolvedMode());
+    body.setAttribute('data-fx', prefs.fx);
+  }
+  function mountTheme() {
+    applyLook();
+    current = THEMES[prefs.theme];
+    $('#view').innerHTML = current.html();
+    if (current.mount) current.mount();
+    renderDock();
+    renderPanelState();
+    tick();
+    initParticles();
+  }
+
+  function renderDock() {
+    var pinned = apps.filter(function (a) { return a.pinned && !a.hidden; });
+    if (!pinned.length) pinned = visibleApps().slice(0, 4);
+    $('#dock').innerHTML = pinned.slice(0, 6).map(function (a) {
+      return '<button class="dock-app" data-app="' + esc(a.key) + '"><img src="' + a.icon + '" alt=""></button>';
+    }).join('') + '<button class="dock-app apps-btn" id="btnApps" aria-label="Todas las apps"><span><i></i><i></i><i></i><i></i></span></button>';
+  }
+
+  function loadApps() {
+    try { apps = JSON.parse(R.apps()) || []; } catch (e) { apps = []; }
+    apps.sort(function (a, b) { return a.label.localeCompare(b.label, 'es'); });
+    renderDock();
+    if (current && current.apps) current.apps();
+    if ($('#drawer').classList.contains('open')) renderDrawer();
+  }
+
+  // ================= datos en vivo =================
+  function poll() {
+    try { S = JSON.parse(R.state()) || {}; } catch (e) { S = {}; }
+    tick();
+  }
+  function tick() {
+    var d = new Date();
+    setK('time', pad(d.getHours()) + ':' + pad(d.getMinutes()));
+    setK('dateShort', DAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3));
+    setK('dateLong', dateLong(d));
+    setK('greet', greet());
+    setK('dist', num(S.distKm, 1));
+    setK('moving', fmtMin(S.movingMin));
+    setK('avgKmh', num(S.avgKmh));
+    setK('maxKmh', num(S.maxKmh));
+    setK('battV', S.batteryV > 0 ? S.batteryV.toFixed(1) : '—');
+    setK('battState', battText());
+    setK('sats', S.satsUsed >= 0 ? S.satsUsed + '/' + S.satsSeen : '—');
+    setK('satsUsedTxt', S.satsUsed >= 0 ? S.satsUsed : '—');
+    setK('satsTxt', S.fix ? S.satsUsed + ' satélites, con señal' : 'buscando señal…');
+    setK('heading', S.heading || '—');
+    setK('alt', S.alt != null ? Math.round(S.alt) + ' m' : '—');
+    setK('acc', S.acc != null ? '±' + Math.round(S.acc) + ' m' : '—');
+    setK('lat', S.lat != null ? S.lat.toFixed(5) : '—');
+    setK('lon', S.lon != null ? S.lon.toFixed(5) : '—');
+    setK('cpuTemp', S.cpuTemp || '—');
+    setK('volTxt', S.vol != null ? S.vol + '/' + S.volMax : '—');
+    setK('gpsLine', S.fix ? 'Rumbo ' + (S.heading || '—') + ' · ±' + Math.round(S.acc || 0) + ' m' : 'Buscando GPS…');
+    $('#stMid').textContent = prefs.theme === 'terminal' ? 'rav4@k4811 · ' + (S.fix ? 'driving' : 'idle') : (S.fix ? 'Rumbo ' + (S.heading || '—') + (S.alt != null ? ' · ' + Math.round(S.alt) + ' m s. n. m.' : '') : '');
+    $$('[data-w="batt"]').forEach(function (e) { e.style.width = battPct() + '%'; });
+
+    toggleIco('gps', S.fix); toggleIco('bt', S.bt); toggleIco('wifi', S.wifi); toggleIco('batt', S.batteryV > 0);
+    var bi = $('[data-on="batt"]'); bi.classList.toggle('low', battClass() === 'low'); bi.classList.toggle('chg', battClass() === 'chg');
+
+    watchEvents();
+    if (current && current.tick) current.tick();
+    if (prefs.theme === 'dusk' && d.getSeconds() % 30 === 0) paintSky();
+    if (prefs.mode === 'auto' && body.getAttribute('data-mode') !== resolvedMode()) applyLook();
+    syncControls();
+  }
+  function toggleIco(k, on) { var e = $('[data-on="' + k + '"]'); if (e) e.classList.toggle('on', !!on); }
+
+  setInterval(function () { hist.push(S.kmh || 0); if (hist.length > 180) hist.shift(); }, 1000);
+
+  function drawSpark(cv, color) {
+    if (!cv) return;
+    var w = cv.clientWidth, h = cv.clientHeight, dpr = window.devicePixelRatio || 1;
+    if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    var c = cv.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, w, h);
+    c.strokeStyle = 'rgba(127,127,127,.18)';
+    c.lineWidth = 1;
+    for (var g = 1; g < 4; g++) { c.beginPath(); c.moveTo(0, h * g / 4); c.lineTo(w, h * g / 4); c.stroke(); }
+    if (hist.length < 2) return;
+    var max = Math.max(60, Math.max.apply(null, hist) * 1.15), n = 180;
+    c.beginPath();
+    for (var i = 0; i < hist.length; i++) {
+      var x = w - (hist.length - 1 - i) * w / (n - 1), y = h - hist[i] / max * (h - 4) - 2;
+      if (i) c.lineTo(x, y); else c.moveTo(x, y);
+    }
+    c.strokeStyle = color; c.lineWidth = 2; c.shadowColor = color; c.shadowBlur = prefs.fx === 'high' ? 10 : 0; c.stroke();
+    c.lineTo(w, h); c.lineTo(w - (hist.length - 1) * w / (n - 1), h); c.closePath();
+    c.shadowBlur = 0; c.globalAlpha = .12; c.fillStyle = color; c.fill(); c.globalAlpha = 1;
+  }
+
+  // ================= animación por cuadro =================
+  var lastT = 0, frames = 0, fpsStart = 0;
+  function frame(t) {
+    var dt = lastT ? Math.min(0.1, (t - lastT) / 1000) : 0.016;
+    lastT = t;
+    var target = S.kmh || 0;
+    shownKmh += params.shot ? target - shownKmh : (target - shownKmh) * Math.min(1, dt * 4);
+    if (Math.abs(target - shownKmh) < 0.05) shownKmh = target;
+    setK('kmhInt', Math.round(shownKmh));
+    if (current && current.frame) current.frame(dt);
+    drawParticles(dt);
+    measureFps(t);
+    requestAnimationFrame(frame);
+  }
+
+  // Si la radio no llega a ~35 fps con efectos altos, baja a "suaves" una sola vez y avisa.
+  function measureFps(t) {
+    if (prefs.fx !== 'high' || R.pref('fxChecked', '') === '1' || SIM) return;
+    if (!fpsStart) { fpsStart = t; frames = 0; return; }
+    frames++;
+    if (t - fpsStart > 4000) {
+      var fps = frames * 1000 / (t - fpsStart);
+      R.setPref('fxChecked', '1');
+      if (fps < 35) { setPref('fx', 'low'); toast('Efectos reducidos para que vaya fluido (' + Math.round(fps) + ' fps). Cámbialo en el Panel.'); }
+    }
+  }
+
+  // ================= partículas =================
+  var P = [], cv = $('#particles'), cx = cv.getContext('2d'), pAcc = 0;
+  function initParticles() {
+    P = [];
+    if (prefs.fx !== 'high') return;
+    var n = prefs.theme === 'terminal' ? 0 : prefs.theme === 'cockpit' ? 34 : 22;
+    for (var i = 0; i < n; i++) P.push(newP(true));
+  }
+  function newP(any) {
+    var W = innerWidth, H = innerHeight;
+    if (prefs.theme === 'cockpit') return { x: any ? Math.random() * W : W + 20, y: H * (.08 + Math.random() * .42), l: 20 + Math.random() * 80, v: .4 + Math.random(), a: .15 + Math.random() * .4 };
+    return { x: Math.random() * W, y: any ? Math.random() * H : H + 20, r: 1 + Math.random() * 3.5, v: 6 + Math.random() * 16, a: .1 + Math.random() * .35, ph: Math.random() * 6.28 };
+  }
+  function drawParticles(dt) {
+    if (!P.length) { if (cv.width) { cv.width = 0; } return; }
+    pAcc += dt;
+    if (pAcc < 1 / 30) return;   // 30 fps alcanzan para el fondo y ahorran CPU
+    dt = pAcc; pAcc = 0;
+    var W = innerWidth, H = innerHeight;
+    if (cv.width !== W) { cv.width = W; cv.height = H; }
+    cx.clearRect(0, 0, W, H);
+    var dusk = prefs.theme === 'dusk', night = dusk && (hourNow() >= 19 || hourNow() < 6);
+    for (var i = 0; i < P.length; i++) {
+      var p = P[i];
+      if (prefs.theme === 'cockpit') {
+        p.x -= (60 + shownKmh * 9) * p.v * dt;
+        if (p.x + p.l < 0) { P[i] = newP(false); continue; }
+        var gr = cx.createLinearGradient(p.x, 0, p.x + p.l, 0);
+        gr.addColorStop(0, 'rgba(0,229,255,0)'); gr.addColorStop(1, 'rgba(0,229,255,' + p.a + ')');
+        cx.strokeStyle = gr; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(p.x, p.y); cx.lineTo(p.x + p.l, p.y); cx.stroke();
+      } else {
+        p.y -= p.v * dt; p.ph += dt; p.x += Math.sin(p.ph) * 8 * dt;
+        if (p.y < -10) { P[i] = newP(false); continue; }
+        var col = night ? '255,230,140' : dusk ? '255,220,200' : '200,220,255';
+        cx.fillStyle = 'rgba(' + col + ',' + (p.a * (night ? (0.5 + 0.5 * Math.sin(p.ph * 3)) : 1)) + ')';
+        cx.beginPath(); cx.arc(p.x, p.y, p.r, 0, 6.283); cx.fill();
+      }
+    }
+  }
+
+  // ================= panel y cajón =================
+  function openSheet(id) {
+    closeSheets(true);
+    var el = $('#' + id);
+    el.classList.add('open');
+    $('#scrim').classList.add('on');
+    if (id === 'drawer') renderDrawer();
+    if (id === 'panel') renderPanelState();
+  }
+  function closeSheets(silent) {
+    var was = $$('.sheet.open').length > 0;
+    $$('.sheet').forEach(function (s) { s.classList.remove('open'); });
+    $('#scrim').classList.remove('on');
+    return was;
+  }
+  function renderDrawer() {
+    var list = showHiddenApps ? apps : visibleApps();
+    $('#appGrid').innerHTML = list.map(appHtml).join('');
+    $$('#appGrid .app').forEach(function (e, i) { e.style.animationDelay = Math.min(i, 28) * 0.02 + 's'; });
+    var hc = apps.length - visibleApps().length;
+    $('#appCount').textContent = visibleApps().length + ' apps · ' + hc + ' ocultas';
+    $('#showHidden').classList.toggle('on', showHiddenApps);
+  }
+
+  function renderPanelState() {
+    $('#themeList').innerHTML = ORDER.map(function (k) {
+      var t = THEMES[k], c = t.pv;
+      return '<button class="th' + (k === prefs.theme ? ' on' : '') + '" data-theme-pick="' + k + '"><div class="pv" style="background:linear-gradient(135deg,' + c[0] + ',' + c[0] + ' 40%,' + c[1] + ')">' +
+        '<i style="left:12%;top:22%;width:30%;height:56%;background:' + c[2] + ';opacity:.85"></i><i style="left:48%;top:22%;width:40%;height:24%;background:rgba(255,255,255,.35)"></i>' +
+        '<i style="left:48%;top:54%;width:40%;height:24%;background:rgba(255,255,255,.2)"></i></div><b>' + t.name + '</b></button>';
+    }).join('');
+    $$('.seg').forEach(function (seg) {
+      var k = seg.getAttribute('data-pref');
+      $$('button', seg).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === prefs[k]); });
+    });
+    $('#version').textContent = 'RAV4 Launcher ' + R.version() + (SIM ? ' · simulación en navegador' : '');
+  }
+
+  // sliders de volumen y brillo
+  var dragging = null, sendT = 0;
+  function sliderSet(el, f) { $('.fill', el).style.width = (Math.max(0, Math.min(1, f)) * 100) + '%'; }
+  function syncControls() {
+    if (dragging !== 'vol' && S.volMax) { sliderSet($('#volSlider'), S.vol / S.volMax); $('#volVal').textContent = S.vol + ' / ' + S.volMax; }
+    if (dragging !== 'br' && S.bright != null) { sliderSet($('#brSlider'), S.bright / 100); $('#brVal').textContent = S.bright + ' %'; }
+    var tw = $('[data-toggle="wifi"]'), tb = $('[data-toggle="bt"]');
+    tw.classList.toggle('on', !!S.wifi); tb.classList.toggle('on', !!S.bt);
+  }
+  function bindSlider(id, kind) {
+    var el = $(id);
+    function val(e) { var r = el.getBoundingClientRect(); return (e.clientX - r.left) / r.width; }
+    function apply(f, final) {
+      f = Math.max(0, Math.min(1, f));
+      sliderSet(el, f);
+      if (kind === 'vol') {
+        var v = Math.round(f * (S.volMax || 40));
+        $('#volVal').textContent = v + ' / ' + (S.volMax || 40);
+        if (final || Date.now() - sendT > 120) { sendT = Date.now(); R.setVolume(v); }
+      } else {
+        var p = Math.max(S.brightMin || 18, Math.round(f * 100));
+        $('#brVal').textContent = p + ' %';
+        if (final || Date.now() - sendT > 120) { sendT = Date.now(); R.setBrightness(p); }
+      }
+    }
+    el.addEventListener('pointerdown', function (e) {
+      if (kind === 'br' && S.canBright === false) { R.permission('brightness'); toast('Autoriza "Modificar ajustes del sistema" para el launcher'); return; }
+      dragging = kind; el.classList.add('drag'); el.setPointerCapture(e.pointerId); apply(val(e));
+    });
+    el.addEventListener('pointermove', function (e) { if (dragging === kind) apply(val(e)); });
+    function end(e) { if (dragging !== kind) return; apply(val(e), true); dragging = null; el.classList.remove('drag'); setTimeout(poll, 400); }
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', function () { dragging = null; el.classList.remove('drag'); });
+  }
+
+  function stepVol(d) { var v = Math.max(0, Math.min(S.volMax || 40, (S.vol || 0) + d)); R.setVolume(v); S.vol = v; syncControls(); setTimeout(poll, 350); }
+  function stepBr(d) {
+    if (S.canBright === false) { R.permission('brightness'); return; }
+    var p = Math.max(S.brightMin || 18, Math.min(100, (S.bright || 50) + d)); R.setBrightness(p); S.bright = p; syncControls();
+  }
+
+  function setPref(k, v) {
+    prefs[k] = v; R.setPref(k, v);
+    if (k === 'theme') { mountTheme(); closeSheetsSoon(); }
+    else { applyLook(); initParticles(); renderPanelState(); if (k === 'fx' && current.apps) current.apps(); }
+  }
+  function closeSheetsSoon() { setTimeout(function () { closeSheets(); }, 250); }
+
+  // ================= gestos =================
+  // Deslizar → abre el panel (desde la izquierda, lado del conductor); ← abre las apps.
+  // En "Inicio", ← / → cambian de página salvo que el gesto empiece en el borde izquierdo.
+  var g = null, suppressClick = false;
+  document.addEventListener('pointerdown', function (e) {
+    g = { x: e.clientX, y: e.clientY, t: Date.now(), edge: e.clientX < innerWidth * 0.12, target: e.target };
+    if (g.edge && !$('.sheet.open')) $('#stage').classList.add('dragging-edge');
+    if (prefs.fx !== 'off') ripple(e);
+    startLongPress(e);
+  }, true);
+  document.addEventListener('pointermove', function (e) {
+    if (g && (Math.abs(e.clientX - g.x) > 12 || Math.abs(e.clientY - g.y) > 12)) cancelLongPress();
+  }, true);
+  document.addEventListener('pointerup', function (e) {
+    $('#stage').classList.remove('dragging-edge');
+    cancelLongPress();
+    if (!g || dragging) { g = null; return; }
+    var dx = e.clientX - g.x, dy = e.clientY - g.y, start = g;
+    g = null;
+    if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
+    suppressClick = true; setTimeout(function () { suppressClick = false; }, 60);
+    var panel = $('#panel').classList.contains('open'), drawer = $('#drawer').classList.contains('open');
+    if (panel) { if (dx < 0) closeSheets(); return; }
+    if (drawer) { if (dx > 0) closeSheets(); return; }
+    if (prefs.theme === 'home' && !start.edge && start.target.closest && start.target.closest('#pages')) { showHomePage(homePage + (dx < 0 ? 1 : -1)); return; }
+    if (dx > 0) openSheet('panel'); else openSheet('drawer');
+  }, true);
+  document.addEventListener('pointercancel', function () { g = null; cancelLongPress(); $('#stage').classList.remove('dragging-edge'); }, true);
+  document.addEventListener('click', function (e) { if (suppressClick || longFired) { e.stopPropagation(); e.preventDefault(); longFired = false; } }, true);
+
+  var lpT = null, longFired = false;
+  function startLongPress(e) {
+    longFired = false;
+    var a = e.target.closest && e.target.closest('[data-app]');
+    if (!a) return;
+    lpT = setTimeout(function () {
+      longFired = true;
+      if (navigator.vibrate) navigator.vibrate(20);
+      R.appMenu(a.getAttribute('data-app'));
+    }, 550);
+  }
+  function cancelLongPress() { clearTimeout(lpT); lpT = null; }
+
+  function ripple(e) {
+    var t = e.target.closest && e.target.closest('.tile,.app,.dock-app,.th,.list button,.media button,.round,.seg button');
+    if (!t) return;
+    var r = document.createElement('i');
+    r.className = 'ripple'; r.style.left = e.clientX + 'px'; r.style.top = e.clientY + 'px';
+    document.body.appendChild(r);
+    setTimeout(function () { r.parentNode && r.parentNode.removeChild(r); }, 600);
+  }
+
+  // ================= clics =================
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    var el;
+    if ((el = t.closest('[data-app]'))) { R.launch(el.getAttribute('data-app')); if (SIM) toast('Simulado: abrir ' + (el.textContent || 'app')); setTimeout(closeSheets, 300); return; }
+    if (t.closest('#btnApps')) { openSheet('drawer'); return; }
+    if (t.closest('#btnPanel')) { openSheet('panel'); return; }
+    if (t.closest('[data-close]') || t.id === 'scrim') { closeSheets(); return; }
+    if (t.closest('#showHidden')) { showHiddenApps = !showHiddenApps; renderDrawer(); return; }
+    if ((el = t.closest('[data-theme-pick]'))) { setPref('theme', el.getAttribute('data-theme-pick')); return; }
+    if ((el = t.closest('.seg button'))) { setPref(el.parentNode.getAttribute('data-pref'), el.getAttribute('data-v')); return; }
+    if ((el = t.closest('[data-media]'))) { R.media(el.getAttribute('data-media')); return; }
+    if ((el = t.closest('[data-open]'))) { R.open(el.getAttribute('data-open')); if (SIM) toast('Simulado: abrir ' + el.textContent.trim()); return; }
+    if ((el = t.closest('[data-toggle]'))) { R.toggle(el.getAttribute('data-toggle')); setTimeout(poll, 900); return; }
+    if ((el = t.closest('[data-act]'))) {
+      var a = el.getAttribute('data-act');
+      if (a === 'mute') { R.mute(); setTimeout(poll, 350); }
+      if (a === 'resetTrip') { R.resetTrip(); hist = []; toast('Viaje reiniciado'); setTimeout(poll, 200); }
+      if (a === 'checkUpdate') { R.checkUpdate(); closeSheets(); }
+      if (a === 'useNative') R.useNative();
+      return;
+    }
+    if (t.id === 'volDown') stepVol(-1);
+    if (t.id === 'volUp') stepVol(1);
+    if (t.id === 'brDown') stepBr(-10);
+    if (t.id === 'brUp') stepBr(10);
+  });
+
+  // ================= API para Android (WebHome.java) =================
+  window.RAV4 = {
+    back: function () { if (!closeSheets() && prefs.theme === 'home') showHomePage(0); },
+    resume: function () { closeSheets(); loadApps(); poll(); },
+    appsChanged: loadApps
+  };
+
+  // ================= simulador (solo navegador) =================
+  function makeSim() {
+    var kmh = params.kmh ? +params.kmh : 0, target = 45, dist = 3.2, max = 0, moving = 14, vol = 18, br = 62, wifi = true, bt = true, bearing = 60, batt = 13.8;
+    var store = {};
+    try { store = JSON.parse(localStorage.getItem('rav4sim') || '{}'); } catch (e) { }
+    setInterval(function () {
+      if (Math.random() < 0.03) target = [0, 20, 45, 60, 80, 105][Math.floor(Math.random() * 6)];
+      if (params.kmh) { kmh = +params.kmh; max = Math.max(max, kmh + 18); return; }
+      kmh = Math.max(0, kmh + (target - kmh) * 0.08 + (Math.random() - 0.5) * 1.5);
+      if (kmh > max) max = kmh;
+      if (kmh > 1) { dist += kmh / 3600 * 0.5; moving += 0.5 / 60; }
+      bearing = (bearing + (Math.random() - 0.5) * 6 + 360) % 360;
+      batt = kmh > 1 ? 13.9 + Math.random() * 0.2 : 12.6;
+    }, 500);
+    var COLORS = ['#ff375f', '#ff9f0a', '#30d158', '#0a84ff', '#bf5af2', '#64d2ff', '#ffd60a', '#ff453a', '#5e5ce6', '#32ade6'];
+    var NAMES = ['Música', 'Mapas', 'Waze', 'Spotify', 'YouTube', 'ZLINK', 'Radio FM', 'Bluetooth', 'Cámara', 'Videos', 'Galería', 'Ajustes',
+      'Chrome', 'Archivos', 'Clima', 'Notas', 'Teléfono', 'Mensajes', 'Calculadora', 'Reloj', 'Podcasts', 'Ecualizador', 'Radio Diagnóstico', 'Tienda'];
+    var simApps = NAMES.map(function (n, i) {
+      var c = COLORS[i % COLORS.length];
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c +
+        '"/><stop offset="1" stop-color="#111"/></linearGradient></defs><rect width="96" height="96" rx="20" fill="url(#g)"/><text x="48" y="62" font-size="44" font-family="Arial" font-weight="bold" fill="#fff" text-anchor="middle">' +
+        n.charAt(0) + '</text></svg>';
+      return { key: 'sim/' + i, pkg: 'sim.' + i, label: n, icon: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg), hidden: i === 23, pinned: i < 4 };
+    });
+    function hd(b) { var d = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO']; return d[Math.round(b / 45) % 8]; }
+    return {
+      state: function () {
+        var h = (Date.now() / 1000) % 3600;
+        return JSON.stringify({ kmh: kmh, maxKmh: max, distKm: dist, movingMin: moving, avgKmh: moving > 0 ? dist / (moving / 60) : 0, fix: true,
+          satsUsed: 9, satsSeen: 14, lat: -12.12, lon: -77.03, alt: 112, acc: 4, bearing: bearing, heading: hd(bearing), batteryV: batt,
+          vol: vol, volMax: 40, bright: br, brightMin: 18, canBright: true, wifi: wifi, bt: bt, cpuTemp: (48 + Math.round(h % 6)) + ' °C', sessionMin: 30 });
+      },
+      apps: function () { return JSON.stringify(simApps); },
+      launch: function () { }, appMenu: function (k) { toast('Simulado: menú de la app (fijar / ocultar / desinstalar)'); },
+      setVolume: function (v) { vol = v; }, mute: function () { vol = vol ? 0 : 18; }, setBrightness: function (p) { br = p; },
+      media: function (w) { toast('Simulado: ' + w); }, open: function () { },
+      toggle: function (w) { if (w === 'wifi') wifi = !wifi; else bt = !bt; },
+      pref: function (k, d) { return store[k] != null ? store[k] : d; },
+      setPref: function (k, v) { store[k] = v; try { localStorage.setItem('rav4sim', JSON.stringify(store)); } catch (e) { } },
+      resetTrip: function () { dist = 0; max = 0; moving = 0; }, checkUpdate: function () { toast('Simulado: buscar actualización'); },
+      useNative: function () { toast('Simulado: volver a la interfaz nativa'); },
+      version: function () { return 'web-preview'; }, permission: function () { }
+    };
+  }
+
+  // ================= arranque =================
+  scale();
+  window.addEventListener('resize', function () { scale(); if (current && current.apps) current.apps(); });
+  bindSlider('#volSlider', 'vol');
+  bindSlider('#brSlider', 'br');
+  try { apps = JSON.parse(R.apps()) || []; } catch (e) { apps = []; }
+  apps.sort(function (a, b) { return a.label.localeCompare(b.label, 'es'); });
+  poll();
+  mountTheme();
+  setInterval(poll, 500);
+  requestAnimationFrame(frame);
+  if (params.panel) openSheet('panel');
+  if (params.drawer) openSheet('drawer');
+})();

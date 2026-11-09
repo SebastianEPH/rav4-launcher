@@ -73,6 +73,7 @@ public class HomeActivity extends Activity {
     private SharedPreferences prefs;
     private Set<String> hidden, pinned;
     private Theme.Pal P;
+    private WebHome web;   // != null cuando la interfaz es la web (assets/web)
     private boolean lastDark;
 
     // vistas (pueden ser null según el tema)
@@ -98,7 +99,7 @@ public class HomeActivity extends Activity {
             android.widget.Toast.makeText(HomeActivity.this,
                     ok ? "✅ La radio aceptó la orden de desinstalar." : "⚠️ La radio no pudo desinstalar esa app.",
                     android.widget.Toast.LENGTH_LONG).show();
-            h.postDelayed(new Runnable() { public void run() { rebuildDock(); refreshDrawer(); if (homeGrid != null) showPage(homePage); } }, 1500);
+            h.postDelayed(new Runnable() { public void run() { rebuildDock(); refreshDrawer(); if (homeGrid != null) showPage(homePage); if (web != null) web.appsChanged(); } }, 1500);
         }
     };
 
@@ -133,7 +134,7 @@ public class HomeActivity extends Activity {
     }
 
     @Override
-    protected void onResume() { super.onResume(); immersive(); rebuildDock(); }
+    protected void onResume() { super.onResume(); immersive(); rebuildDock(); if (web != null) web.js("RAV4.resume()"); }
 
     @Override
     public void onWindowFocusChanged(boolean f) { super.onWindowFocusChanged(f); if (f) immersive(); }
@@ -155,6 +156,7 @@ public class HomeActivity extends Activity {
     protected void onNewIntent(Intent i) { super.onNewIntent(i); closeOverlays(); }
 
     private void closeOverlays() {
+        if (web != null) { web.js("RAV4.back()"); return; }
         if (settings != null && settings.getVisibility() == View.VISIBLE) { settings.setVisibility(View.GONE); immersive(); return; }
         if (isOpen(cc)) { closeCC(); return; }
         closeDrawer();
@@ -187,6 +189,16 @@ public class HomeActivity extends Activity {
         P = Theme.fromPrefs(prefs);
         Theme.P = P;
         lastDark = P.dark;
+        if (useWeb()) {
+            dock = null; drawer = null; cc = null; settings = null; homeGrid = null;
+            volLabel = brLabel = null; gauge = null; spark = null; clock = date = prompt = chips = sysPanel = gnssMini = null;
+            tDist = tTime = tAvg = tMax = null;
+            if (web == null) web = new WebHome(this);
+            setContentView(web.view());
+            immersive();
+            return;
+        }
+        if (web != null) { web.destroy(); web = null; }
         volLabel = brLabel = null; gauge = null; spark = null; clock = date = prompt = chips = sysPanel = gnssMini = null;
         tDist = tTime = tAvg = tMax = null;
 
@@ -1124,11 +1136,11 @@ public class HomeActivity extends Activity {
         try { sendBroadcast(i); } catch (Exception e) { }
         android.widget.Toast.makeText(this, "Orden enviada: se intentará quitar " + pkg
                 + ". Si sigue apareciendo, la radio no permitió quitarla.", android.widget.Toast.LENGTH_LONG).show();
-        h.postDelayed(new Runnable() { public void run() { rebuildDock(); refreshDrawer(); if (homeGrid != null) showPage(homePage); } }, 2500);
+        h.postDelayed(new Runnable() { public void run() { rebuildDock(); refreshDrawer(); if (homeGrid != null) showPage(homePage); if (web != null) web.appsChanged(); } }, 2500);
     }
 
-    private void togglePin(String k) { if (!pinned.remove(k)) pinned.add(k); saveSets(); rebuildDock(); refreshDrawer(); }
-    private void toggleHidden(String k) { if (!hidden.remove(k)) hidden.add(k); saveSets(); rebuildDock(); refreshDrawer(); }
+    private void togglePin(String k) { if (!pinned.remove(k)) pinned.add(k); saveSets(); rebuildDock(); refreshDrawer(); if (web != null) web.appsChanged(); }
+    private void toggleHidden(String k) { if (!hidden.remove(k)) hidden.add(k); saveSets(); rebuildDock(); refreshDrawer(); if (web != null) web.appsChanged(); }
 
     private void appInfo(String pkg) {
         try {
@@ -1698,6 +1710,9 @@ public class HomeActivity extends Activity {
         leftScroll.addView(left);
         cols.addView(leftScroll, new LinearLayout.LayoutParams(0, -1, 0.85f));
 
+        left.addView(section("INTERFAZ"));
+        left.addView(choice(new String[]{"Nativa", "Web (animada)"}, new String[]{"native", "web"},
+                prefs.getString("engine", "native"), "engine"));
         left.addView(section("TEMA"));
         String th = prefs.getString("theme", Theme.TERMINAL);
         String[][] themes = {
@@ -1879,6 +1894,14 @@ public class HomeActivity extends Activity {
     // ======================= datos en vivo =======================
     private final Runnable tick = new Runnable() {
         public void run() {
+            if (web != null) {
+                enforceMinBrightness();
+                if ((SystemClock.elapsedRealtime() / 1000) % 3 == 0)
+                    try { sendBroadcast(new Intent("com.nwd.action.ACTION_QUERY_CAN_BATTERY_VOLTAGE")); } catch (Exception e) { }
+                if (gpsOn && !fresh()) curKmh = 0;
+                h.postDelayed(this, 1000);
+                return;
+            }
             // modo auto: cambia claro/oscuro según la hora
             if (Theme.AUTO.equals(prefs.getString("mode", Theme.DARK)) && Theme.isDarkNow(Theme.AUTO) != lastDark
                     && settings.getVisibility() != View.VISIBLE) applyTheme();
@@ -2072,6 +2095,76 @@ public class HomeActivity extends Activity {
         float hrs = movingMs / 3600000f;
         tAvg.setText(hrs > 0.003f ? String.format(Locale.US, "%.0f", (distM / 1000f) / hrs) : "--");
         tMax.setText(String.format(Locale.US, "%.0f", maxKmh));
+    }
+
+    // ======================= puente para la interfaz web (WebHome) =======================
+    private boolean useWeb() { return "web".equals(prefs.getString("engine", "native")); }
+
+    static String keyOf(ResolveInfo r) { return key(r); }
+    List<ResolveInfo> webLaunchables() { return launchables(); }
+    boolean webIsHidden(String k) { return hidden.contains(k); }
+    boolean webIsPinned(String k) { return pinned.contains(k); }
+    SharedPreferences webPrefs() { return prefs; }
+    void webStart(ResolveInfo r) { start(r); }
+    void webAppMenu(ResolveInfo r) { appMenu(r); }
+    void webMute() { mute(); }
+    void webResetTrip() { resetTrip(); }
+    void webCheckUpdate() { new Updater(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).check(); }
+    void webUseNative() { prefs.edit().putString("engine", "native").apply(); applyTheme(); }
+
+    void webSetVolume(int v) {
+        v = Math.max(0, Math.min(volMax(), v));
+        if (isNwd()) nwdSetVolume(v);
+        else {
+            android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+            am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, v, 0);
+        }
+    }
+
+    /** Brillo en %, nunca por debajo del mínimo (por debajo la pantalla de la radio se apaga). */
+    void webSetBrightness(int pct) {
+        if (Build.VERSION.SDK_INT >= 23 && !android.provider.Settings.System.canWrite(this)) return;
+        int v = Math.max(MIN_BRIGHTNESS, Math.min(255, Math.round(pct * 255f / 100f)));
+        try {
+            android.content.ContentResolver cr = getContentResolver();
+            android.provider.Settings.System.putInt(cr, android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE, 0);
+            android.provider.Settings.System.putInt(cr, android.provider.Settings.System.SCREEN_BRIGHTNESS, v);
+        } catch (Exception e) { }
+    }
+
+    org.json.JSONObject webState() throws org.json.JSONException {
+        org.json.JSONObject o = new org.json.JSONObject();
+        boolean fr = fresh();
+        o.put("kmh", fr ? curKmh : 0);
+        o.put("maxKmh", maxKmh);
+        o.put("distKm", distM / 1000f);
+        o.put("movingMin", movingMs / 60000f);
+        float hrs = movingMs / 3600000f;
+        o.put("avgKmh", hrs > 0.003f ? (distM / 1000f) / hrs : 0);
+        o.put("fix", fr);
+        o.put("satsUsed", satsUsed);
+        o.put("satsSeen", satsSeen);
+        if (last != null) {
+            o.put("lat", last.getLatitude());
+            o.put("lon", last.getLongitude());
+            o.put("alt", last.getAltitude());
+            o.put("acc", last.getAccuracy());
+            o.put("bearing", last.hasBearing() ? last.getBearing() : -1);
+            o.put("heading", heading(last));
+        }
+        o.put("batteryV", batteryV);
+        o.put("vol", volNow());
+        o.put("volMax", volMax());
+        int b = 128;
+        try { b = android.provider.Settings.System.getInt(getContentResolver(), android.provider.Settings.System.SCREEN_BRIGHTNESS); } catch (Exception e) { }
+        o.put("bright", Math.round(b * 100f / 255f));
+        o.put("brightMin", Math.round(MIN_BRIGHTNESS * 100f / 255f));
+        o.put("canBright", Build.VERSION.SDK_INT < 23 || android.provider.Settings.System.canWrite(this));
+        o.put("wifi", wifiConnected());
+        o.put("bt", btOn());
+        o.put("cpuTemp", cpuTemp());
+        o.put("sessionMin", (SystemClock.elapsedRealtime() - sessionTs) / 60000f);
+        return o;
     }
 
     // ======================= helpers =======================

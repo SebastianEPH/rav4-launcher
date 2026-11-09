@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>RAV4 Launcher</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-theme="cockpit" data-fx="high" data-mode="dark">
+
+<div id="stage">
+  <!-- fondos animados por tema -->
+  <div id="bg">
+    <div class="aurora"><i></i><i></i><i></i><i></i></div>
+    <div class="sky">
+      <div class="stars"></div>
+      <div class="orb" id="orb"></div>
+      <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+    </div>
+    <div class="road"><div class="grid"></div><div class="horizon"></div></div>
+    <div class="crt"></div>
+    <canvas id="particles"></canvas>
+  </div>
+
+  <header id="status">
+    <button class="st-btn" id="btnPanel" aria-label="Abrir panel"><span class="burger"><i></i><i></i><i></i></span></button>
+    <div class="st-time"><b data-k="time">--:--</b><span data-k="dateShort"></span></div>
+    <div class="st-mid" id="stMid"></div>
+    <div class="st-icons">
+      <span class="ico" data-on="gps" title="GPS"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg><em data-k="sats">—</em></span>
+      <span class="ico" data-on="bt" title="Bluetooth"><svg viewBox="0 0 24 24"><path d="M17.7 7.7 12 2h-1v7.6L6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l4.6-4.6V22h1l5.7-5.7-4.3-4.3 4.3-4.3zM13 5.8l1.9 1.9L13 9.6V5.8zm1.9 10.5L13 18.2v-3.8l1.9 1.9z"/></svg></span>
+      <span class="ico" data-on="wifi" title="WiFi"><svg viewBox="0 0 24 24"><path d="M12 21 0 8.6A17 17 0 0 1 24 8.6L12 21z"/></svg></span>
+      <span class="ico batt" data-on="batt" title="Batería del auto"><svg viewBox="0 0 24 24"><path d="M4 8h14a1 1 0 0 1 1 1v1h1.5v4H19v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/></svg><em data-k="battV">—</em></span>
+    </div>
+  </header>
+
+  <aside id="dock"></aside>
+  <main id="view"></main>
+  <div id="edgeHint"></div>
+</div>
+
+<!-- panel lateral izquierdo (lado del conductor): controles y configuración -->
+<section id="panel" class="sheet left">
+  <div class="sheet-head">
+    <h2>Panel</h2>
+    <button class="close" data-close>✕</button>
+  </div>
+  <div class="sheet-body">
+    <div class="group">
+      <h3>Controles</h3>
+      <div class="slider-row">
+        <button class="round" id="volDown">−</button>
+        <div class="slider" id="volSlider"><div class="fill"></div><div class="knob"></div><label>Volumen <b id="volVal">—</b></label></div>
+        <button class="round" id="volUp">+</button>
+      </div>
+      <div class="slider-row">
+        <button class="round" id="brDown">☼</button>
+        <div class="slider" id="brSlider"><div class="fill"></div><div class="knob"></div><label>Brillo <b id="brVal">—</b></label></div>
+        <button class="round" id="brUp">☀</button>
+      </div>
+      <div class="tiles">
+        <button class="tile" data-act="mute"><span>🔇</span>Silencio</button>
+        <button class="tile" data-toggle="wifi"><span>📶</span>WiFi</button>
+        <button class="tile" data-toggle="bt"><span>🔵</span>Bluetooth</button>
+        <button class="tile" data-open="phone"><span>📱</span>CarPlay / AA</button>
+        <button class="tile" data-open="car"><span>🚙</span>Datos del auto</button>
+        <button class="tile" data-act="resetTrip"><span>↺</span>Reiniciar viaje</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>Tema</h3>
+      <div class="themes" id="themeList"></div>
+    </div>
+
+    <div class="group two">
+      <div>
+        <h3>Apariencia</h3>
+        <div class="seg" data-pref="mode">
+          <button data-v="dark">Oscuro</button><button data-v="light">Claro</button><button data-v="auto">Auto</button>
+        </div>
+      </div>
+      <div>
+        <h3>Efectos</h3>
+        <div class="seg" data-pref="fx">
+          <button data-v="high">Altos</button><button data-v="low">Suaves</button><button data-v="off">Ninguno</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>Sistema</h3>
+      <div class="list">
+        <button data-act="checkUpdate">Buscar actualización <i>›</i></button>
+        <button data-open="home">Elegir launcher predeterminado <i>›</i></button>
+        <button data-open="android">Ajustes de Android <i>›</i></button>
+        <button data-act="useNative">Volver a la interfaz nativa <i>›</i></button>
+      </div>
+      <p class="ver" id="version"></p>
+    </div>
+  </div>
+</section>
+
+<!-- cajón de apps (derecha) -->
+<section id="drawer" class="sheet right">
+  <div class="sheet-head">
+    <h2>Apps <small id="appCount"></small></h2>
+    <button class="chip" id="showHidden">Ver ocultas</button>
+    <button class="close" data-close>✕</button>
+  </div>
+  <div class="sheet-body"><div class="app-grid" id="appGrid"></div></div>
+  <p class="tip">Mantén presionada una app para fijarla en el dock, ocultarla o desinstalarla.</p>
+</section>
+
+<div id="scrim"></div>
+<div id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
