@@ -25,11 +25,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Instalar Android SDK
+      # Por defecto la acción pide el paquete 'tools', que ya no existe y rompe el paso.
+      - name: Instalar Android SDK (build-tools y plataforma)
         uses: android-actions/setup-android@v3
-
-      - name: Instalar build-tools y plataforma
-        run: sdkmanager "platform-tools" "platforms;android-33" "build-tools;34.0.0"
+        with:
+          packages: 'platform-tools platforms;android-33 build-tools;34.0.0'
 
       - name: Compilar APK
         run: |
