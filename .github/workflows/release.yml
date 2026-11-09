@@ -1,18 +1,25 @@
 name: Release APK
 
-# Se dispara al empujar un tag tipo v1.3, o a mano desde la pestaña Actions.
+# Cada push a main compila, firma y publica un Release con versión automática.
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+    paths-ignore:
+      - '**.md'
   workflow_dispatch:
 
 permissions:
-  contents: write   # necesario para crear el Release y subir el APK
+  contents: write   # necesario para crear el tag, el Release y subir el APK
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      VERSION: v1.3.${{ github.run_number }}
     steps:
       - name: Clonar repo (historial completo para las notas)
         uses: actions/checkout@v4
@@ -31,30 +38,43 @@ jobs:
         with:
           packages: 'platform-tools platforms;android-33 build-tools;34.0.0'
 
+      # Misma clave que la del Mac: así la radio instala la versión nueva encima de la anterior.
+      - name: Restaurar la clave de firma
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Falta el secreto KEYSTORE_B64; sin él el APK no se podría instalar encima del actual."
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > debug.keystore
+
       - name: Compilar APK
         run: |
           chmod +x build.sh
           ./build.sh
 
-      - name: Renombrar APK con la versión del tag
+      - name: Renombrar APK con la versión
         id: apk
         run: |
-          NAME="RAV4Launcher-${GITHUB_REF_NAME}.apk"
+          NAME="RAV4Launcher-${VERSION}.apk"
           cp RAV4Launcher.apk "$NAME"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           sha256sum "$NAME"
 
       - name: Publicar Release con el APK y las notas
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          name: RAV4 Launcher ${{ github.ref_name }}
+          tag_name: ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: RAV4 Launcher ${{ env.VERSION }}
           files: ${{ steps.apk.outputs.name }}
+          make_latest: true
           generate_release_notes: true
           body: |
-            **Launcher RAV4** — compilado automáticamente desde el tag `${{ github.ref_name }}`.
+            **Launcher RAV4** — compilado automáticamente desde `main` (commit `${{ github.sha }}`).
 
-            Instalación: descarga el `.apk`, cópialo a un USB, instálalo en la radio
-            y elígelo como launcher por defecto.
+            Instalación: descarga el `.apk`, cópialo a un USB e instálalo en la radio.
+            Está firmado con la misma clave que las versiones anteriores, así que se instala encima.
 
             Abajo el detalle de qué se agregó/cambió desde la versión anterior.
