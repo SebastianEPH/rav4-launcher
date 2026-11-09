@@ -99,8 +99,19 @@ En `../radio-diagnostico/`. App para exportar al USB el informe de la radio + la
 (o todas). Carpeta de salida: `RadioDiagnostico/` (informe .txt + carpeta `apps/`). Borra el
 diagnóstico anterior antes de guardar. Se usa para seguir analizando apps y encontrar más funciones.
 
+## Prototipo Web (web-prototype.html)
+Versión HTML/CSS/JS de los 5 temas para **experimentar animaciones y nuevas interacciones**:
+- **5 temas replicados**: Terminal, Glass, Dusk, Cockpit, Home
+- **Interfaz swipe**: derecha/izquierda abre panel de configuración (en lugar de deslizar hacia abajo)
+- **Telemetría simulada**: velocidad, viaje, batería, GPS, voltaje
+- **Sistema de actualizaciones**: botón que verifica versiones en GitHub API (repo público)
+- **Controles**: brillo, volumen, selector de temas
+- Se prueba abriendo `web-prototype.html` en navegador de escritorio / tablet
+
 ## Pendientes / ideas
 - Velocidad del auto por CAN (buscar en `com.nwd.can.setting`) para no depender solo del GPS.
 - Más controles de audio (navegación, BT, GPS tienen volúmenes separados).
 - Estado de puertas por CAN (hay acciones relacionadas).
 - Abrir CarPlay/Android Auto directo (ZLINK expone CarPlayActivity y HiCarActivity como LAUNCHER).
+- Integrar nuevas interacciones del prototipo web al Android nativo (swipe lateral para settings).
+- Dashboard completo del auto: consumo, temperatura, estado de sistemas (basado en CAN).
