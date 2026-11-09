@@ -36,6 +36,7 @@ public class WebHome {
     private final HomeActivity a;
     private final WebView web;
     private final Map<String, String> iconCache = new HashMap<String, String>();
+    private volatile boolean ready = false;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     public WebHome(HomeActivity activity) {
@@ -58,6 +59,14 @@ public class WebHome {
         });
         web.addJavascriptInterface(new Bridge(), "Radio");
         web.loadUrl(PAGE);
+        // Red de seguridad: si el WebView de la radio no puede correr la página, no dejar la pantalla en negro.
+        web.postDelayed(new Runnable() {
+            public void run() {
+                if (ready) return;
+                android.widget.Toast.makeText(a, "La interfaz web no arrancó en esta radio; vuelvo a la nativa.", android.widget.Toast.LENGTH_LONG).show();
+                a.webUseNative();
+            }
+        }, 8000);
     }
 
     public View view() { return web; }
@@ -111,6 +120,9 @@ public class WebHome {
 
     /** Todo lo que la página puede pedirle a la radio. Se llama desde el hilo del WebView. */
     private class Bridge {
+
+        @JavascriptInterface
+        public void ready() { ready = true; }
 
         @JavascriptInterface
         public String state() {

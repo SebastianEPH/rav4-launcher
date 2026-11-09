@@ -682,6 +682,7 @@
   mountTheme();
   setInterval(poll, 500);
   requestAnimationFrame(frame);
+  if (R.ready) R.ready();
   if (params.panel) openSheet('panel');
   if (params.drawer) openSheet('drawer');
 })();
