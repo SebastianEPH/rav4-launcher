@@ -57,11 +57,15 @@ y se descompilan con `jadx`. Hallazgos que ya se usan en el launcher:
 Proyecto Android nativo **sin Gradle** — se compila con `./build.sh` (aapt2 + javac + d8 + apksigner).
 SDK en `/opt/homebrew/share/android-commandlinetools`, Java 17 de Homebrew. minSdk 21, targetSdk 28.
 
-Solo 3 archivos de código, paquete `pe.radio.rav4`:
+4 archivos de código, paquete `pe.radio.rav4`:
 - `HomeActivity.java` — toda la lógica: layouts de los 5 temas, dock, cajón de apps, centro de
   control, ajustes, GPS/viaje, volumen NWD, batería, desinstalar, gestos.
 - `Theme.java` — paletas de color por tema y modo (claro/oscuro/auto), íconos squircle, fondos.
 - `Views.java` — vistas dibujadas a mano: velocímetro (Gauge), gráfico (Spark), detector de
+- `Updater.java` — "Buscar actualización" (⚙ Ajustes → Sistema): lee el último Release de GitHub,
+  compara su tag con `versionName`, descarga el APK y lo instala con `PackageInstaller`. La primera vez
+  Android pide permitir "instalar apps de esta fuente". El CI pone `versionCode=100+run_number` y
+  `versionName` = tag; el build local queda en `1.3-local` (versionCode 100).
   gestos (GestureFrame), fondos de pantalla (Wallpaper).
 
 ### Temas (⚙ Ajustes del launcher → Tema, o centro de control → Tema)

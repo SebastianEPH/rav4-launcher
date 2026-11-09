@@ -1750,7 +1750,10 @@ public class HomeActivity extends Activity {
             }
         }));
         left.addView(action("Reiniciar viaje", new View.OnClickListener() { public void onClick(View v) { resetTrip(); } }));
-        TextView ver = txt("RAV4 Launcher v1.1", 12, P.dim);
+        left.addView(action("Buscar actualización", new View.OnClickListener() {
+            public void onClick(View v) { new Updater(HomeActivity.this, alertStyle()).check(); }
+        }));
+        TextView ver = txt("RAV4 Launcher v" + Updater.currentVersion(this), 12, P.dim);
         ver.setPadding(0, dp(16), 0, 0);
         left.addView(ver);
 

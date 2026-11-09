@@ -49,6 +49,14 @@ jobs:
           fi
           echo "$KEYSTORE_B64" | base64 -d > debug.keystore
 
+      # versionCode siempre creciente (si no, Android lo trata como downgrade y no instala encima)
+      # y versionName = tag, que es lo que el launcher compara para saber si hay versión nueva.
+      - name: Poner la versión en el manifest
+        run: |
+          CODE=$((100 + GITHUB_RUN_NUMBER))
+          sed -i -E "s/android:versionCode=\"[0-9]+\"/android:versionCode=\"$CODE\"/; s/android:versionName=\"[^\"]+\"/android:versionName=\"${VERSION#v}\"/" AndroidManifest.xml
+          grep -o 'android:version[A-Za-z]*="[^"]*"' AndroidManifest.xml
+
       - name: Compilar APK
         run: |
           chmod +x build.sh
