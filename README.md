@@ -16,17 +16,22 @@ y se **actualiza solo desde GitHub**.
 
 ## Temas
 
-La interfaz web trae 5 temas animados. Los mismos 5 temas existen también en versión nativa (Java).
+La interfaz web trae 6 temas animados y muy configurables (modo claro/oscuro/automático por horas, color de acento,
+reloj 12/24 h y opciones propias de cada tema). Los 5 primeros existen también en versión nativa (Java).
 
 | Terminal | Glass | Dusk |
 |:---:|:---:|:---:|
 | ![Terminal](docs/img/terminal.png) | ![Glass](docs/img/glass.png) | ![Dusk](docs/img/dusk.png) |
 | Consola con efecto CRT, comandos que se teclean solos, log en vivo de GPS, WiFi, CAN y volumen | Tarjetas de vidrio sobre una aurora animada; anillo de velocidad con degradado | Cielo que cambia según la hora (amanecer, día, atardecer, noche) con sol, luna, nubes y estrellas |
 
-| Cockpit | Inicio | Panel y apps |
+| Cockpit | Inicio | Auto · CAN |
 |:---:|:---:|:---:|
-| ![Cockpit](docs/img/cockpit.png) | ![Inicio](docs/img/home.png) | ![Panel](docs/img/panel.png) |
-| Velocímetro SVG con aguja, brújula y carretera neón que corre según la velocidad real | Cuadrícula de íconos grandes con páginas y widgets de velocidad, viaje y batería | Volumen, brillo, WiFi, Bluetooth, tema, efectos y actualización, todo a un deslizamiento |
+| ![Cockpit](docs/img/cockpit.png) | ![Inicio](docs/img/home.png) | ![Auto CAN](docs/img/auto.png) |
+| Velocímetro SVG con aguja, brújula y carretera neón que corre según la velocidad real | Cuadrícula de íconos grandes con páginas y widgets de velocidad, viaje y batería | Vidrio líquido estilo iOS: puertas animadas, tacómetro, luces y registro en vivo del **bus CAN** |
+
+![Panel](docs/img/panel.png)
+
+El **Panel** (deslizar →) reúne volumen, brillo, WiFi, Bluetooth, tema, opciones del tema, horario del modo oscuro, color de acento y actualización.
 
 ## Características
 
@@ -34,6 +39,7 @@ La interfaz web trae 5 temas animados. Los mismos 5 temas existen también en ve
 - 🚗 **Velocidad por GPS** con velocímetro animado, máxima, promedio, distancia y tiempo en movimiento.
 - 🧭 Rumbo, altitud, precisión y satélites en uso.
 - 🔋 **Voltaje de la batería del auto** leído por el bus CAN de la radio, con aviso de carga o batería baja.
+- 🚪 **Bus CAN en vivo** (tema Auto · CAN): puertas, maletero, capó, RPM, velocidad del auto, freno de mano, cinturón, luces, direccionales, marcha y combustible, más un registro de cada paquete. Se lee del servicio CAN de la radio (detalle en `FINDINGS.md`).
 - 🌡️ Temperatura del CPU, memoria, red y tiempo encendido (tema Terminal).
 
 **Control de la radio**
@@ -106,6 +112,7 @@ src/pe/radio/rav4/
   Theme.java          paletas, íconos squircle, fondos
   Views.java          velocímetro, gráfico, gestos, fondos dibujados
   WebHome.java        WebView + puente JS "Radio" hacia los datos reales
+  CanBridge.java      lectura del bus CAN vía el servicio AIDL de la radio
   Updater.java        actualización desde GitHub Releases
 assets/web/           interfaz web: index.html, app.css, app.js (+ simulador para navegador)
 site/                 página de GitHub Pages

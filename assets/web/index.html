@@ -73,18 +73,25 @@
       <div class="themes" id="themeList"></div>
     </div>
 
-    <div class="group two">
-      <div>
-        <h3>Apariencia</h3>
-        <div class="seg" data-pref="mode">
-          <button data-v="dark">Oscuro</button><button data-v="light">Claro</button><button data-v="auto">Auto</button>
-        </div>
+    <div class="group">
+      <h3 id="themeOptsTitle">Opciones del tema</h3>
+      <div id="themeOpts"></div>
+    </div>
+
+    <div class="group">
+      <h3>Apariencia</h3>
+      <div class="seg" data-pref="mode">
+        <button data-v="dark">Oscuro</button><button data-v="light">Claro</button><button data-v="auto">Automático</button>
       </div>
-      <div>
-        <h3>Efectos</h3>
-        <div class="seg" data-pref="fx">
-          <button data-v="high">Altos</button><button data-v="low">Suaves</button><button data-v="off">Ninguno</button>
-        </div>
+      <div class="hours" id="darkHours">
+        <div><span>Oscuro desde</span><button class="round sm" data-hour="darkFrom:-1">−</button><b id="hFrom">18:00</b><button class="round sm" data-hour="darkFrom:1">+</button></div>
+        <div><span>hasta</span><button class="round sm" data-hour="darkTo:-1">−</button><b id="hTo">06:00</b><button class="round sm" data-hour="darkTo:1">+</button></div>
+      </div>
+      <h3 class="sub">Color de acento</h3>
+      <div class="accents" id="accents"></div>
+      <div class="group two">
+        <div><h3 class="sub">Reloj</h3><div class="seg" data-pref="clock"><button data-v="24">24 h</button><button data-v="12">12 h</button></div></div>
+        <div><h3 class="sub">Efectos</h3><div class="seg" data-pref="fx"><button data-v="high">Altos</button><button data-v="low">Suaves</button><button data-v="off">No</button></div></div>
       </div>
     </div>
 

@@ -64,6 +64,7 @@ Código Java en el paquete `pe.radio.rav4`:
 - `Views.java` — vistas dibujadas a mano: velocímetro (Gauge), gráfico (Spark), detector de
   gestos (GestureFrame), fondos de pantalla (Wallpaper).
 - `WebHome.java` — la interfaz web (ver abajo): WebView + puente JS `Radio`.
+- `CanBridge.java` — lee el bus CAN por el servicio AIDL de `com.nwd.can.setting` (ver FINDINGS.md → Bus CAN).
 - `Updater.java` — "Buscar actualización" (⚙ Ajustes → Sistema): lee el último Release de GitHub,
   compara su tag con `versionName`, descarga el APK y lo instala con `PackageInstaller`. La primera vez
   Android pide permitir "instalar apps de esta fuente". El CI pone `versionCode=100+run_number` y
@@ -78,6 +79,11 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 - Gestos: **→ abre el Panel** (controles + ajustes, desde la izquierda) y **← abre las apps**.
   Ya **no hay gesto hacia abajo** (el usuario pidió quitarlo: estorbaba). En Inicio ←/→ cambian de
   página salvo que el gesto empiece en el borde izquierdo.
+- 6 temas: Terminal, Glass, Dusk, Cockpit, Inicio y **Auto · CAN** (vidrio líquido estilo iOS con íconos
+  propios: puertas animadas, tacómetro, señales y registro en vivo del bus CAN para probar qué llega).
+- **Todo configurable** desde el Panel: modo Oscuro/Claro/Automático con **horas configurables**
+  (`darkFrom`/`darkTo`), color de acento, reloj 12/24 h, efectos y **opciones propias de cada tema**
+  (`THEMES.x.opts`, guardadas como `t.<tema>.<clave>` y expuestas en CSS como `data-o-<clave>`).
 - Efectos Altos / Suaves / Ninguno; si la radio no llega a ~35 fps se bajan solos una vez.
 - Puente `window.Radio` (WebHome.Bridge): `state()` JSON (GPS, viaje, voltaje, volumen, brillo,
   wifi/bt), `apps()`, `launch`, `appMenu` (diálogo nativo), `setVolume`, `setBrightness`, `media`,
@@ -86,7 +92,7 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 - **Compatibilidad**: el WebView de la radio puede ser Chrome ~74 → nada de `?.`, `??`, `:is()`,
   `inset`, `clamp()/min()`, `aspect-ratio`, ni `gap` en flex (en grid sí).
 - Probar en el Mac: abrir `assets/web/index.html` en Chrome (usa un simulador). Parámetros:
-  `?theme=cockpit&kmh=90&panel=1&drawer=1&fx=low&shot=1` (`shot` congela animaciones para capturas).
+  `?theme=cockpit&kmh=90&panel=1&drawer=1&fx=low&mode=light&door=0&shot=1` (`shot` congela animaciones para capturas).
   Capturas del README: `docs/img/` (Chrome headless, ver README).
 
 ### Temas (⚙ Ajustes del launcher → Tema, o centro de control → Tema)
@@ -135,9 +141,8 @@ En `../radio-diagnostico/`. App para exportar al USB el informe de la radio + la
 diagnóstico anterior antes de guardar. Se usa para seguir analizando apps y encontrar más funciones.
 
 ## Pendientes / ideas
-- Velocidad del auto por CAN (buscar en `com.nwd.can.setting`) para no depender solo del GPS.
+- Confirmar en la radio qué datos CAN llegan de verdad (tema Auto · CAN) y usar RPM/puertas en los demás temas.
 - Más controles de audio (navegación, BT, GPS tienen volúmenes separados).
-- Estado de puertas por CAN (hay acciones relacionadas).
 - Abrir CarPlay/Android Auto directo (ZLINK expone CarPlayActivity y HiCarActivity como LAUNCHER).
 - Información de lugares (nombre de la calle/distrito) a partir del GPS.
 - Dashboard completo del auto: consumo, temperatura, estado de sistemas (basado en CAN).

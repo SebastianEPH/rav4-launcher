@@ -21,8 +21,25 @@
   var prefs = {
     theme: params.theme || R.pref('theme', 'cockpit'),
     mode: params.mode || R.pref('mode', 'dark'),
-    fx: params.fx || R.pref('fx', 'high')
+    fx: params.fx || R.pref('fx', 'high'),
+    accent: params.accent || R.pref('accent', 'theme'),
+    clock: R.pref('clock', '24'),
+    darkFrom: R.pref('darkFrom', '18'),
+    darkTo: R.pref('darkTo', '6')
   };
+  var ACCENTS = { blue: '#0a84ff', cyan: '#5ac8fa', green: '#30d158', orange: '#ff9f0a', pink: '#ff375f', purple: '#bf5af2', red: '#ff453a' };
+  // valor de una opción del tema activo (guardada como "t.<tema>.<clave>")
+  function opt(k) {
+    var key = 't.' + prefs.theme + '.' + k;
+    if (!(key in prefs)) {
+      var d = '';
+      (THEMES[prefs.theme].opts || []).forEach(function (o) { if (o.k === k) d = o.def; });
+      prefs[key] = params[k] || R.pref(key, d);
+    }
+    return prefs[key];
+  }
+  function hexA(hex, a) { var n = parseInt(hex.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; }
+  function hhmm(d) { return prefs.clock === '12' ? (d.getHours() % 12 || 12) + ':' + pad(d.getMinutes()) : pad(d.getHours()) + ':' + pad(d.getMinutes()); }
   var current = null;            // tema montado
   if (params.shot) document.documentElement.classList.add('shot');
 
@@ -55,8 +72,9 @@
 
   function resolvedMode() {
     if (prefs.mode !== 'auto') return prefs.mode;
-    var h = new Date().getHours();
-    return h < 6 || h >= 18 ? 'dark' : 'light';
+    var h = new Date().getHours(), from = +prefs.darkFrom, to = +prefs.darkTo;
+    var dark = from > to ? (h >= from || h < to) : (h >= from && h < to);
+    return dark ? 'dark' : 'light';
   }
 
   // íconos SVG reutilizables
@@ -171,7 +189,8 @@
     { h: 24, c: ['#0b1026', '#1b1f4a', '#2a1c48'], stars: 1 }
   ];
   function paintSky() {
-    var h = hourNow(), a = SKIES[0], b = SKIES[1];
+    var so = prefs.theme === 'dusk' ? opt('sky') : 'hour';
+    var h = so === 'day' ? 12 : so === 'sunset' ? 18.4 : so === 'night' ? 23 : hourNow(), a = SKIES[0], b = SKIES[1];
     for (var i = 0; i < SKIES.length - 1; i++) if (h >= SKIES[i].h && h < SKIES[i + 1].h) { a = SKIES[i]; b = SKIES[i + 1]; }
     var f = (h - a.h) / (b.h - a.h), st = body.style;
     for (var j = 0; j < 3; j++) st.setProperty('--sky' + (j + 1), mix(a.c[j], b.c[j], f));
@@ -204,13 +223,15 @@
   // ---------- Cockpit ----------
   var G = { cx: 200, cy: 200, r: 170, max: 180 };
   function pt(a, r) { var rad = a * Math.PI / 180; return (G.cx + r * Math.cos(rad)).toFixed(1) + ' ' + (G.cy + r * Math.sin(rad)).toFixed(1); }
-  var ARC_LEN = G.r * 270 * Math.PI / 180;
+  var ARC_LEN = 0;
   THEMES.cockpit = {
     name: 'Cockpit', pv: ['#030406', '#00e5ff', '#ff2d95'],
     html: function () {
+      G.max = +opt('scale') || 180;
+      ARC_LEN = G.r * 270 * Math.PI / 180;
       var ticks = '';
-      for (var v = 0; v <= G.max; v += 10) {
-        var a = 135 + 270 * v / G.max, major = v % 20 === 0;
+      for (var v = 0; v <= G.max; v += (G.max > 200 ? 20 : 10)) {
+        var a = 135 + 270 * v / G.max, major = v % (G.max > 200 ? 40 : 20) === 0;
         ticks += '<line class="tick' + (major ? ' major' : '') + '" x1="' + pt(a, 150).split(' ')[0] + '" y1="' + pt(a, 150).split(' ')[1] +
           '" x2="' + pt(a, major ? 132 : 140).split(' ')[0] + '" y2="' + pt(a, major ? 132 : 140).split(' ')[1] + '"/>';
         if (major) { var p = pt(a, 112).split(' '); ticks += '<text class="num" x="' + p[0] + '" y="' + p[1] + '">' + v + '</text>'; }
@@ -268,8 +289,8 @@
   function renderHomePages() {
     var track = $('#track'), pages = $('#pages');
     if (!track) return;
-    var list = visibleApps(), per = 18, n = Math.max(1, Math.ceil(list.length / per)), w = pages.clientWidth, html = '';
-    for (var p = 0; p < n; p++) html += '<div class="page" style="width:' + w + 'px">' + list.slice(p * per, p * per + per).map(appHtml).join('') + '</div>';
+    var cols = +opt('cols') || 6, list = visibleApps(), per = cols * 3, n = Math.max(1, Math.ceil(list.length / per)), w = pages.clientWidth, html = '';
+    for (var p = 0; p < n; p++) html += '<div class="page" style="width:' + w + 'px;grid-template-columns:repeat(' + cols + ',1fr)">' + list.slice(p * per, p * per + per).map(appHtml).join('') + '</div>';
     track.innerHTML = html;
     homePage = Math.min(homePage, n - 1);
     $('#dots').innerHTML = n > 1 ? new Array(n + 1).join('<i></i>') : '';
@@ -284,7 +305,140 @@
     $$('#dots i').forEach(function (d, i) { d.classList.toggle('on', i === homePage); });
   }
 
-  var ORDER = ['terminal', 'glass', 'dusk', 'cockpit', 'home'];
+  // ---------- opciones configurables de cada tema ----------
+  var ONOFF = [['on', 'Sí'], ['off', 'No']];
+  THEMES.terminal.opts = [{ k: 'phosphor', label: 'Color del fósforo', def: 'green', ch: [['green', 'Verde'], ['amber', 'Ámbar'], ['blue', 'Azul']] },
+    { k: 'crt', label: 'Líneas de monitor (CRT)', def: 'on', ch: ONOFF }];
+  THEMES.glass.opts = [{ k: 'aurora', label: 'Colores de la aurora', def: 'ocean', ch: [['ocean', 'Océano'], ['sunset', 'Atardecer'], ['forest', 'Bosque']] }];
+  THEMES.dusk.opts = [{ k: 'sky', label: 'Cielo', def: 'hour', ch: [['hour', 'Según la hora'], ['day', 'Día'], ['sunset', 'Atardecer'], ['night', 'Noche']] },
+    { k: 'greet', label: 'Saludo', def: 'on', ch: ONOFF }];
+  THEMES.cockpit.opts = [{ k: 'scale', label: 'Escala del velocímetro (km/h)', def: '180', ch: [['140', '140'], ['180', '180'], ['240', '240']] },
+    { k: 'road', label: 'Carretera animada', def: 'on', ch: ONOFF }];
+  THEMES.home.opts = [{ k: 'cols', label: 'Columnas de íconos', def: '6', ch: [['5', '5'], ['6', '6'], ['7', '7']] },
+    { k: 'widgets', label: 'Widgets de velocidad, viaje y batería', def: 'on', ch: ONOFF }];
+
+  // ---------- Auto · CAN (estilo vidrio líquido) ----------
+  // Íconos propios de trazo redondeado (inspirados en el estilo iOS, no copiados).
+  var CI = {
+    door: '<path d="M6 21V10l5-6h7v17z"/><path d="M9 12h7M14 16h2"/>',
+    trunk: '<path d="M4 18h16v-5l-2-4H6l-2 4z"/><path d="M6 9l2-5h8l2 5M7 21v-3M17 21v-3"/>',
+    hood: '<path d="M4 16h16v4H4z"/><path d="M5 16l2-5h10l2 5M7 11 5 4h14l-2 7"/>',
+    brake: '<circle cx="12" cy="12" r="6.5"/><path d="M10.5 15.5v-7h2.2a2 2 0 0 1 0 4h-2.2M3.5 7.5a10 10 0 0 0 0 9M20.5 7.5a10 10 0 0 1 0 9"/>',
+    belt: '<circle cx="12" cy="4.5" r="2"/><path d="M7.5 21v-7a4.5 4.5 0 0 1 9 0v7M8.5 9.5l8 10"/>',
+    low: '<path d="M11 5c-4.5 0-7 3.2-7 7s2.5 7 7 7z"/><path d="M14 8.5l6 2M14 12.5l6 2M14 16.5l6 2"/>',
+    high: '<path d="M11 5c-4.5 0-7 3.2-7 7s2.5 7 7 7z"/><path d="M14 8h7M14 12h7M14 16h7"/>',
+    fog: '<path d="M11 5c-4.5 0-7 3.2-7 7s2.5 7 7 7z"/><path d="M14 8h6M14 12h6M14 16h6M17.5 5.5c-1 2 1 4 0 6.5s1 4 0 6.5"/>',
+    hazard: '<path d="M12 3.5 21 19.5H3z"/><path d="M12 9l4 7H8z"/>',
+    left: '<path d="M10 6l-6 6 6 6M4 12h16"/>',
+    right: '<path d="M14 6l6 6-6 6M20 12H4"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    fuel: '<path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h14M7 8h6"/><path d="M15 9l3 2v7a1.5 1.5 0 0 0 3 0V9l-3-3"/>',
+    gear: '<circle cx="6" cy="5" r="1.8"/><circle cx="12" cy="5" r="1.8"/><circle cx="18" cy="5" r="1.8"/><circle cx="6" cy="19" r="1.8"/><circle cx="12" cy="19" r="1.8"/><path d="M6 7v10M12 7v10M18 7v5H6"/>',
+    lamp: '<circle cx="12" cy="12" r="3.5"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
+    bus: '<rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 9h8M8 12h8M8 15h5"/>'
+  };
+  function ci(k) { return '<svg class="ci" viewBox="0 0 24 24">' + CI[k] + '</svg>'; }
+  var C = {}, shownRpm = 0, RR = 120, RC = 2 * Math.PI * RR;
+  var DOORS = ['fl', 'fr', 'rl', 'rr', 'trunk', 'hood'];
+  var DOOR_NAMES = ['puerta del conductor', 'puerta del copiloto', 'puerta trasera izq.', 'puerta trasera der.', 'maletero', 'capó'];
+  var GEARS = { 0: 'P', 1: 'P', 2: 'R', 3: 'N', 4: 'D', 5: 'S', 6: 'M' };
+  var INDICATORS = [
+    ['brake', 'Freno de mano', function () { return C.handbrake; }],
+    ['belt', 'Cinturón', function () { return C.beltDriver; }],
+    ['low', 'Luces bajas', function () { return li(1); }],
+    ['high', 'Luces altas', function () { return li(0); }],
+    ['fog', 'Neblineros', function () { var a = li(2), b = li(3); return a < 0 && b < 0 ? -1 : (a > 0 || b > 0 ? 1 : 0); }],
+    ['lamp', 'Luz de posición', function () { return li(4); }],
+    ['hazard', 'Emergencia', function () { return li(5); }],
+    ['lock', 'Seguros', function () { var l = C.locks || []; if (!l.length || l[0] < 0) return -1; return l.some(function (v) { return v > 0; }) ? 1 : 0; }]
+  ];
+  function li(i) { var l = C.lights || []; return l.length > i ? l[i] : -1; }
+  function carSvg() {
+    return '<svg class="car" viewBox="0 0 220 380">' +
+      '<path class="shadow" d="M58 30 Q110 6 162 30 L176 120 L178 300 Q176 360 110 366 Q44 360 42 300 L44 120 Z"/>' +
+      '<path class="body" d="M58 28 Q110 4 162 28 L176 118 L178 298 Q176 356 110 362 Q44 356 42 298 L44 118 Z"/>' +
+      '<path class="zone hood" d="M60 34 Q110 14 160 34 L168 100 L52 100 Z"/>' +
+      '<path class="glass" d="M58 108 L162 108 L152 150 L68 150 Z"/>' +
+      '<rect class="roof" x="66" y="156" width="88" height="120" rx="14"/>' +
+      '<path class="glass" d="M66 282 L154 282 L160 306 L60 306 Z"/>' +
+      '<path class="zone trunk" d="M56 312 L164 312 L170 330 Q160 352 110 356 Q60 352 50 330 Z"/>' +
+      '<g class="door fl" style="transform-origin:43px 150px"><rect x="38" y="150" width="9" height="66" rx="4"/></g>' +
+      '<g class="door fr" style="transform-origin:177px 150px"><rect x="173" y="150" width="9" height="66" rx="4"/></g>' +
+      '<g class="door rl" style="transform-origin:43px 222px"><rect x="38" y="222" width="9" height="62" rx="4"/></g>' +
+      '<g class="door rr" style="transform-origin:177px 222px"><rect x="173" y="222" width="9" height="62" rx="4"/></g>' +
+      '<ellipse class="head l" cx="74" cy="26" rx="14" ry="6"/><ellipse class="head r" cx="146" cy="26" rx="14" ry="6"/>' +
+      '<g class="beam"><path d="M62 22 L46 -8 L102 -8 L86 22 Z"/><path d="M134 22 L118 -8 L174 -8 L158 22 Z"/></g>' +
+      '<circle class="turn l" cx="50" cy="40" r="6"/><circle class="turn r" cx="170" cy="40" r="6"/>' +
+      '<circle class="turn l" cx="48" cy="340" r="6"/><circle class="turn r" cx="172" cy="340" r="6"/>' +
+      '</svg>';
+  }
+  THEMES.auto = {
+    name: 'Auto · CAN', pv: ['#0b1a3a', '#5ac8fa', '#f97316'],
+    opts: [{ k: 'rpm', label: 'Máximo del tacómetro (rpm)', def: '7000', ch: [['6000', '6000'], ['7000', '7000'], ['8000', '8000']] },
+      { k: 'log', label: 'Registro del bus CAN', def: 'on', ch: [['on', 'Mostrar'], ['off', 'Ocultar']] }],
+    html: function () {
+      var L = RC * 0.75, max = +opt('rpm'), red = (max - 1000) / max;
+      return '<div class="screen autoc stagger">' +
+        '<div class="card carcard"><div class="head"><h4>Puertas</h4><span class="pill" data-k="doorSum">—</span></div>' + carSvg() + '</div>' +
+        '<div class="card rpmcard"><h4>Motor</h4><div class="ring rpm"><svg viewBox="0 0 300 300">' +
+        '<circle class="trk" cx="150" cy="150" r="' + RR + '" stroke-dasharray="' + L + ' ' + RC + '"/>' +
+        '<circle class="redz" cx="150" cy="150" r="' + RR + '" stroke-dasharray="' + (L * (1 - red)) + ' ' + RC + '" stroke-dashoffset="' + (-L * red) + '"/>' +
+        '<circle class="val" id="rpmVal" cx="150" cy="150" r="' + RR + '" stroke-dasharray="0 ' + RC + '"/></svg>' +
+        '<div class="center"><b data-k="rpm">—</b><span>rpm</span></div></div>' +
+        '<div class="chips"><span class="chip2">' + ci('gear') + '<b data-k="gear">—</b></span><span class="chip2">CAN <b data-k="canKmh">—</b> km/h</span><span class="chip2">GPS <b data-k="kmhInt">0</b> km/h</span></div></div>' +
+        '<div class="card indcard"><h4>Señales</h4><div class="inds">' + INDICATORS.map(function (d, i) {
+          return '<div class="ind nd" id="ind' + i + '">' + ci(d[0]) + '<div><b>' + d[1] + '</b><span>sin dato</span></div></div>';
+        }).join('') + '</div><div class="turns"><span class="tl" id="tl">' + ci('left') + '</span><span class="fuel">' + ci('fuel') + '<b data-k="fuel">—</b></span><span class="tr" id="tr">' + ci('right') + '</span></div></div>' +
+        '<div class="card logcard"><div class="head">' + ci('bus') + '<h4>Bus CAN</h4><span class="st" data-k="canStatus"></span><span class="pill" data-k="canPk">0 paquetes</span></div><div class="canlog" id="canlog"></div></div>' +
+        '</div>';
+    },
+    tick: function () {
+      var d = C.doors || [], open = [];
+      DOORS.forEach(function (k, i) {
+        var o = d[i] > 0, el = $('.car .' + (i < 4 ? 'door.' : 'zone.') + k);
+        if (el) el.classList.toggle('open', o);
+        if (o) open.push(DOOR_NAMES[i]);
+      });
+      setK('doorSum', !d.length || d[0] < 0 ? 'Sin datos de puertas' : open.length ? 'Abierta: ' + open.join(', ') : 'Todo cerrado');
+      $('.carcard .pill').classList.toggle('warn', open.length > 0);
+      var lt = C.lights || [], car = $('.car');
+      car.classList.toggle('low', lt[1] > 0); car.classList.toggle('high', lt[0] > 0);
+      car.classList.toggle('tl', lt[7] > 0 || lt[5] > 0); car.classList.toggle('tr', lt[6] > 0 || lt[5] > 0);
+      $('#tl').classList.toggle('on', lt[7] > 0 || lt[5] > 0); $('#tr').classList.toggle('on', lt[6] > 0 || lt[5] > 0);
+      INDICATORS.forEach(function (d, i) {
+        var v = d[2](), el = $('#ind' + i), sp = $('span', el);
+        el.className = 'ind ' + (v == null || v < 0 ? 'nd' : v > 0 ? 'on' : 'off');
+        sp.textContent = v == null || v < 0 ? 'sin dato' : v > 0 ? (i === 1 ? 'señal activa' : 'encendido') : 'apagado';
+      });
+      setK('gear', C.gear >= 0 && GEARS[C.gear] ? GEARS[C.gear] : C.gear >= 0 ? C.gear : '—');
+      setK('canKmh', C.speed >= 0 ? C.speed : '—');
+      setK('fuel', C.fuel >= 0 ? C.fuel + (C.fuel <= 100 ? ' %' : '') : '—');
+      var age = C.ageMs;
+      setK('canStatus', (C.status || 'Esperando al servicio CAN…') + (age >= 0 ? ' · último hace ' + (age / 1000).toFixed(1) + ' s' : ''));
+      setK('canPk', (C.packets || 0) + ' paquetes');
+      var lg = $('#canlog');
+      if (lg) {
+        var lines = (C.log || []).slice(-14);
+        if (!lines.length) lg.innerHTML = '<p class="empty">Aún no llegan datos. Abre "Datos del auto" y revisa que el tipo de auto sea Toyota RAV4 y que la caja CAN esté conectada.</p>';
+        else lg.innerHTML = lines.map(function (l) {
+          var p = l.split('|');
+          return '<div><span class="t">' + esc(p[0]) + '</span><span class="k ' + esc(p[1]) + '">' + esc(p[1]) + '</span><span class="x">' + esc(p.slice(2).join('|')) + '</span></div>';
+        }).join('');
+      }
+    },
+    frame: function (dt) {
+      var tgt = C.rpm > 0 ? C.rpm : 0, max = +opt('rpm');
+      shownRpm += params.shot ? tgt - shownRpm : (tgt - shownRpm) * Math.min(1, dt * 5);
+      setK('rpm', C.rpm >= 0 ? Math.round(shownRpm / 10) * 10 : '—');
+      var el = $('#rpmVal');
+      if (el) {
+        el.setAttribute('stroke-dasharray', (RC * 0.75 * Math.min(1, shownRpm / max)).toFixed(1) + ' ' + RC);
+        el.classList.toggle('hot', shownRpm > max - 1000);
+      }
+    }
+  };
+
+  var ORDER = ['terminal', 'glass', 'dusk', 'cockpit', 'home', 'auto'];
 
   // ================= montaje =================
   function applyLook() {
@@ -292,6 +446,11 @@
     body.setAttribute('data-theme', prefs.theme);
     body.setAttribute('data-mode', resolvedMode());
     body.setAttribute('data-fx', prefs.fx);
+    body.setAttribute('data-modepref', prefs.mode);
+    var ac = ACCENTS[prefs.accent];
+    if (ac) { body.style.setProperty('--acc', ac); body.style.setProperty('--glow', hexA(ac, 0.5)); }
+    else { body.style.removeProperty('--acc'); body.style.removeProperty('--glow'); }
+    (THEMES[prefs.theme].opts || []).forEach(function (o) { body.setAttribute('data-o-' + o.k, opt(o.k)); });
   }
   function mountTheme() {
     applyLook();
@@ -323,11 +482,12 @@
   // ================= datos en vivo =================
   function poll() {
     try { S = JSON.parse(R.state()) || {}; } catch (e) { S = {}; }
+    if (prefs.theme === 'auto' && R.can) try { C = JSON.parse(R.can()) || {}; } catch (e) { }
     tick();
   }
   function tick() {
     var d = new Date();
-    setK('time', pad(d.getHours()) + ':' + pad(d.getMinutes()));
+    setK('time', hhmm(d));
     setK('dateShort', DAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3));
     setK('dateLong', dateLong(d));
     setK('greet', greet());
@@ -484,6 +644,19 @@
         '<i style="left:12%;top:22%;width:30%;height:56%;background:' + c[2] + ';opacity:.85"></i><i style="left:48%;top:22%;width:40%;height:24%;background:rgba(255,255,255,.35)"></i>' +
         '<i style="left:48%;top:54%;width:40%;height:24%;background:rgba(255,255,255,.2)"></i></div><b>' + t.name + '</b></button>';
     }).join('');
+    var t = THEMES[prefs.theme];
+    $('#themeOptsTitle').textContent = 'Opciones de ' + t.name;
+    $('#themeOpts').innerHTML = (t.opts || []).map(function (o) {
+      return '<div class="opt"><label>' + o.label + '</label><div class="seg" data-pref="t.' + prefs.theme + '.' + o.k + '">' +
+        o.ch.map(function (c) { return '<button data-v="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div></div>';
+    }).join('');
+    (t.opts || []).forEach(function (o) { opt(o.k); });
+    $('#accents').innerHTML = '<button class="theme" data-accent="theme" title="Del tema"></button>' + Object.keys(ACCENTS).map(function (k) {
+      return '<button data-accent="' + k + '" style="background:' + ACCENTS[k] + '"></button>';
+    }).join('');
+    $$('#accents button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-accent') === prefs.accent); });
+    $('#hFrom').textContent = pad(+prefs.darkFrom) + ':00';
+    $('#hTo').textContent = pad(+prefs.darkTo) + ':00';
     $$('.seg').forEach(function (seg) {
       var k = seg.getAttribute('data-pref');
       $$('button', seg).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === prefs[k]); });
@@ -535,6 +708,7 @@
   function setPref(k, v) {
     prefs[k] = v; R.setPref(k, v);
     if (k === 'theme') { mountTheme(); closeSheetsSoon(); }
+    else if (k.indexOf('t.') === 0) mountTheme();
     else { applyLook(); initParticles(); renderPanelState(); if (k === 'fx' && current.apps) current.apps(); }
   }
   function closeSheetsSoon() { setTimeout(function () { closeSheets(); }, 250); }
@@ -602,6 +776,8 @@
     if (t.closest('#showHidden')) { showHiddenApps = !showHiddenApps; renderDrawer(); return; }
     if ((el = t.closest('[data-theme-pick]'))) { setPref('theme', el.getAttribute('data-theme-pick')); return; }
     if ((el = t.closest('.seg button'))) { setPref(el.parentNode.getAttribute('data-pref'), el.getAttribute('data-v')); return; }
+    if ((el = t.closest('[data-accent]'))) { setPref('accent', el.getAttribute('data-accent')); return; }
+    if ((el = t.closest('[data-hour]'))) { var hp = el.getAttribute('data-hour').split(':'); setPref(hp[0], String((+prefs[hp[0]] + +hp[1] + 24) % 24)); return; }
     if ((el = t.closest('[data-media]'))) { R.media(el.getAttribute('data-media')); return; }
     if ((el = t.closest('[data-open]'))) { R.open(el.getAttribute('data-open')); if (SIM) toast('Simulado: abrir ' + el.textContent.trim()); return; }
     if ((el = t.closest('[data-toggle]'))) { R.toggle(el.getAttribute('data-toggle')); setTimeout(poll, 900); return; }
@@ -629,7 +805,8 @@
   // ================= simulador (solo navegador) =================
   function makeSim() {
     var kmh = params.kmh ? +params.kmh : 0, target = 45, dist = 3.2, max = 0, moving = 14, vol = 18, br = 62, wifi = true, bt = true, bearing = 60, batt = 13.8;
-    var store = {};
+    var store = {}, simDoor = -1, simLog = [], simLastT = 0;
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
     try { store = JSON.parse(localStorage.getItem('rav4sim') || '{}'); } catch (e) { }
     setInterval(function () {
       if (Math.random() < 0.03) target = [0, 20, 45, 60, 80, 105][Math.floor(Math.random() * 6)];
@@ -667,7 +844,26 @@
       setPref: function (k, v) { store[k] = v; try { localStorage.setItem('rav4sim', JSON.stringify(store)); } catch (e) { } },
       resetTrip: function () { dist = 0; max = 0; moving = 0; }, checkUpdate: function () { toast('Simulado: buscar actualización'); },
       useNative: function () { toast('Simulado: volver a la interfaz nativa'); },
-      version: function () { return 'web-preview'; }, permission: function () { }
+      version: function () { return 'web-preview'; }, permission: function () { },
+      can: function () {
+        var t = Date.now() / 1000, rpm = kmh > 1 ? Math.round(900 + kmh * 32 + Math.sin(t * 3) * 120) : 780;
+        if (Math.random() < 0.02) simDoor = simDoor >= 0 ? -1 : Math.floor(Math.random() * 6);
+        var doors = [0, 0, 0, 0, 0, 0]; if (simDoor >= 0) doors[simDoor] = 1;
+        if (params.door) doors[+params.door] = 1;
+        var night = new Date().getHours() >= 18 || new Date().getHours() < 6, blink = Math.floor(t / 8) % 3 === 1 ? 1 : 0;
+        var hx = function (n) { return (n < 16 ? '0' : '') + n.toString(16).toUpperCase(); };
+        var tm = new Date(), ts = pad2(tm.getHours()) + ':' + pad2(tm.getMinutes()) + ':' + pad2(tm.getSeconds());
+        if (Math.floor(t * 2) !== simLastT) {
+          simLastT = Math.floor(t * 2);
+          var sp = Math.round(kmh);
+          simLog.push(ts + '|auto|AA 02 40 ' + hx(sp >> 8) + ' ' + hx(sp & 255) + ' ' + hx(rpm >> 8) + ' ' + hx(rpm & 255) + ' 00 3A 9C 00 00 01 01 3E 00 00 3E 7E');
+          if (Math.random() < 0.3) simLog.push(ts + '|puertas|AA 03 01 ' + hx(doors.reduce(function (a, v, i) { return a | (v << (7 - i)); }, 0)));
+          if (simLog.length > 40) simLog.splice(0, simLog.length - 40);
+        }
+        return JSON.stringify({ status: 'Simulación en navegador (en la radio son datos reales del bus CAN)', connected: true, packets: simLog.length * 7, ageMs: 180,
+          speed: Math.round(kmh), rpm: rpm, handbrake: kmh > 1 ? 0 : 1, fuel: 62, gear: kmh > 1 ? 4 : 1, beltDriver: 1, beltPassenger: 0,
+          doors: doors, locks: [kmh > 1 ? 1 : 0, 0, 0, 0, 0], lights: [0, night ? 1 : 0, 0, 0, night ? 1 : 0, 0, blink, 0], radar: [0, 0, 0, 0], log: simLog });
+      }
     };
   }
 

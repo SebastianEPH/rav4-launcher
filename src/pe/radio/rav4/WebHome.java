@@ -37,6 +37,7 @@ public class WebHome {
     private final WebView web;
     private final Map<String, String> iconCache = new HashMap<String, String>();
     private volatile boolean ready = false;
+    private final CanBridge can;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     public WebHome(HomeActivity activity) {
@@ -57,6 +58,8 @@ public class WebHome {
             public boolean shouldOverrideUrlLoading(WebView v, String url) { return !url.startsWith("file:///android_asset/"); }
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) { return shouldOverrideUrlLoading(v, r.getUrl().toString()); }
         });
+        can = new CanBridge(a);
+        can.start();
         web.addJavascriptInterface(new Bridge(), "Radio");
         web.loadUrl(PAGE);
         // Red de seguridad: si el WebView de la radio no puede correr la página, no dejar la pantalla en negro.
@@ -78,6 +81,7 @@ public class WebHome {
     public void appsChanged() { js("RAV4.appsChanged()"); }
 
     public void destroy() {
+        can.stop();
         web.removeJavascriptInterface("Radio");
         web.destroy();
     }
@@ -123,6 +127,11 @@ public class WebHome {
 
         @JavascriptInterface
         public void ready() { ready = true; }
+
+        @JavascriptInterface
+        public String can() {
+            try { return can.state().toString(); } catch (Exception e) { return "{}"; }
+        }
 
         @JavascriptInterface
         public String state() {
