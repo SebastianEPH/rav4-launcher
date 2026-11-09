@@ -91,6 +91,16 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
 ./build.sh                      # genera RAV4Launcher.apk
 # copiar el APK a un USB, instalarlo en la radio, elegirlo como launcher por defecto
 ```
+### Releases automáticos (CI)
+Cada push a `main` (salvo cambios solo en `.md`) dispara `.github/workflows/release.yml`: compila,
+firma con la keystore guardada en el secreto `KEYSTORE_B64` (la misma del Mac, para que la radio
+instale encima sin desinstalar) y publica un Release `v1.3.<n>` con el APK. No hace falta crear tags.
+El repo es **público**: nunca subir claves, tokens ni la `debug.keystore`.
+
+## Reglas de git
+- **Commitear y hacer push por cada cambio**, con mensaje en español.
+- **No agregar a Claude como coautor**: nada de `Co-Authored-By` ni firmas de Claude en commits o PRs.
+
 No hay emulador ni ADB a la radio, así que **cada versión se prueba instalándola en la radio real**.
 Nunca afirmar que algo "funciona" sin que el usuario lo haya confirmado en la radio.
 
