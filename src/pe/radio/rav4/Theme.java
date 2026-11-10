@@ -98,12 +98,13 @@ public class Theme {
             p.fontBold = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD);
             p.radius = 14;
             if (dark) {
-                p.bg = p.bg2 = 0xFF0B0E13; p.panel = 0xFF11161D; p.border = 0xFF1F2733;
-                p.text = 0xFFE6EDF3; p.dim = 0xFF6E7681; p.accent = 0xFF58A6FF;
-                p.ok = 0xFF7EE787; p.warn = 0xFFFFA657; p.err = 0xFFFF7B72; p.track = 0xFF1A2230; p.iconBg = 0xFF161B22;
+                // fósforo verde de consola
+                p.bg = 0xFF050A06; p.bg2 = 0xFF071209; p.panel = 0xFF0A140C; p.border = 0xFF1A4D24;
+                p.text = 0xFFB9F6C5; p.dim = 0xFF4E8A5A; p.accent = 0xFF39FF6A;
+                p.ok = 0xFF39FF6A; p.warn = 0xFFFFA657; p.err = 0xFFFF7B72; p.track = 0xFF12301A; p.iconBg = 0xFF0D1A10;
             } else {
-                p.bg = p.bg2 = 0xFFF6F8FA; p.panel = 0xFFFFFFFF; p.border = 0xFFD0D7DE;
-                p.text = 0xFF1F2328; p.dim = 0xFF656D76; p.accent = 0xFF0969DA;
+                p.bg = p.bg2 = 0xFFF1F8F2; p.panel = 0xFFFFFFFF; p.border = 0xFFA8D5B2;
+                p.text = 0xFF0F2A16; p.dim = 0xFF4F7359; p.accent = 0xFF138A36;
                 p.ok = 0xFF1A7F37; p.warn = 0xFFBC4C00; p.err = 0xFFCF222E; p.track = 0xFFE4E9EE; p.iconBg = 0xFFF0F3F6;
             }
         } else {

@@ -127,7 +127,7 @@ public class Views {
             p.setTypeface(P.fontBold);
             p.setTextSize(rad * (P.glass ? 0.62f : 0.5f));
             p.setColor(P.text);
-            String val = P.glass ? String.valueOf(Math.round(shown)) : String.format("%03d", Math.round(shown));
+            String val = P.glass ? String.valueOf(Math.round(shown)) : String.format("%02d", Math.round(shown));
             c.drawText(val, cx, cy + rad * (P.glass ? 0.2f : 0.16f), p);
             p.setTypeface(P.font);
             p.setTextSize(rad * 0.1f);

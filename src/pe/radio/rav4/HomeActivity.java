@@ -2403,9 +2403,9 @@ public class HomeActivity extends Activity {
             if (!P.glass) {
                 clock.setText(clockText(now, true));
                 date.setText(new SimpleDateFormat("EEE dd/MM/yyyy", new Locale("es")).format(now));
-                prompt.setText("rav4@k4811:~$ " + (fr ? "driving" : "idle"));
+                termPrompt(curKmh > 0);
                 chips.setText(chipLine());
-                if (sysPanel != null) sysPanel.setText(telemetry());
+                if (sysPanel != null) typeReveal(sysPanel, telemetry());
             } else {
                 if (clock != null) clock.setText(clockText(now, false));
                 if (chips != null) chips.setText((wifiConnected() ? "WiFi" : "—") + "  " + (btOn() ? "BT" : "") + (batteryV >= 0 ? "\n" + batteryText() : ""));
@@ -2465,7 +2465,15 @@ public class HomeActivity extends Activity {
 
     private String telemetry() {
         StringBuilder s = new StringBuilder();
-        s.append("# gnss\n");
+        s.append("# vehicle\n");
+        s.append(kv("speed", Math.round(curKmh) + " km/h"));
+        s.append(kv("v.max", Math.round(maxKmh) + " km/h"));
+        s.append(kv("trip", String.format(Locale.US, "%.1f km · %s", distM / 1000f, dur(movingMs))));
+        s.append(kv("battery", batteryV >= 0 ? String.format(Locale.US, "%.1f V %s", batteryV, batteryV >= 13.3f ? "[charging]" : batteryV >= 12.4f ? "[ok]" : "[low]") : "n/a"));
+        s.append(kv("volume", volNow() + "/" + volMax()));
+        try { s.append(kv("bright", Math.round(android.provider.Settings.System.getInt(getContentResolver(), android.provider.Settings.System.SCREEN_BRIGHTNESS) * 100f / 255f) + "%")); } catch (Exception e) { }
+        s.append(kv("bt", btOn() ? "on" : "off"));
+        s.append("\n# gnss\n");
         s.append(kv("sats", satsUsed < 0 ? "n/a" : satsUsed + "/" + satsSeen));
         if (last != null) {
             s.append(kv("lat", String.format(Locale.US, "%.5f", last.getLatitude())));
@@ -2488,6 +2496,8 @@ public class HomeActivity extends Activity {
         } catch (Exception e) { }
         s.append(kv("uptime", dur(SystemClock.elapsedRealtime())));
         s.append(kv("session", dur(SystemClock.elapsedRealtime() - sessionTs)));
+        s.append(kv("android", Build.VERSION.RELEASE + " (api " + Build.VERSION.SDK_INT + ")"));
+        s.append(kv("soc", Build.HARDWARE));
         s.append("\n# net\n");
         try {
             WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
@@ -2501,6 +2511,49 @@ public class HomeActivity extends Activity {
             } else s.append(kv("wlan0", "disconnected"));
         } catch (Exception e) { s.append(kv("wlan0", "n/a")); }
         return s.toString();
+    }
+
+    // ---- Terminal: texto que se escribe solo ----
+    private static final String[] TERM_CMDS = {"gps --watch", "trip --status", "batt --read", "can dump --live",
+            "uptime", "sensors", "ping 8.8.8.8", "top -n 1", "logcat -s rav4"};
+    private int termCmd = 0, termTyped = 0; private long termNext = 0; private boolean cursorOn = true;
+
+    /** El comando del prompt se teclea letra por letra, con cursor parpadeante, y cambia cada ~7 s. */
+    private void termPrompt(boolean driving) {
+        long now = SystemClock.elapsedRealtime();
+        if (now > termNext) { termCmd = (termCmd + 1) % TERM_CMDS.length; termTyped = 0; termNext = now + 7000; typeTick(); }
+        cursorOn = !cursorOn;
+        drawPrompt(driving);
+    }
+    private void typeTick() {
+        if (prompt == null) return;
+        String cmd = TERM_CMDS[termCmd];
+        if (!Views.anim) termTyped = cmd.length();
+        if (termTyped < cmd.length()) {
+            termTyped++;
+            drawPrompt(curKmh > 0);
+            h.postDelayed(new Runnable() { public void run() { typeTick(); } }, 55 + (int) (Math.random() * 70));
+        } else drawPrompt(curKmh > 0);
+    }
+    private void drawPrompt(boolean driving) {
+        if (prompt == null) return;
+        String cmd = TERM_CMDS[termCmd];
+        prompt.setText("rav4@k4811:~$ " + cmd.substring(0, Math.min(termTyped, cmd.length())) + (cursorOn || termTyped < cmd.length() ? "▌" : " ")
+                + "   [" + (driving ? "driving" : "idle") + "]");
+    }
+
+    /** La primera vez el panel se escribe de arriba abajo; después se actualiza directo. */
+    private void typeReveal(final TextView t, final String text) {
+        if (!Views.anim || "done".equals(t.getTag())) { t.setText(text); return; }
+        if ("typing".equals(t.getTag())) return;
+        t.setTag("typing");
+        final int[] n = {0};
+        h.post(new Runnable() { public void run() {
+            if (t.getParent() == null) return;
+            n[0] = Math.min(text.length(), n[0] + 6);
+            t.setText(text.substring(0, n[0]) + (n[0] < text.length() ? "▌" : ""));
+            if (n[0] < text.length()) h.postDelayed(this, 16); else t.setTag("done");
+        } });
     }
 
     private String kv(String k, String v) {
