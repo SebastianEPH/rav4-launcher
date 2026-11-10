@@ -200,12 +200,30 @@ public class SettingsActivity extends Activity {
             t.addView(slotPicker("Abajo (ancha)", "cockpit.slot4", "music"));
             content.addView(t);
         } else {
-            LinearLayout g = card();
-            g.addView(tv("Las tarjetas configurables están por ahora en el tema Cockpit. Pronto llegarán a este tema.", 14, DIM));
-            ((View) g.getChildAt(0)).setPadding(dp(14), dp(14), dp(14), dp(14));
-            if ("home".equals(th)) g.addView(segRow("Fondo", null, "wall",
-                    new String[]{"Ondas", "Noche", "Atardecer", "Mi RAV4"}, new String[]{"ondas", "noche", "atardecer", "rav4"}, "ondas"));
-            content.addView(g);
+            if ("home".equals(th)) {
+                LinearLayout g = card();
+                g.addView(segRow("Fondo", null, "wall",
+                        new String[]{"Ondas", "Noche", "Atardecer", "Mi RAV4"}, new String[]{"ondas", "noche", "atardecer", "rav4"}, "ondas"));
+                content.addView(g);
+            }
+            section("Tarjetas (qué se muestra en cada espacio)");
+            LinearLayout t = card();
+            if ("terminal".equals(th)) {
+                t.addView(slotPicker("Centro (vehículo y viaje)", "terminal.slot1", "default", "Original: vehículo"));
+                t.addView(slotPicker("Derecha (telemetría)", "terminal.slot2", "default", "Original: telemetría"));
+            } else if ("glass".equals(th)) {
+                t.addView(slotPicker("Arriba a la derecha (Mi RAV4)", "glass.slot1", "default", "Original: Mi RAV4"));
+                t.addView(slotPicker("Abajo · izquierda (fecha y hora)", "glass.slot2", "default", "Original: fecha"));
+                t.addView(slotPicker("Abajo · derecha (GPS)", "glass.slot3", "default", "Original: GPS"));
+            } else if ("dusk".equals(th)) {
+                t.addView(slotPicker("Segunda tarjeta (Mi RAV4)", "dusk.slot1", "default", "Original: Mi RAV4"));
+                t.addView(slotPicker("Tercera tarjeta (controles)", "dusk.slot2", "default", "Original: controles"));
+                t.addView(slotPicker("Cuarta tarjeta (GPS)", "dusk.slot3", "default", "Original: GPS"));
+            } else {
+                t.addView(slotPicker("Columna derecha · arriba", "home.slot1", "default", "Ninguna"));
+                t.addView(slotPicker("Columna derecha · abajo", "home.slot2", "default", "Ninguna"));
+            }
+            content.addView(t);
         }
         section("Animaciones");
         LinearLayout a = card();
@@ -242,26 +260,32 @@ public class SettingsActivity extends Activity {
     }
 
     /** Selector de tarjeta: título y una cuadrícula de opciones (5 por fila). */
-    private LinearLayout slotPicker(String label, final String key, String def) {
+    private LinearLayout slotPicker(String label, final String key, String def) { return slotPicker(label, key, def, null); }
+
+    private LinearLayout slotPicker(String label, final String key, String def, String original) {
         LinearLayout w = new LinearLayout(this);
         w.setOrientation(LinearLayout.VERTICAL);
         w.setPadding(dp(14), dp(12), dp(14), dp(12));
         w.addView(tv(label, 16, TXT));
         android.widget.GridLayout g = new android.widget.GridLayout(this);
-        g.setColumnCount(5);
         String cur = prefs.getString(key, def);
-        for (int i = 0; i < CARD_VALUES.length; i++) {
-            final String val = CARD_VALUES[i];
+        int off = original != null ? 1 : 0;
+        final int cols = off > 0 ? 6 : 5;
+        g.setColumnCount(cols);
+        for (int i = 0; i < CARD_VALUES.length + off; i++) {
+            final String val = i < off ? "default" : CARD_VALUES[i - off];
+            String lab = i < off ? original : CARD_LABELS[i - off];
             boolean on = val.equals(cur);
-            TextView b = tv(CARD_LABELS[i], 14, on ? 0xFFFFFFFF : TXT);
+            TextView b = tv(lab, 14, on ? 0xFFFFFFFF : TXT);
             b.setGravity(Gravity.CENTER);
             b.setSingleLine(true);
+            b.setEllipsize(android.text.TextUtils.TruncateAt.END);
             b.setPadding(dp(8), dp(12), dp(8), dp(12));
             GradientDrawable sg = new GradientDrawable(); sg.setColor(on ? ACC : SOFT); sg.setCornerRadius(dp(10));
             b.setBackground(sg);
             b.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { prefs.edit().putString(key, val).apply(); touch(); rebuild(); } });
             android.widget.GridLayout.LayoutParams lp = new android.widget.GridLayout.LayoutParams(
-                    android.widget.GridLayout.spec(i / 5), android.widget.GridLayout.spec(i % 5, 1f));
+                    android.widget.GridLayout.spec(i / cols), android.widget.GridLayout.spec(i % cols, 1f));
             lp.width = 0;
             lp.setMargins(dp(3), dp(6), dp(3), 0);
             g.addView(b, lp);

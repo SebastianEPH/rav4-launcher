@@ -364,13 +364,13 @@ public class HomeActivity extends Activity {
         reset.setPadding(0, dp(6), 0, 0);
         reset.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { resetTrip(); } });
         carP.addView(reset);
-        mid.addView(carP, weight(1.35f, dp(10)));
+        addSlot(mid, "terminal.slot1", carP, weight(1.35f, dp(10)));
 
         LinearLayout sysP = tPanel("telemetry");
         sysPanel = txt("", 13, P.text);
         sysPanel.setLineSpacing(0, 1.18f);
         sysP.addView(sysPanel, new LinearLayout.LayoutParams(-1, 0, 1f));
-        mid.addView(sysP, weight(0.85f, 0));
+        addSlot(mid, "terminal.slot2", sysP, weight(0.85f, 0));
 
         dock = new LinearLayout(this);
         dock.setGravity(Gravity.CENTER_VERTICAL);
@@ -527,8 +527,20 @@ public class HomeActivity extends Activity {
     private TextView cmpDir, cmpStreet, altTxt, altSub, accTxt, accSub, ctlVol, ctlBr;
     private Views.Line altLine;
 
+    /** Espacio configurable de cualquier tema: si el usuario eligió una tarjeta, la pone en vez de la original. */
+    private View slot(String key, View original) {
+        String t = prefs.getString(key, "default");
+        if ("default".equals(t) || "car".equals(t) && original != null) return original;
+        if ("none".equals(t)) return null;
+        return cockSlot(t);
+    }
+    private void addSlot(LinearLayout parent, String key, View original, LinearLayout.LayoutParams lp) {
+        View v = slot(key, original);
+        if (v != null) parent.addView(v, lp);
+    }
+
     private View cockSlot(String type) {
-        final int ACC = 0xFF00E5FF;
+        final int ACC = P.cockpit ? 0xFF00E5FF : P.accent;
         LinearLayout c = cockCard();
         if ("batt".equals(type)) {
             c.addView(cockLabel("BATERÍA"));
@@ -748,11 +760,13 @@ public class HomeActivity extends Activity {
     private LinearLayout cockCard() {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
-        GradientDrawable g = new GradientDrawable();
-        g.setColor(cCard());
-        g.setCornerRadius(dp(20));
-        g.setStroke(1, 0x2900E5FF);
-        c.setBackground(g);
+        if (P.cockpit) {
+            GradientDrawable g = new GradientDrawable();
+            g.setColor(cCard());
+            g.setCornerRadius(dp(20));
+            g.setStroke(1, 0x2900E5FF);
+            c.setBackground(g);
+        } else c.setBackground(box(P.panel, P.border, P.radius));
         c.setPadding(dp(16), dp(14), dp(16), dp(14));
         c.setTag(R_CARD, "card");
         return c;
@@ -843,6 +857,16 @@ public class HomeActivity extends Activity {
         homeDots = new LinearLayout(this);
         homeDots.setGravity(Gravity.CENTER);
         main.addView(homeDots, new LinearLayout.LayoutParams(-1, dp(28)));
+        // columna opcional de tarjetas a la derecha (Ajustes Launcher → Tema actual)
+        LinearLayout side = new LinearLayout(this);
+        side.setOrientation(LinearLayout.VERTICAL);
+        addSlot(side, "home.slot1", null, vWeight(1f, true));
+        addSlot(side, "home.slot2", null, vWeight(1f, false));
+        if (side.getChildCount() > 0) {
+            LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(dp(330), -1);
+            sl.leftMargin = dp(16);
+            row.addView(side, sl);
+        }
         homePage = 0;
         h.post(new Runnable() { public void run() { showPage(homePage); } });
         return row;
@@ -946,18 +970,18 @@ public class HomeActivity extends Activity {
         LinearLayout car = dCard("Mi RAV4");
         car.addView(carImage(), new LinearLayout.LayoutParams(-1, 0, 1f));
         car.addView(tripRow(true));
-        cards.addView(car, dWeight(1.45f, true));
+        addSlot(cards, "dusk.slot1", car, dWeight(1.45f, true));
 
         LinearLayout ctl = dCard("Controles");
         View q = quickControls();
         ctl.addView(q, new LinearLayout.LayoutParams(-1, 0, 1f));
-        cards.addView(ctl, dWeight(0.8f, true));
+        addSlot(cards, "dusk.slot2", ctl, dWeight(0.8f, true));
 
         LinearLayout gps = dCard("GPS");
         gnssMini = txt("", 15, P.text);
         gnssMini.setLineSpacing(0, 1.3f);
         gps.addView(gnssMini, new LinearLayout.LayoutParams(-1, 0, 1f));
-        cards.addView(gps, dWeight(0.85f, false));
+        addSlot(cards, "dusk.slot3", gps, dWeight(0.85f, false));
         col.addView(cards, new LinearLayout.LayoutParams(-1, 0, 1f));
 
         // barra inferior con las apps (empieza por la izquierda, lado del conductor)
@@ -1047,7 +1071,7 @@ public class HomeActivity extends Activity {
         car.addView(tripRow(true));
         LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(-1, 0, 1.45f);
         cl.bottomMargin = dp(14);
-        right.addView(car, cl);
+        addSlot(right, "glass.slot1", car, cl);
 
         // fila inferior: fecha + gps
         LinearLayout bottom = new LinearLayout(this);
@@ -1061,13 +1085,13 @@ public class HomeActivity extends Activity {
         bigTime.setTypeface(Typeface_light());
         bigTime.setTag("bigclock");
         dc.addView(bigTime);
-        bottom.addView(dc, weight(1f, dp(14)));
+        addSlot(bottom, "glass.slot2", dc, weight(1f, dp(14)));
         LinearLayout gc = gCard();
         gc.addView(gTitle("GPS"));
         gnssMini = txt("", 15, P.text);
         gnssMini.setLineSpacing(0, 1.2f);
         gc.addView(gnssMini);
-        bottom.addView(gc, weight(1f, 0));
+        addSlot(bottom, "glass.slot3", gc, weight(1f, 0));
         return row;
     }
 
@@ -2361,7 +2385,7 @@ public class HomeActivity extends Activity {
                 date.setText(new SimpleDateFormat("EEE dd/MM/yyyy", new Locale("es")).format(now));
                 prompt.setText("rav4@k4811:~$ " + (fr ? "driving" : "idle"));
                 chips.setText(chipLine());
-                sysPanel.setText(telemetry());
+                if (sysPanel != null) sysPanel.setText(telemetry());
             } else {
                 if (clock != null) clock.setText(clockText(now, false));
                 if (chips != null) chips.setText((wifiConnected() ? "WiFi" : "—") + "  " + (btOn() ? "BT" : "") + (batteryV >= 0 ? "\n" + batteryText() : ""));
