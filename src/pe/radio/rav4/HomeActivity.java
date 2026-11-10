@@ -134,6 +134,12 @@ public class HomeActivity extends Activity {
         super.onCreate(b);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         prefs = getSharedPreferences("rav4", MODE_PRIVATE);
+        if (!prefs.getBoolean("globalPrefs", false)) {   // antes la web guardaba tema/modo/acento aparte
+            SharedPreferences.Editor e = prefs.edit().putBoolean("globalPrefs", true);
+            if ("web".equals(prefs.getString("engine", "native")))
+                for (String k : new String[]{"theme", "mode", "accent"}) { String v = prefs.getString("web." + k, null); if (v != null) e.putString(k, v); }
+            e.apply();
+        }
         loadSets();
         applyTheme();
         // Lo demás después del primer cuadro: que la pantalla aparezca primero.

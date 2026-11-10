@@ -38,7 +38,17 @@ public class Theme {
     }
 
     public static Pal fromPrefs(SharedPreferences p) {
-        return build(p.getString("theme", TERMINAL), isDarkNow(p.getString("mode", DARK)));
+        String mode = p.getString("mode", DARK);
+        boolean dark;
+        if (AUTO.equals(mode)) {
+            int from = 18, to = 6;
+            try { from = Integer.parseInt(p.getString("web.darkFrom", "18")); to = Integer.parseInt(p.getString("web.darkTo", "6")); } catch (Exception e) { }
+            int hr = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
+            dark = from > to ? (hr >= from || hr < to) : (hr >= from && hr < to);
+        } else dark = DARK.equals(mode);
+        String th = p.getString("theme", TERMINAL);
+        if ("auto".equals(th)) th = COCKPIT;   // Auto · CAN solo existe en web
+        return build(th, dark);
     }
 
     public static Pal build(String theme, boolean dark) {

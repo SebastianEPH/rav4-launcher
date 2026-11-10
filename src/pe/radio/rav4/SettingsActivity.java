@@ -111,7 +111,7 @@ public class SettingsActivity extends Activity {
 
         section("Apariencia");
         LinearLayout ap = card();
-        String modeKey = web() ? "web.mode" : "mode";
+        String modeKey = "mode";   // global: nativa y web
         ap.addView(segRow("Modo", null, modeKey,
                 new String[]{"Oscuro", "Claro", "Automático"}, new String[]{"dark", "light", "auto"}, "dark"));
         if ("auto".equals(prefs.getString(modeKey, "dark"))) ap.addView(hoursRow());
@@ -245,7 +245,7 @@ public class SettingsActivity extends Activity {
 
     private LinearLayout themeGrid() {
         boolean w = web();
-        String key = w ? "web.theme" : "theme";
+        String key = "theme";   // global: nativa y web
         String cur = prefs.getString(key, w ? "cockpit" : "terminal");
         String[][] themes = w
                 ? new String[][]{{"terminal", "Terminal"}, {"glass", "Glass"}, {"dusk", "Dusk"}, {"cockpit", "Cockpit"}, {"home", "Inicio"}, {"auto", "Auto · CAN"}}
@@ -348,7 +348,10 @@ public class SettingsActivity extends Activity {
 
         LinearLayout graphCard = card();
         graphCard.setPadding(dp(12), dp(12), dp(12), dp(10));
-        graphCard.addView(new BandGraph(this), new LinearLayout.LayoutParams(-1, dp(110)));
+        TextView how = tv("Arrastra un punto: ↕ brillo, ↔ hora · toca un espacio vacío para agregar · mantén presionado para borrar", 13, DIM);
+        how.setPadding(dp(4), 0, 0, dp(8));
+        graphCard.addView(how);
+        graphCard.addView(new BandGraph(this), new LinearLayout.LayoutParams(-1, dp(300)));
         LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(-1, -2);
         gl.bottomMargin = dp(10);
         wrap.addView(graphCard, gl);
@@ -471,63 +474,140 @@ public class SettingsActivity extends Activity {
     }
 
     /** Gráfico escalonado del brillo a lo largo del día (igual al de la web). */
+    /**
+     * Editor táctil del brillo por horario (grande): arrastra un punto (↕ brillo, ↔ hora), toca un espacio vacío
+     * para agregar un tramo y mantén presionado un punto para borrarlo. Se guarda al soltar.
+     */
     private class BandGraph extends View {
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private List<int[]> l = bandList();
+        private int drag = -1;
+        private boolean moved = false;
+        private float downX, downY;
+        private final Runnable longPress = new Runnable() {
+            public void run() {
+                if (drag >= 0 && !moved && l.size() > 1) {
+                    l.remove(drag); drag = -1;
+                    performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                    saveBands(l); rebuild();
+                }
+            }
+        };
+
         BandGraph(android.content.Context c) { super(c); }
+
+        private float left() { return dp(44); }
+        private float right() { return getWidth() - dp(16); }
+        private float top() { return dp(16); }
+        private float bottom() { return getHeight() - dp(30); }
+        private float xFor(float hour) { return left() + (right() - left()) * hour / 24f; }
+        private float yFor(int pct) { return bottom() - (pct / 100f) * (bottom() - top()); }
+        private int hourAt(float x) { return Math.max(0, Math.min(23, Math.round((x - left()) / (right() - left()) * 24f))); }
+        private int pctAt(float y) { return Math.max(18, Math.min(100, Math.round((bottom() - y) / (bottom() - top()) * 100f))); }
+
+        private int hit(float x, float y) {
+            for (int i = 0; i < l.size(); i++)
+                if (Math.hypot(x - xFor(l.get(i)[0]), y - yFor(l.get(i)[1])) < dp(30)) return i;
+            return -1;
+        }
+
+        @Override
+        public boolean onTouchEvent(android.view.MotionEvent e) {
+            float x = e.getX(), y = e.getY();
+            switch (e.getActionMasked()) {
+                case android.view.MotionEvent.ACTION_DOWN:
+                    getParent().requestDisallowInterceptTouchEvent(true);   // que el scroll no se lleve el gesto
+                    downX = x; downY = y; moved = false;
+                    drag = hit(x, y);
+                    if (drag >= 0) postDelayed(longPress, 650);
+                    invalidate();
+                    return true;
+                case android.view.MotionEvent.ACTION_MOVE:
+                    if (drag < 0) return true;
+                    if (Math.hypot(x - downX, y - downY) > dp(8)) { moved = true; removeCallbacks(longPress); }
+                    if (!moved) return true;
+                    int nh = hourAt(x);
+                    boolean taken = false;
+                    for (int i = 0; i < l.size(); i++) if (i != drag && l.get(i)[0] == nh) taken = true;
+                    if (!taken) l.get(drag)[0] = nh;
+                    l.get(drag)[1] = pctAt(y);
+                    invalidate();
+                    return true;
+                case android.view.MotionEvent.ACTION_UP:
+                    removeCallbacks(longPress);
+                    if (drag >= 0 && moved) { saveBands(l); rebuild(); }
+                    else if (drag < 0 && Math.hypot(x - downX, y - downY) < dp(8) && x >= left() && x <= right()) {
+                        int nh2 = hourAt(x);
+                        for (int[] b : l) if (b[0] == nh2) { drag = -1; invalidate(); return true; }
+                        l.add(new int[]{nh2, pctAt(y)});
+                        saveBands(l); rebuild();
+                    }
+                    drag = -1; invalidate();
+                    return true;
+                case android.view.MotionEvent.ACTION_CANCEL:
+                    removeCallbacks(longPress); drag = -1; invalidate();
+                    return true;
+            }
+            return true;
+        }
+
         protected void onDraw(Canvas c) {
-            List<int[]> l = bandList();
-            float w = getWidth(), hh = getHeight(), pad = dp(4);
-            float y0 = pad, y100 = hh - pad - dp(14);
-            // relleno
+            Collections.sort(l, new java.util.Comparator<int[]>() { public int compare(int[] a, int[] b) { return a[0] - b[0]; } });
+            float L = left(), R = right(), T = top(), B = bottom();
+            // cuadrícula: 25/50/75/100 %
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(1); p.setColor(0x14FFFFFF);
+            p.setPathEffect(null);
+            for (int v = 25; v <= 100; v += 25) c.drawLine(L, yFor(v), R, yFor(v), p);
+            for (int hr = 0; hr <= 24; hr += 3) c.drawLine(xFor(hr), T, xFor(hr), B, p);
+            p.setStyle(Paint.Style.FILL); p.setColor(DIM); p.setTextSize(dp(11)); p.setTextAlign(Paint.Align.RIGHT);
+            for (int v = 25; v <= 100; v += 25) c.drawText(v + "%", L - dp(8), yFor(v) + dp(4), p);
+            p.setTextAlign(Paint.Align.CENTER);
+            for (int hr = 0; hr <= 24; hr += 3) c.drawText(hourTxt(hr % 24), xFor(hr), B + dp(20), p);
+            // curva escalonada + relleno
             android.graphics.Path area = new android.graphics.Path();
-            area.moveTo(0, yFor(brightAt(l, 0), y0, y100));
+            area.moveTo(L, yFor(brightAt(l, 0)));
             for (int hr = 1; hr <= 24; hr++) {
-                float x = w * hr / 24f;
-                area.lineTo(x, yFor(brightAt(l, hr - 1), y0, y100));
-                if (hr < 24) area.lineTo(x, yFor(brightAt(l, hr), y0, y100));
+                area.lineTo(xFor(hr), yFor(brightAt(l, hr - 1)));
+                if (hr < 24) area.lineTo(xFor(hr), yFor(brightAt(l, hr)));
             }
             android.graphics.Path fill = new android.graphics.Path(area);
-            fill.lineTo(w, hh); fill.lineTo(0, hh); fill.close();
-            p.setStyle(Paint.Style.FILL);
-            p.setShader(new LinearGradient(0, y0, 0, hh, 0x550A84FF, 0x100A84FF, Shader.TileMode.CLAMP));
+            fill.lineTo(R, B); fill.lineTo(L, B); fill.close();
+            p.setShader(new LinearGradient(0, T, 0, B, 0x660A84FF, 0x0A0A84FF, Shader.TileMode.CLAMP));
             c.drawPath(fill, p);
             p.setShader(null);
-            // línea de piso 18 %
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(dp(1));
-            p.setColor(WARN);
-            float yFloor = yFor(18, y0, y100);
-            android.graphics.DashPathEffect dash = new android.graphics.DashPathEffect(new float[]{dp(4), dp(3)}, 0);
-            p.setPathEffect(dash);
-            c.drawLine(0, yFloor, w, yFloor, p);
-            p.setPathEffect(null);
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(WARN); p.setTextSize(dp(9));
-            c.drawText("18% mín.", dp(2), yFloor - dp(3), p);
-            // curva
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(dp(2.5f));
-            p.setColor(ACC);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(dp(3)); p.setColor(ACC);
             c.drawPath(area, p);
-            // puntos
-            p.setStyle(Paint.Style.FILL);
-            for (int[] b : l) { p.setColor(0xFFFFFFFF); c.drawCircle(w * b[0] / 24f, yFor(b[1], y0, y100), dp(3.5f), p); p.setColor(ACC); c.drawCircle(w * b[0] / 24f, yFor(b[1], y0, y100), dp(2f), p); }
-            // marca hora actual
+            // piso 18 %
+            p.setStrokeWidth(dp(1.5f)); p.setColor(WARN);
+            p.setPathEffect(new android.graphics.DashPathEffect(new float[]{dp(6), dp(4)}, 0));
+            c.drawLine(L, yFor(18), R, yFor(18), p);
+            p.setPathEffect(null);
+            p.setStyle(Paint.Style.FILL); p.setTextAlign(Paint.Align.LEFT); p.setTextSize(dp(11));
+            c.drawText("mínimo 18 % (por debajo la pantalla se apaga)", L + dp(6), yFor(18) - dp(5), p);
+            // hora actual
             java.util.Calendar cal = java.util.Calendar.getInstance();
-            float nx = w * (cal.get(java.util.Calendar.HOUR_OF_DAY) + cal.get(java.util.Calendar.MINUTE) / 60f) / 24f;
-            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(dp(1)); p.setColor(0x66FFFFFF);
-            c.drawLine(nx, 0, nx, hh, p);
-            // etiquetas
-            p.setStyle(Paint.Style.FILL); p.setColor(DIM); p.setTextSize(dp(9));
-            String[] lab = {"12 AM", "6 AM", "12 PM", "6 PM", "12 AM"};
-            p.setTextAlign(Paint.Align.CENTER);
-            for (int i = 0; i < 5; i++) {
-                float x = w * i / 4f;
-                c.drawText(lab[i], Math.max(dp(14), Math.min(w - dp(14), x)), hh - dp(2), p);
+            float nx = xFor(cal.get(java.util.Calendar.HOUR_OF_DAY) + cal.get(java.util.Calendar.MINUTE) / 60f);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(dp(1.5f)); p.setColor(0x88FFFFFF);
+            c.drawLine(nx, T, nx, B, p);
+            p.setStyle(Paint.Style.FILL); p.setColor(0xCCFFFFFF); p.setTextAlign(Paint.Align.CENTER);
+            c.drawText("ahora", nx, T - dp(4), p);
+            // puntos grandes (tocables)
+            for (int i = 0; i < l.size(); i++) {
+                float px = xFor(l.get(i)[0]), py = yFor(l.get(i)[1]);
+                boolean sel = i == drag;
+                p.setStyle(Paint.Style.FILL);
+                p.setColor(sel ? 0x550A84FF : 0x330A84FF);
+                c.drawCircle(px, py, dp(sel ? 22 : 16), p);
+                p.setColor(0xFFFFFFFF); c.drawCircle(px, py, dp(9), p);
+                p.setColor(ACC); c.drawCircle(px, py, dp(5.5f), p);
+                // etiqueta del punto
+                String lab = hourTxt(l.get(i)[0]) + " · " + l.get(i)[1] + "%";
+                p.setTextSize(dp(sel ? 14 : 12)); p.setColor(0xFFFFFFFF);
+                float ty = py - dp(22) < T + dp(10) ? py + dp(32) : py - dp(22);
+                c.drawText(lab, Math.max(L + dp(40), Math.min(R - dp(40), px)), ty, p);
             }
             p.setTextAlign(Paint.Align.LEFT);
         }
-        private float yFor(int pct, float y0, float y100) { return y100 - (pct / 100f) * (y100 - y0); }
     }
 
     // ======================= apps: mostrar / ocultar =======================

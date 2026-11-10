@@ -148,7 +148,11 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
 - **Brillo automático por tramos** (Ajustes RAV4 → Brillo automático): pref `autobright` on/off y
   `autobright.bands` = "hora:porcentaje,.." (ej. "7:90,19:55,22:25"). El tramo vigente es el de mayor hora ≤ ahora
   (envuelve medianoche). `HomeActivity.applyAutoBrightness` lo aplica al cambiar de tramo (un ajuste manual dentro
-  del mismo tramo se respeta); nunca baja del 18 %. El editor muestra un gráfico SVG en vivo (brillo×hora, línea de piso 18 %, marca de la hora actual) que se actualiza al mover los deslizadores.
+  del mismo tramo se respeta); nunca baja del 18 %. Editor **táctil grande** (`SettingsActivity.BandGraph`, 300 dp):
+  arrastrar un punto (↕ brillo, ↔ hora), tocar un espacio vacío agrega un tramo, mantener presionado lo borra.
+- **Configuración global**: tema, modo y acento usan las mismas claves (`theme`, `mode`, `accent`) en la interfaz
+  nativa y en la web (`WebHome.globalKey`); las horas del modo automático (`web.darkFrom/To`) valen para ambas.
+  Auto · CAN en nativo se muestra como Cockpit. Nada de configuraciones separadas por interfaz.
 - El cajón de apps: íconos **grandes y reales (sin placa)**, **páginas horizontales de 6×3** con puntos (nada de scroll
   vertical). Con el cajón abierto: ← página siguiente, → anterior; en la primera página → lo cierra.
 - Ocultar/mostrar apps desde **Ajustes RAV4 → Apps** (lista con botón Visible/Oculta; escribe el set `hidden`).

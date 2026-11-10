@@ -403,10 +403,15 @@ public class WebHome {
         }
 
         @JavascriptInterface
-        public String pref(String key, String def) { return a.webPrefs().getString("web." + key, def); }
+        public String pref(String key, String def) { return a.webPrefs().getString(globalKey(key), def); }
 
         @JavascriptInterface
-        public void setPref(String key, String val) { a.webPrefs().edit().putString("web." + key, val).apply(); }
+        public void setPref(String key, String val) { a.webPrefs().edit().putString(globalKey(key), val).apply(); }
+
+        /** Configuración global: tema, modo y acento son las mismas claves para la interfaz nativa y la web. */
+        private String globalKey(String k) {
+            return "theme".equals(k) || "mode".equals(k) || "accent".equals(k) ? k : "web." + k;
+        }
 
         @JavascriptInterface
         public void resetTrip() { ui(new Runnable() { public void run() { a.webResetTrip(); } }); }
