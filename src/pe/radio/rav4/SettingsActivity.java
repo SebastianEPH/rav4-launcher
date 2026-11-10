@@ -17,6 +17,7 @@ import android.os.Handler;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
@@ -131,6 +132,9 @@ public class SettingsActivity extends Activity {
                 new String[]{"Sí", "No"}, new String[]{"on", "off"}, "off"));
         content.addView(bc);
         if ("on".equals(prefs.getString("autobright", "off"))) content.addView(bandsEditor());
+
+        section("Apps (mostrar u ocultar)");
+        content.addView(appsCard());
 
         section("Permisos");
         content.addView(permsCard());
@@ -505,6 +509,68 @@ public class SettingsActivity extends Activity {
         }
         private float yFor(int pct, float y0, float y100) { return y100 - (pct / 100f) * (y100 - y0); }
     }
+
+    // ======================= apps: mostrar / ocultar =======================
+    private LinearLayout appsCard() {
+        LinearLayout c = card();
+        PackageManager pm = getPackageManager();
+        Set<String> hidden = new HashSet<String>(prefs.getStringSet("hidden", new HashSet<String>()));
+        Intent main = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+        List<ResolveInfo> apps = new ArrayList<ResolveInfo>();
+        for (ResolveInfo r : pm.queryIntentActivities(main, 0)) {
+            if (r.activityInfo.name.equals(HomeActivity.class.getName())) continue;   // el propio launcher no
+            apps.add(r);
+        }
+        final PackageManager fpm = pm;
+        Collections.sort(apps, new java.util.Comparator<ResolveInfo>() {
+            public int compare(ResolveInfo a, ResolveInfo b) {
+                return String.valueOf(a.loadLabel(fpm)).compareToIgnoreCase(String.valueOf(b.loadLabel(fpm)));
+            }
+        });
+        if (apps.isEmpty()) { c.addView(pad(tv("No se pudieron leer las apps.", 14, DIM))); return c; }
+        int shown = 0;
+        for (int i = 0; i < apps.size(); i++) {
+            final ResolveInfo r = apps.get(i);
+            final String k = r.activityInfo.packageName + "/" + r.activityInfo.name;
+            final boolean isHidden = hidden.contains(k);
+            if (i > 0) { View div = new View(this); div.setBackgroundColor(LINE); c.addView(div, new LinearLayout.LayoutParams(-1, 1)); }
+            LinearLayout row = new LinearLayout(this);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(12), dp(8), dp(12), dp(8));
+            ImageView iv = new ImageView(this);
+            iv.setImageDrawable(r.loadIcon(pm));
+            LinearLayout.LayoutParams il = new LinearLayout.LayoutParams(dp(40), dp(40));
+            il.rightMargin = dp(12);
+            iv.setAlpha(isHidden ? 0.4f : 1f);
+            row.addView(iv, il);
+            TextView name = tv(String.valueOf(r.loadLabel(pm)), 15, isHidden ? DIM : TXT);
+            name.setSingleLine(true); name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            row.addView(name, new LinearLayout.LayoutParams(0, -2, 1f));
+            final TextView tgl = tv(isHidden ? "Oculta" : "Visible", 14, 0xFFFFFFFF);
+            tgl.setGravity(Gravity.CENTER);
+            tgl.setPadding(dp(16), dp(7), dp(16), dp(7));
+            GradientDrawable g = new GradientDrawable(); g.setCornerRadius(dp(14));
+            g.setColor(isHidden ? 0x1AFFFFFF : ACC);
+            if (isHidden) g.setStroke(dp(1), DIM);
+            tgl.setBackground(g);
+            tgl.setTextColor(isHidden ? DIM : 0xFFFFFFFF);
+            tgl.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    Set<String> hs = new HashSet<String>(prefs.getStringSet("hidden", new HashSet<String>()));
+                    if (!hs.remove(k)) hs.add(k);
+                    prefs.edit().putStringSet("hidden", hs).apply();
+                    touch();
+                    rebuild();
+                }
+            });
+            row.addView(tgl);
+            c.addView(row);
+            shown++;
+        }
+        return c;
+    }
+
+    private View pad(TextView t) { t.setPadding(dp(14), dp(12), dp(14), dp(12)); return t; }
 
     // ======================= permisos =======================
     private LinearLayout permsCard() {

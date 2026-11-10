@@ -1315,7 +1315,7 @@ public class HomeActivity extends Activity {
     private View buildDrawer() {
         LinearLayout d = new LinearLayout(this);
         d.setOrientation(LinearLayout.VERTICAL);
-        int bgc = P.dark ? 0xF50E0F13 : 0xF5F2F2F7;
+        int bgc = P.dark ? 0xFF0E0F13 : 0xFFF2F2F7;
         d.setBackgroundColor(bgc);
         d.setPadding(dp(40), dp(26), dp(40), dp(10));
         d.setClickable(true);
@@ -1348,7 +1348,7 @@ public class HomeActivity extends Activity {
         d.addView(sep, sl);
 
         GridView grid = new GridView(this);
-        grid.setNumColumns(7);
+        grid.setNumColumns(6);
         grid.setVerticalSpacing(dp(22));
         grid.setHorizontalSpacing(dp(8));
         grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
@@ -1362,7 +1362,7 @@ public class HomeActivity extends Activity {
             public long getItemId(int i) { return i; }
             public View getView(int i, View v, ViewGroup parent) {
                 View t = drawerTile(shown.get(i));
-                t.setLayoutParams(new GridView.LayoutParams(-1, dp(150)));
+                t.setLayoutParams(new GridView.LayoutParams(-1, dp(172)));
                 return t;
             }
         };
@@ -1382,10 +1382,8 @@ public class HomeActivity extends Activity {
         t.setOrientation(LinearLayout.VERTICAL);
         t.setGravity(Gravity.CENTER_HORIZONTAL);
         ImageView iv = new ImageView(this);
-        iv.setImageDrawable(Theme.squircle(getResources(), r.loadIcon(getPackageManager()), dp(84),
-                P.dark ? 0xFF26272D : 0xFFFFFFFF));
-        iv.setElevation(dp(4));
-        t.addView(iv, new LinearLayout.LayoutParams(dp(84), dp(84)));
+        iv.setImageDrawable(r.loadIcon(getPackageManager()));   // ícono real, sin placa
+        t.addView(iv, new LinearLayout.LayoutParams(dp(104), dp(104)));
         TextView tv = txt(String.valueOf(r.loadLabel(getPackageManager())), 14, P.text);
         tv.setTypeface(Typeface.DEFAULT);
         tv.setGravity(Gravity.CENTER);
