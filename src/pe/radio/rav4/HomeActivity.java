@@ -242,6 +242,7 @@ public class HomeActivity extends Activity {
         settings.setVisibility(View.GONE);
         root.addView(settings);
         setContentView(root);
+        getWindow().setBackgroundDrawable(null);   // la foto de arranque ya no hace falta: evita dibujarla en cada cuadro
         rebuildDock();
         if (last != null) { updateTrip(); if (gauge != null) gauge.setSpeed(curKmh); }
         else if (gauge != null) gauge.setSub(P.glass ? "Buscando GPS…" : "gps: searching...");

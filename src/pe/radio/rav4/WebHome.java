@@ -40,7 +40,7 @@ public class WebHome {
     private static final String PAGE = "file:///android_asset/web/index.html";
 
     private final HomeActivity a;
-    private final WebView web;
+    private WebView web;   // se crea un cuadro después del reloj (crearlo bloquea varios segundos en esta radio)
     private final android.widget.FrameLayout root;
     private View splash;
     private volatile boolean ready = false;
@@ -52,6 +52,14 @@ public class WebHome {
     // Tiempos de arranque (ms) para mostrarlos en el Panel y poder optimizar con datos reales.
     private final long tCreate = android.os.SystemClock.elapsedRealtime();
     private volatile long tReady = 0, tApps = 0;
+    // Registro de arranque: cada paso con su tiempo desde que Android creó el proceso (se guarda en arranque.txt).
+    private final long t0 = Build.VERSION.SDK_INT >= 24 ? android.os.Process.getStartElapsedRealtime() : android.os.SystemClock.elapsedRealtime();
+    private final StringBuilder bootLog = new StringBuilder();
+    private boolean bootSaved = false;
+
+    private synchronized void mark(String what) {
+        bootLog.append(String.format(java.util.Locale.US, "%7d ms  %s%n", android.os.SystemClock.elapsedRealtime() - t0, what));
+    }
     // El estado se arma en un hilo aparte y la página solo lee la última copia: así JS nunca queda
     // esperando a Android (antes cada consulta bloqueaba la página y los toques tardaban segundos).
     private volatile String stateJson = "{}", canJson = "{}";
@@ -68,7 +76,24 @@ public class WebHome {
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     public WebHome(HomeActivity activity) {
         a = activity;
+        mark("onCreate del launcher (" + HomeActivity.class.getSimpleName() + ")");
+        // 1) reloj nativo en pantalla ya
+        root = new android.widget.FrameLayout(a);
+        root.setBackgroundColor(0xFF05070C);
+        splash = buildSplash();
+        root.addView(splash);
+        bg.start();
+        bgH = new android.os.Handler(bg.getLooper());
+        bgH.post(loadApps);
+        // 2) el WebView, recién después de que el reloj se dibujó
+        root.post(new Runnable() { public void run() { createWeb(); } });
+    }
+
+    @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
+    private void createWeb() {
+        mark("reloj dibujado; creando WebView");
         web = new WebView(a);
+        mark("WebView creado");
         web.setBackgroundColor(0xFF05070C);
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
         web.setVerticalScrollBarEnabled(false);
@@ -85,27 +110,47 @@ public class WebHome {
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) { return shouldOverrideUrlLoading(v, r.getUrl().toString()); }
             public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) { return intercept(r.getUrl().toString()); }
             public WebResourceResponse shouldInterceptRequest(WebView v, String url) { return intercept(url); }
+            public void onPageStarted(WebView v, String url, android.graphics.Bitmap f) { mark("página: empezó a cargar"); }
+            public void onPageFinished(WebView v, String url) { mark("página: terminó de cargar"); }
         });
-        // Pantalla nativa inmediata (hora sobre el fondo del tema) mientras el WebView arranca: nada de negro.
-        root = new android.widget.FrameLayout(a);
-        root.setBackgroundColor(0xFF05070C);
-        root.addView(web);
-        splash = buildSplash();
-        root.addView(splash);
-        bg.start();
-        bgH = new android.os.Handler(bg.getLooper());
-        bgH.post(loadApps);
+        root.addView(web, 0);
         bgH.post(refresh);
         web.addJavascriptInterface(new Bridge(), "Radio");
         web.loadUrl(PAGE);
-        // Red de seguridad: si el WebView de la radio no puede correr la página, no dejar la pantalla en negro.
+        // Red de seguridad: si el WebView de la radio no puede correr la página, no dejar la pantalla congelada.
         web.postDelayed(new Runnable() {
             public void run() {
                 if (ready) return;
+                mark("la página no respondió en 12 s → interfaz nativa");
+                saveBootLog();
                 android.widget.Toast.makeText(a, "La interfaz web no arrancó en esta radio; vuelvo a la nativa.", android.widget.Toast.LENGTH_LONG).show();
                 a.webUseNative();
             }
-        }, 8000);
+        }, 12000);
+    }
+
+    /** Guarda el registro del arranque en RAV4Launcher/arranque.txt (memoria interna y, si está, el USB). */
+    private void saveBootLog() {
+        synchronized (this) { if (bootSaved) return; bootSaved = true; }
+        bgH.post(new Runnable() {
+            public void run() {
+                String head = "=== " + new java.util.Date() + " · launcher " + Updater.currentVersion(a) + " · tiempos desde que Android creó el proceso\n";
+                String body;
+                synchronized (WebHome.this) { body = bootLog.toString(); }
+                File[] dirs = {new File(android.os.Environment.getExternalStorageDirectory(), "RAV4Launcher"), CanBridge.usbDir()};
+                for (File d : dirs) {
+                    if (d == null) continue;
+                    try {
+                        d.mkdirs();
+                        FileOutputStream o = new FileOutputStream(new File(d, "arranque.txt"), true);
+                        o.write((head + body + "\n").getBytes("UTF-8"));
+                        o.flush();
+                        o.getFD().sync();
+                        o.close();
+                    } catch (Exception e) { }
+                }
+            }
+        });
     }
 
     public View view() { return root; }
@@ -138,7 +183,7 @@ public class WebHome {
                 if (splash == null) return;
                 final View s = splash;
                 splash = null;
-                s.animate().alpha(0f).setDuration(220).withEndAction(new Runnable() { public void run() { root.removeView(s); } }).start();
+                s.animate().alpha(0f).setDuration(220).withEndAction(new Runnable() { public void run() { root.removeView(s); a.getWindow().setBackgroundDrawable(null); } }).start();
             }
         });
     }
@@ -170,7 +215,7 @@ public class WebHome {
                 }
             } catch (Exception e) { }
             appsJson = out.toString();
-            if (tApps == 0) tApps = android.os.SystemClock.elapsedRealtime();
+            if (tApps == 0) { tApps = android.os.SystemClock.elapsedRealtime(); mark("lista de apps lista (" + out.length() + " apps)"); if (tReady > 0) saveBootLog(); }
             js("RAV4.appsChanged()");
         }
     };
@@ -217,7 +262,7 @@ public class WebHome {
     }
 
     public void js(final String code) {
-        a.runOnUiThread(new Runnable() { public void run() { web.evaluateJavascript("window.RAV4&&" + code, null); } });
+        a.runOnUiThread(new Runnable() { public void run() { if (web != null) web.evaluateJavascript("window.RAV4&&" + code, null); } });
     }
 
     /** Se instaló, desinstaló, ocultó o fijó una app: rehacer la lista en segundo plano. */
@@ -227,8 +272,7 @@ public class WebHome {
         bgH.removeCallbacks(refresh);
         bg.quitSafely();
         if (can != null) can.stop();
-        web.removeJavascriptInterface("Radio");
-        web.destroy();
+        if (web != null) { web.removeJavascriptInterface("Radio"); web.destroy(); }
     }
 
     private void ui(Runnable r) { a.runOnUiThread(r); }
@@ -255,11 +299,15 @@ public class WebHome {
     private class Bridge {
 
         @JavascriptInterface
-        public void ready() { ready = true; if (tReady == 0) tReady = android.os.SystemClock.elapsedRealtime(); hideSplash(); }
+        public void ready() {
+            ready = true;
+            if (tReady == 0) { tReady = android.os.SystemClock.elapsedRealtime(); mark("interfaz web visible (reloj se oculta)"); if (tApps > 0) saveBootLog(); }
+            hideSplash();
+        }
 
         @JavascriptInterface
         public String boot() {
-            long proc = Build.VERSION.SDK_INT >= 24 ? tCreate - android.os.Process.getStartElapsedRealtime() : -1;
+            long proc = Build.VERSION.SDK_INT >= 24 ? tCreate - t0 : -1;
             return "{\"proc\":" + proc + ",\"page\":" + (tReady > 0 ? tReady - tCreate : -1) + ",\"apps\":" + (tApps > 0 ? tApps - tCreate : -1) + "}";
         }
 

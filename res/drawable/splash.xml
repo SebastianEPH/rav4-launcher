@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fondo de ventana: Android lo pinta apenas abre el launcher, antes de que corra nuestro código. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><color android:color="#FF05070C"/></item>
+    <item><bitmap android:src="@drawable/rav4" android:gravity="center" android:alpha="0.85"/></item>
+</layer-list>

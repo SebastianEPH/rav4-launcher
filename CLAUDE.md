@@ -95,7 +95,11 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
   en un hilo aparte cada 500 ms). Nada de leer sensores/archivos en cada consulta (CPU cada 15 s, perfil CAN cada 10 s).
   En CSS: sin `filter: blur` en fondos (la aurora usa degradados radiales) y `backdrop-filter` solo con Efectos "Altos";
   por defecto los efectos son "Suaves".
-- **Arranque rápido**: `WebHome` pone un reloj nativo encima del WebView al instante y lo quita con fundido cuando
+- **Arranque rápido**: el tema de la actividad (`@style/Rav4`) tiene como fondo de ventana `res/drawable/splash.xml`
+  (fondo oscuro + foto del RAV4): Android lo pinta antes de que corra nuestro código. Luego `WebHome` muestra un
+  reloj nativo y **recién en el cuadro siguiente crea el WebView** (crearlo bloquea varios segundos). Cada arranque
+  se registra paso a paso en `RAV4Launcher/arranque.txt` (memoria interna y USB) para medir en la radio real.
+- `WebHome` quita el reloj con fundido cuando
   la página llama `Radio.ready()` (primer cuadro). La lista de apps se arma en segundo plano (solo nombres) y se
   rehace solo al instalar/quitar apps (broadcast de paquetes) o al fijar/ocultar, no en cada vuelta a Inicio.
   Los íconos se sirven por `https://rav4.local/icon/<clave>?v=<lastUpdateTime>` (shouldInterceptRequest, caché en
