@@ -64,7 +64,8 @@ Código Java en el paquete `pe.radio.rav4`:
 - `Views.java` — vistas dibujadas a mano: velocímetro (Gauge), gráfico (Spark), detector de
   gestos (GestureFrame), fondos de pantalla (Wallpaper).
 - `WebHome.java` — la interfaz web (ver abajo): WebView + puente JS `Radio`.
-- `CanBridge.java` — lee el bus CAN por el servicio AIDL de `com.nwd.can.setting` (ver FINDINGS.md → Bus CAN).
+- `CanBridge.java` — lee el bus CAN por el servicio AIDL de `com.nwd.can.setting` (ver FINDINGS.md → Bus CAN)
+  y graba todo en `RAV4Launcher/can_<fecha>.txt` en el USB para analizarlo en el Mac.
 - `Updater.java` — "Buscar actualización" (⚙ Ajustes → Sistema): lee el último Release de GitHub,
   compara su tag con `versionName`, descarga el APK y lo instala con `PackageInstaller`. La primera vez
   Android pide permitir "instalar apps de esta fuente". El CI pone `versionCode=100+run_number` y

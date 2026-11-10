@@ -2110,6 +2110,13 @@ public class HomeActivity extends Activity {
     void webMute() { mute(); }
     void webResetTrip() { resetTrip(); }
     void webCheckUpdate() { new Updater(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).check(); }
+    boolean webHasStorage() {
+        return Build.VERSION.SDK_INT < 23 || checkSelfPermission("android.permission.WRITE_EXTERNAL_STORAGE") == PackageManager.PERMISSION_GRANTED;
+    }
+    void webAskStorage() {
+        if (Build.VERSION.SDK_INT >= 23)
+            requestPermissions(new String[]{"android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.READ_EXTERNAL_STORAGE"}, 2);
+    }
     void webUseNative() { prefs.edit().putString("engine", "native").apply(); applyTheme(); }
 
     void webSetVolume(int v) {

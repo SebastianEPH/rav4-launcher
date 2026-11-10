@@ -87,3 +87,8 @@ hay `toyota` con cajas `binary`, `daojun`, `hiworld`, `luzhen`, `oudi`, `raise`)
 - Qué campos llegan de verdad depende de la caja CAN y del perfil elegido en "Datos del automóvil".
   El launcher lo implementa en `CanBridge.java` y lo muestra en el tema **Auto · CAN** con un registro
   de cada paquete y broadcast (`ACTION_CAN_DOOR_STATE_CHANGE`, etc.) para ver qué manda este RAV4.
+- **Grabación**: botón "● Grabar en USB" del tema Auto · CAN → `RAV4Launcher/can_<fecha>.txt` en el pendrive
+  (mismas rutas que Radio Diagnóstico; si no hay USB, memoria interna). Guarda cada paquete en hex completo,
+  el canal **crudo** de la caja CAN (`addCallBack4Outerface`, código 3 → `ICanRemote4OuterCallback.onDistributeRawData`),
+  los `CarInfo` serializados, todos los broadcasts CAN conocidos con sus extras y un resumen decodificado cada 5 s.
+  Sirve para descubrir señales que el launcher todavía no interpreta.

@@ -503,3 +503,7 @@ body[data-mode="light"] .car .body { fill: rgba(255,255,255,.7); stroke: rgba(0,
 .canlog .k.puertas { color: #ff9f0a; } .canlog .k.broadcast { color: #bf5af2; } .canlog .k.error { color: #ff453a; } .canlog .k.sistema { color: #34c759; }
 .canlog .empty { color: var(--dim); font-family: inherit; white-space: normal; }
 .canlog div, .log div { flex: none; }
+.rec { margin-left: .7rem; padding: .45rem 1rem; border-radius: 1.2rem; font-size: .9rem; font-weight: 600; color: #fff; background: rgba(255,69,58,.85); white-space: nowrap; transition: transform .2s; }
+.rec:active { transform: scale(.92); }
+.rec.on { background: #ff453a; animation: recPulse 1.4s ease-in-out infinite; }
+@keyframes recPulse { 50% { box-shadow: 0 0 0 .5rem rgba(255,69,58,.25); } }

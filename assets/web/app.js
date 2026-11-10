@@ -389,7 +389,7 @@
         '<div class="card indcard"><h4>Señales</h4><div class="inds">' + INDICATORS.map(function (d, i) {
           return '<div class="ind nd" id="ind' + i + '">' + ci(d[0]) + '<div><b>' + d[1] + '</b><span>sin dato</span></div></div>';
         }).join('') + '</div><div class="turns"><span class="tl" id="tl">' + ci('left') + '</span><span class="fuel">' + ci('fuel') + '<b data-k="fuel">—</b></span><span class="tr" id="tr">' + ci('right') + '</span></div></div>' +
-        '<div class="card logcard"><div class="head">' + ci('bus') + '<h4>Bus CAN</h4><span class="st" data-k="canStatus"></span><span class="pill" data-k="canPk">0 paquetes</span></div><div class="canlog" id="canlog"></div></div>' +
+        '<div class="card logcard"><div class="head">' + ci('bus') + '<h4>Bus CAN</h4><span class="st" data-k="canStatus"></span><span class="pill" data-k="canPk">0 paquetes</span><button class="rec" id="recBtn">● Grabar en USB</button></div><div class="canlog" id="canlog"></div></div>' +
         '</div>';
     },
     tick: function () {
@@ -416,6 +416,8 @@
       var age = C.ageMs;
       setK('canStatus', (C.status || 'Esperando al servicio CAN…') + (age >= 0 ? ' · último hace ' + (age / 1000).toFixed(1) + ' s' : ''));
       setK('canPk', (C.packets || 0) + ' paquetes');
+      var rb = $('#recBtn');
+      if (rb) { rb.classList.toggle('on', !!C.recording); rb.textContent = C.recording ? '■ Detener · ' + (C.recLines || 0) + ' líneas' : '● Grabar en USB'; }
       var lg = $('#canlog');
       if (lg) {
         var lines = (C.log || []).slice(-14);
@@ -776,6 +778,15 @@
     if (t.closest('#showHidden')) { showHiddenApps = !showHiddenApps; renderDrawer(); return; }
     if ((el = t.closest('[data-theme-pick]'))) { setPref('theme', el.getAttribute('data-theme-pick')); return; }
     if ((el = t.closest('.seg button'))) { setPref(el.parentNode.getAttribute('data-pref'), el.getAttribute('data-v')); return; }
+    if (t.closest('#recBtn')) {
+      var res = R.canRecord(!C.recording);
+      if (res === 'PERMISO') toast('Acepta el permiso de almacenamiento y vuelve a pulsar Grabar');
+      else if (res.indexOf('ERROR') === 0) toast(res.slice(7));
+      else if (C.recording) toast('Guardado en ' + res + '. Ya puedes sacar el USB.');
+      else toast('Grabando en ' + res);
+      setTimeout(poll, 200);
+      return;
+    }
     if ((el = t.closest('[data-accent]'))) { setPref('accent', el.getAttribute('data-accent')); return; }
     if ((el = t.closest('[data-hour]'))) { var hp = el.getAttribute('data-hour').split(':'); setPref(hp[0], String((+prefs[hp[0]] + +hp[1] + 24) % 24)); return; }
     if ((el = t.closest('[data-media]'))) { R.media(el.getAttribute('data-media')); return; }
@@ -805,7 +816,7 @@
   // ================= simulador (solo navegador) =================
   function makeSim() {
     var kmh = params.kmh ? +params.kmh : 0, target = 45, dist = 3.2, max = 0, moving = 14, vol = 18, br = 62, wifi = true, bt = true, bearing = 60, batt = 13.8;
-    var store = {}, simDoor = -1, simLog = [], simLastT = 0;
+    var store = {}, simDoor = -1, simLog = [], simLastT = 0, simRec = !!params.rec, simRecN = 0;
     function pad2(n) { return (n < 10 ? '0' : '') + n; }
     try { store = JSON.parse(localStorage.getItem('rav4sim') || '{}'); } catch (e) { }
     setInterval(function () {
@@ -845,7 +856,9 @@
       resetTrip: function () { dist = 0; max = 0; moving = 0; }, checkUpdate: function () { toast('Simulado: buscar actualización'); },
       useNative: function () { toast('Simulado: volver a la interfaz nativa'); },
       version: function () { return 'web-preview'; }, permission: function () { },
+      canRecord: function (on) { simRec = on; simRecN = 0; return on ? 'USB: /storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt' : '/storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt'; },
       can: function () {
+        if (simRec) simRecN += 3;
         var t = Date.now() / 1000, rpm = kmh > 1 ? Math.round(900 + kmh * 32 + Math.sin(t * 3) * 120) : 780;
         if (Math.random() < 0.02) simDoor = simDoor >= 0 ? -1 : Math.floor(Math.random() * 6);
         var doors = [0, 0, 0, 0, 0, 0]; if (simDoor >= 0) doors[simDoor] = 1;
@@ -861,7 +874,7 @@
           if (simLog.length > 40) simLog.splice(0, simLog.length - 40);
         }
         return JSON.stringify({ status: 'Simulación en navegador (en la radio son datos reales del bus CAN)', connected: true, packets: simLog.length * 7, ageMs: 180,
-          speed: Math.round(kmh), rpm: rpm, handbrake: kmh > 1 ? 0 : 1, fuel: 62, gear: kmh > 1 ? 4 : 1, beltDriver: 1, beltPassenger: 0,
+          recording: simRec ? '/storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt' : '', recLines: simRecN, speed: Math.round(kmh), rpm: rpm, handbrake: kmh > 1 ? 0 : 1, fuel: 62, gear: kmh > 1 ? 4 : 1, beltDriver: 1, beltPassenger: 0,
           doors: doors, locks: [kmh > 1 ? 1 : 0, 0, 0, 0, 0], lights: [0, night ? 1 : 0, 0, 0, night ? 1 : 0, 0, blink, 0], radar: [0, 0, 0, 0], log: simLog });
       }
     };

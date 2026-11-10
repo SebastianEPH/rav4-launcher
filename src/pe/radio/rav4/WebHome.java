@@ -129,6 +129,14 @@ public class WebHome {
         public void ready() { ready = true; }
 
         @JavascriptInterface
+        public String canRecord(boolean on) {
+            if (!on) return can.stopRecording();
+            if (!a.webHasStorage()) { ui(new Runnable() { public void run() { a.webAskStorage(); } }); return "PERMISO"; }
+            return can.startRecording("Launcher " + Updater.currentVersion(a) + " · Android " + Build.VERSION.RELEASE + " · " + Build.MODEL
+                    + " · " + new java.util.Date());
+        }
+
+        @JavascriptInterface
         public String can() {
             try { return can.state().toString(); } catch (Exception e) { return "{}"; }
         }

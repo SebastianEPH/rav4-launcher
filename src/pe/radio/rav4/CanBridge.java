@@ -17,6 +17,10 @@ import android.os.SystemClock;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.LinkedList;
@@ -32,15 +36,26 @@ public class CanBridge {
 
     private static final String FEATURE = "com.nwd.can.sdk.outer.adil.ICanRemote4OuterFeature";
     private static final String CALLBACK = "com.nwd.can.sdk.outer.adil.ICanRemoteModelCallback";
+    private static final String OUTER_CALLBACK = "com.nwd.can.sdk.outer.adil.ICanRemote4OuterCallback";
     private static final String SERVICE_ACTION = "com.nwd.can.service.ACTION_CAN_SERVICE";
     private static final String SERVICE_PKG = "com.nwd.can.setting";
     // códigos de ICanRemote4OuterFeature.add*CallBack
-    private static final int[][] SUBSCRIBE = {{17, 0}, {11, 0}, {15, 0}, {9, 0}, {27, 0}, {13, 0}};
-    private static final String[] SUB_NAMES = {"datos del auto", "puertas", "radar", "aire", "datos CAN", "volante"};
+    private static final int[] SUBSCRIBE = {17, 11, 15, 9, 27, 13, 23, 25, 19, 21, 29, 33, 35};
+    private static final String[] SUB_NAMES = {"datos del auto", "puertas", "radar", "aire", "datos CAN", "volante",
+            "datos crudos", "ajustes CAN", "volumen CAN", "cámara", "amplificador", "TPMS", "A/C CAN"};
+    // Todos los broadcasts CAN que aparecen en las apps del sistema: se escuchan solo para registrarlos.
     private static final String[] BROADCASTS = {
             "com.nwd.ACTION_CAN_DOOR_STATE_CHANGE", "com.nwd.ACTION_CAN_DOOR_WINDOW", "com.nwd.ACTION_CAN_RADAR_STATE_CHANGE",
             "com.nwd.can.ACTION_CARTYPE_CHANGED", "com.nwd.action.CAN.ELECTRIC_VOLTAGE", "com.nwd.ACTION_BACKCAR_VIDEO_SIGNAL_STATE",
-            "com.nwd.ACTION_CAN_AC_CONTROL", "com.nwd.ACTION_CAN_CENTRAL_CONTROL"};
+            "com.nwd.ACTION_CAN_AC_CONTROL", "com.nwd.ACTION_CAN_CENTRAL_CONTROL", "com.nwd.ACTION_CAN_CAMERA_CONTROL",
+            "com.nwd.ACTION_CAN_TUNER_CONTROL", "com.nwd.ACTION_CAN_CD_CONTROL", "com.nwd.ACTION_CAN_USB_CLOSE", "com.nwd.ACTION_CAN_CD_CLOSE",
+            "com.nwd.can.ACTION_RADAR_SOUND", "com.nwd.can.ACTION_BACK_SHOW_RADAR", "com.nwd.can.ACTION_SPEED_TEST",
+            "com.nwd.action.ACTION_CAN_BATTERY_VOLTAGE", "com.nwd.action.ACTION_PLAY_CAN_ALARM_SOUND", "com.nwd.action.ACTION_STOP_CAN_ALARM_SOUND",
+            "com.nwd.action.ACTION_CARTYPE_TIME_CHANGE", "com.nwd.action.ACTION_CHECK_CARTYPE", "com.nwd.action.ACTION_BACKCAR_CONFIG_UPDATE",
+            "com.nwd.action.ACTION_START_CAN_AUTO_PARK", "com.nwd.action.CAN_FLOAT_MENU_SHOW_ACTION", "com.nwd.netapp.ACTION_DEBUG_DOOR",
+            "com.nwd.netapp.ACTION_DEBUG_DOOR_FEEBACK", "com.nwd.can.setting.service.ACTION_CAR_CAMERA_VIEW_CHANGE",
+            "com.nwd.ACTION_CARPLAY_CALL_ON", "com.nwd.ACTION_CARPLAY_CALL_OFF", "com.nwd.ACTION_BT_VOICE_AT_CAR",
+            "com.nwd.ACTION_START_BACKCAR_SERVICE"};
 
     private final Context ctx;
     private final Handler h = new Handler(Looper.getMainLooper());
@@ -69,6 +84,7 @@ public class CanBridge {
     }
 
     public void stop() {
+        stopRecording();
         stopped = true;
         try { ctx.unregisterReceiver(rx); } catch (Exception e) { }
         if (bound) try { ctx.unbindService(conn); } catch (Exception e) { }
@@ -90,8 +106,9 @@ public class CanBridge {
             svc = b;
             StringBuilder ok = new StringBuilder();
             for (int i = 0; i < SUBSCRIBE.length; i++) {
-                if (subscribe(b, SUBSCRIBE[i][0])) ok.append(ok.length() > 0 ? ", " : "").append(SUB_NAMES[i]);
+                if (subscribe(b, SUBSCRIBE[i], callback)) ok.append(ok.length() > 0 ? ", " : "").append(SUB_NAMES[i]);
             }
+            if (subscribe(b, 3, outerCallback)) ok.append(", canal crudo de la caja CAN");
             status = ok.length() > 0 ? "Conectado. Suscrito a: " + ok : "Conectado, pero el servicio rechazó las suscripciones.";
             add("sistema", "servicio CAN conectado · " + ok);
             try {
@@ -107,11 +124,11 @@ public class CanBridge {
         }
     };
 
-    private boolean subscribe(IBinder b, int code) {
+    private boolean subscribe(IBinder b, int code, Binder cb) {
         Parcel d = Parcel.obtain(), r = Parcel.obtain();
         try {
             d.writeInterfaceToken(FEATURE);
-            d.writeStrongBinder(callback);
+            d.writeStrongBinder(cb);
             b.transact(code, d, r, 0);
             r.readException();
             return true;
@@ -131,13 +148,33 @@ public class CanBridge {
             try {
                 data.enforceInterface(CALLBACK);
                 if (code == 1) onPacket(data.createByteArray());
-                else if (code == 2) add("objeto", "CarInfo recibido (" + data.dataAvail() + " bytes)");
+                else if (code == 2) add("carinfo", "CarInfo (parcel) " + hex(data.marshall()));
                 else if (code == 3) add("objeto", "estado del amplificador");
                 else if (code == 4) add("objeto", "presión de neumáticos (TPMS)");
                 else if (code == 5) add("objeto", "estado del aire acondicionado");
                 if (reply != null) reply.writeNoException();
             } catch (Exception e) {
                 add("error", "callback " + code + ": " + e.getMessage());
+            }
+            return true;
+        }
+    };
+
+    /** ICanRemote4OuterCallback: 1 = datos crudos de la caja CAN, 2 = datos CAN ya separados. */
+    private final Binder outerCallback = new Binder() {
+        { attachInterface(null, OUTER_CALLBACK); }
+
+        @Override
+        protected boolean onTransact(int code, Parcel data, Parcel reply, int flags) {
+            if (code == INTERFACE_TRANSACTION) { if (reply != null) reply.writeString(OUTER_CALLBACK); return true; }
+            try {
+                data.enforceInterface(OUTER_CALLBACK);
+                byte[] b = data.createByteArray();
+                if (code == 1) { packets++; lastPacket = SystemClock.elapsedRealtime(); add("crudo", b == null ? "null" : hex(b)); }
+                else if (code == 2) onPacket(b);
+                if (reply != null) reply.writeNoException();
+            } catch (Exception e) {
+                add("error", "callback crudo " + code + ": " + e.getMessage());
             }
             return true;
         }
@@ -193,18 +230,87 @@ public class CanBridge {
 
     private static String hex(byte[] b) {
         StringBuilder s = new StringBuilder();
-        for (int i = 0; i < b.length && i < 40; i++) s.append(String.format(Locale.US, "%02X ", b[i] & 255));
-        if (b.length > 40) s.append("… (").append(b.length).append(" bytes)");
-        return s.toString().trim();
+        for (int i = 0; i < b.length; i++) s.append(String.format(Locale.US, "%02X ", b[i] & 255));
+        return s.append("(").append(b.length).append(" B)").toString();
     }
 
     private void add(String kind, String msg) {
-        String t = new SimpleDateFormat("HH:mm:ss", Locale.US).format(new Date());
+        String t = new SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(new Date());
         synchronized (log) {
-            log.add(t + "|" + kind + "|" + msg);
+            log.add(t.substring(0, 8) + "|" + kind + "|" + (msg.length() > 160 ? msg.substring(0, 160) + "…" : msg));
             while (log.size() > 60) log.removeFirst();
         }
+        write(t + "  " + kind + "  " + msg);
     }
+
+    // ======================= grabación en .txt =======================
+    private Writer out;
+    private File outFile;
+    private volatile int outLines = 0;
+
+    /** Carpeta RAV4Launcher en el pendrive (mismas rutas que usa Radio Diagnóstico); null si no hay USB. */
+    public static File usbDir() {
+        java.util.List<File> c = new java.util.ArrayList<File>();
+        for (String p : new String[]{"/mnt/media_rw/udisk", "/mnt/media_rw/udiskh", "/mnt/media_rw/udisk3",
+                "/mnt/media_rw/udisk4", "/storage/udisk", "/storage/udiskh"}) c.add(new File(p));
+        File[] st = new File("/storage").listFiles();
+        if (st != null) for (File f : st) if (!f.getName().equals("emulated") && !f.getName().equals("self") && f.isDirectory()) c.add(f);
+        for (File base : c) {
+            if (!base.isDirectory()) continue;
+            File d = new File(base, "RAV4Launcher");
+            d.mkdirs();
+            if (d.isDirectory() && d.canWrite()) return d;
+        }
+        return null;
+    }
+
+    /** Empieza a grabar todo lo que llega del bus. Devuelve la ruta del archivo o un mensaje de error. */
+    public synchronized String startRecording(String header) {
+        if (out != null) return outFile.getAbsolutePath();
+        File dir = usbDir();
+        boolean usb = dir != null;
+        if (!usb) { dir = new File(android.os.Environment.getExternalStorageDirectory(), "RAV4Launcher"); dir.mkdirs(); }
+        outFile = new File(dir, "can_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".txt");
+        try {
+            out = new OutputStreamWriter(new FileOutputStream(outFile), "UTF-8");
+            outLines = 0;
+            out.write("# RAV4 Launcher — registro del bus CAN\n# " + header + "\n# Estado del servicio: " + status
+                    + "\n# Formato: hora  tipo  datos (hex completo). 'estado' = resumen decodificado cada 5 s.\n"
+                    + "# Tipos: auto=datos del auto (tipo 2), puertas (3), radar (4), aire (1), crudo=caja CAN sin procesar,\n"
+                    + "#        carinfo=objeto CarInfo serializado, broadcast=aviso del sistema con sus extras.\n\n");
+            out.flush();
+            h.post(snapshot);
+            return (usb ? "USB: " : "Memoria interna (no se detectó el USB): ") + outFile.getAbsolutePath();
+        } catch (Exception e) {
+            out = null;
+            return "ERROR: no se pudo crear el archivo (" + e.getMessage() + "). ¿Diste permiso de almacenamiento?";
+        }
+    }
+
+    public synchronized String stopRecording() {
+        if (out == null) return "";
+        h.removeCallbacks(snapshot);
+        write("# fin de la grabación · " + outLines + " líneas");
+        try { out.close(); } catch (Exception e) { }
+        out = null;
+        return outFile.getAbsolutePath();
+    }
+
+    private synchronized void write(String line) {
+        if (out == null) return;
+        try { out.write(line); out.write('\n'); out.flush(); outLines++; }
+        catch (Exception e) { out = null; status = "Se interrumpió la grabación (¿se quitó el USB?)"; }
+    }
+
+    private final Runnable snapshot = new Runnable() {
+        public void run() {
+            write(new SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(new Date()) + "  estado  vel=" + speed + " rpm=" + rpm
+                    + " puertas=" + java.util.Arrays.toString(doors) + " seguros=" + java.util.Arrays.toString(locks)
+                    + " luces=" + java.util.Arrays.toString(lights) + " freno=" + handbrake + " cinturon=" + beltDriver + "/" + beltPassenger
+                    + " comb=" + fuel + " marcha=" + gear + " radar=" + java.util.Arrays.toString(radar) + " paquetes=" + packets);
+            if (out != null) h.postDelayed(this, 5000);
+        }
+    };
 
     private static JSONArray arr(int[] a) {
         JSONArray j = new JSONArray();
@@ -229,6 +335,8 @@ public class CanBridge {
         o.put("locks", arr(locks));
         o.put("lights", arr(lights));
         o.put("radar", arr(radar));
+        o.put("recording", out != null ? outFile.getAbsolutePath() : "");
+        o.put("recLines", outLines);
         JSONArray l = new JSONArray();
         synchronized (log) { for (String s : log) l.put(s); }
         o.put("log", l);
