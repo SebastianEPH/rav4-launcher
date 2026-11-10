@@ -181,6 +181,8 @@ public class Views {
 
     // ===== Tema Cockpit (igual al de la interfaz web): colores cian/rosa =====
     static final int COCK_ACC = 0xFF00E5FF, COCK_ACC2 = 0xFFFF2D95, COCK_DIM = 0x99FFFFFF;
+    /** false = sin animaciones (carretera quieta, sin estela ni halo, sin barrido). */
+    public static boolean anim = true;
 
     /** Carretera neón en perspectiva; la cuadrícula corre más rápido cuanto mayor es la velocidad. */
     public static class CockpitRoad extends View {
@@ -224,7 +226,7 @@ public class Views {
                 c.drawLine(cxp, horizon, bx, h, p);
             }
             // líneas horizontales con perspectiva, desplazándose hacia el conductor
-            offset += (0.15f + shown / 90f) * dt;
+            if (anim) offset += (0.15f + shown / 90f) * dt;
             if (offset > 1f) offset -= 1f;
             for (int i = 0; i < 12; i++) {
                 float t = (i + offset) / 12f;
@@ -239,7 +241,7 @@ public class Views {
             p.setColor(COCK_ACC2);
             c.drawLine(0, horizon, w, horizon, p);
 
-            if (Math.abs(target - shown) > 0.3f || shown > 0.3f) postInvalidateOnAnimation();
+            if (anim && (Math.abs(target - shown) > 0.3f || shown > 0.3f)) postInvalidateOnAnimation();
         }
     }
 
@@ -289,6 +291,28 @@ public class Views {
         private float dp(float v) { return v * getResources().getDisplayMetrics().density; }
     }
 
+    /** Desenfoque de caja rápido sobre un bitmap chico (se usa una vez al abrir el cajón). */
+    public static void boxBlur(android.graphics.Bitmap b, int r) {
+        int w = b.getWidth(), h = b.getHeight();
+        int[] px = new int[w * h], tmp = new int[w * h];
+        b.getPixels(px, 0, w, 0, 0, w, h);
+        for (int pass = 0; pass < 2; pass++) {
+            for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
+                int ra = 0, rr = 0, rg = 0, rb = 0, n = 0;
+                for (int k = -r; k <= r; k++) { int xx = Math.max(0, Math.min(w - 1, x + k)); int c = px[y * w + xx];
+                    ra += c >>> 24; rr += (c >> 16) & 255; rg += (c >> 8) & 255; rb += c & 255; n++; }
+                tmp[y * w + x] = ((ra / n) << 24) | ((rr / n) << 16) | ((rg / n) << 8) | (rb / n);
+            }
+            for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
+                int ra = 0, rr = 0, rg = 0, rb = 0, n = 0;
+                for (int k = -r; k <= r; k++) { int yy = Math.max(0, Math.min(h - 1, y + k)); int c = tmp[yy * w + x];
+                    ra += c >>> 24; rr += (c >> 16) & 255; rg += (c >> 8) & 255; rb += c & 255; n++; }
+                px[y * w + x] = ((ra / n) << 24) | ((rr / n) << 16) | ((rg / n) << 8) | (rb / n);
+            }
+        }
+        b.setPixels(px, 0, w, 0, 0, w, h);
+    }
+
     /** Barra de nivel (0..1) con pista redondeada y relleno en degradado. */
     public static class Bar extends View {
         private float frac = 0;
@@ -315,7 +339,8 @@ public class Views {
 
     /** Velocímetro del Cockpit: arco con degradado, marcas, números, aguja con halo y estela de velocidad. */
     public static class CockpitGauge extends View {
-        private float target = 0, shown = 0, max = 180;
+        private float target = 0, shown = 0, max = 180, scale = 0.88f;
+        public void setScale(float sc) { scale = sc; invalidate(); }
         private String sub = "";
         private final float[] trail = new float[6];
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -325,7 +350,24 @@ public class Views {
         public CockpitGauge(Context c) { super(c); }
 
         public void setMax(float m) { max = m; invalidate(); }
-        public void setSpeed(float kmh) { target = Math.max(0, Math.min(max, kmh)); postInvalidateOnAnimation(); }
+
+        /** Barrido de encendido (como un tablero real): la aguja sube al máximo y vuelve a la velocidad actual. */
+        public void sweep() {
+            if (!anim) return;
+            pending = target;
+            sweeping = true;
+            target = max;
+            postInvalidateOnAnimation();
+            postDelayed(new Runnable() { public void run() { sweeping = false; target = pending; postInvalidateOnAnimation(); } }, 750);
+        }
+        private boolean sweeping = false;
+        private float pending = 0;
+
+        public void setSpeed(float kmh) {
+            float v = Math.max(0, Math.min(max, kmh));
+            if (sweeping) { pending = v; return; }
+            target = v; postInvalidateOnAnimation();
+        }
         public void setSub(String s) { sub = s; invalidate(); }
 
         @Override
@@ -337,7 +379,7 @@ public class Views {
             trail[trail.length - 1] = shown;
 
             float w = getWidth(), h = getHeight();
-            float rad = Math.min(w * 0.44f, h * 0.42f);
+            float rad = Math.min(w * 0.44f, h * 0.42f) * scale;
             float cx = w / 2f, cy = h * 0.5f;
             float frac = shown / max;
             r.set(cx - rad, cy - rad, cx + rad, cy + rad);
@@ -379,7 +421,7 @@ public class Views {
                 p.setShader(new android.graphics.SweepGradient(cx, cy,
                         new int[]{COCK_ACC, 0xFF7C4DFF, COCK_ACC2, COCK_ACC2}, new float[]{0, 0.4f, 0.75f, 1f}));
                 // halo (estela de velocidad): más grueso y brillante cuanto más rápido
-                float glow = 0.3f + 0.7f * frac;
+                float glow = anim ? 0.3f + 0.7f * frac : 0f;
                 p.setStrokeWidth(rad * 0.1f + rad * 0.12f * glow);
                 p.setAlpha((int) (70 * glow));
                 c.drawArc(r, START, SWEEP * frac, false, p);
@@ -390,7 +432,7 @@ public class Views {
             }
 
             // aguja con estela (posiciones anteriores, desvaneciéndose) = sensación de velocidad
-            for (int i = 0; i < trail.length - 1; i++) {
+            for (int i = 0; anim && i < trail.length - 1; i++) {
                 float a = START + SWEEP * (trail[i] / max);
                 int al = (int) (90 * (i + 1f) / trail.length);
                 drawNeedle(c, cx, cy, rad, a, (0x00FFFFFF & COCK_ACC2) | (al << 24), rad * 0.025f);

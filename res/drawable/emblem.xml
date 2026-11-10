@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Emblema de arranque: arco de velocímetro cian→rosa con aguja (sin marcas de terceros) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp" android:height="200dp" android:viewportWidth="100" android:viewportHeight="100">
+    <path android:pathData="M18,72 A36,36 0 1,1 82,72" android:strokeColor="#1FFFFFFF" android:strokeWidth="7" android:strokeLineCap="round" android:fillColor="#00000000"/>
+    <path android:pathData="M18,72 A36,36 0 0,1 50,14" android:strokeColor="#FF00E5FF" android:strokeWidth="7" android:strokeLineCap="round" android:fillColor="#00000000"/>
+    <path android:pathData="M50,14 A36,36 0 0,1 78,40" android:strokeColor="#FFFF2D95" android:strokeWidth="7" android:strokeLineCap="round" android:fillColor="#00000000"/>
+    <path android:pathData="M48.5,52 L70,30 L51.5,55 Z" android:fillColor="#FFFF2D95"/>
+    <path android:pathData="M50,48 A5,5 0 1,1 49.99,48 Z" android:fillColor="#FF0B0D14" android:strokeColor="#FF00E5FF" android:strokeWidth="2"/>
+</vector>

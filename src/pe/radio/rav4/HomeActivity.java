@@ -167,6 +167,7 @@ public class HomeActivity extends Activity {
     }
 
     private long appliedStamp = -1;
+    private static boolean introDone = false;
 
     /** Abre la ventana aparte "Ajustes RAV4". */
     void openLauncherSettings() {
@@ -223,6 +224,7 @@ public class HomeActivity extends Activity {
     private void applyTheme() {
         P = Theme.fromPrefs(prefs);
         Theme.P = P;
+        Views.anim = "on".equals(prefs.getString("native.anim", "on"));
         lastDark = P.dark;
         if (useWeb()) {
             dock = null; drawer = null; cc = null; settings = null; homeGrid = null;
@@ -256,6 +258,8 @@ public class HomeActivity extends Activity {
         root.addView(drawer);
         settings = null;   // los ajustes viven en SettingsActivity
         setContentView(root);
+        if (!introDone && Views.anim) { introDone = true; root.setAlpha(0f); root.setScaleX(1.03f); root.setScaleY(1.03f);
+            root.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(420).start(); }
         getWindow().setBackgroundDrawable(null);   // la foto de arranque ya no hace falta: evita dibujarla en cada cuadro
         rebuildDock();
         if (last != null) { updateTrip(); feedGauge(curKmh); }
@@ -415,6 +419,7 @@ public class HomeActivity extends Activity {
 
     // ======================= TEMA COCKPIT (tarjetas tipo panel) =======================
     private TextView cockTopMid, cockTopBatt;
+    private static boolean bootAnimDone = false;
 
     private View buildCockpit() {
         final int ACC = 0xFF00E5FF;
@@ -480,6 +485,9 @@ public class HomeActivity extends Activity {
         LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(0, -1, 1.55f);
         gl.leftMargin = dp(12);
         cockGauge = new Views.CockpitGauge(this);
+        String gs = prefs.getString("cockpit.size", "m");
+        cockGauge.setScale("s".equals(gs) ? 0.74f : "l".equals(gs) ? 1f : 0.88f);
+        if (!bootAnimDone) { bootAnimDone = true; cockGauge.sweep(); }
         try { cockGauge.setMax(Math.min(220, Integer.parseInt(prefs.getString("web.t.cockpit.scale", "180")))); } catch (Exception e) { }
         gaugeCard.addView(cockGauge, new LinearLayout.LayoutParams(-1, -1));
         row.addView(gaugeCard, gl);
@@ -985,8 +993,8 @@ public class HomeActivity extends Activity {
             if (i++ >= max) break;
             if (P.cockpit || P.home) {
                 if (i > 5) break;
-                View t = tile(r, 58, false);
-                dock.addView(t, new LinearLayout.LayoutParams(-1, dp(76)));
+                View t = tile(r, 64, false);
+                dock.addView(t, new LinearLayout.LayoutParams(-1, dp(84)));
                 continue;
             }
             if (P.dusk) {
@@ -1202,8 +1210,22 @@ public class HomeActivity extends Activity {
         applyTheme();
     }
 
-    private Drawable icon(ResolveInfo r, int sizeDp) {
-        return r.loadIcon(getPackageManager());   // ícono real de la app, sin placa (decisión del usuario)
+    private Drawable icon(ResolveInfo r, int sizeDp) { return appIcon(r); }
+
+    private final Map<String, Drawable> customIcons = new java.util.HashMap<String, Drawable>();
+
+    /** Ícono real de la app, sin placa; o el que el usuario eligió en Ajustes RAV4 → Apps (pref "icon.<clave>"). */
+    private Drawable appIcon(ResolveInfo r) {
+        String path = prefs.getString("icon." + key(r), null);
+        if (path != null) {
+            Drawable d = customIcons.get(path);
+            if (d == null) {
+                android.graphics.Bitmap b = android.graphics.BitmapFactory.decodeFile(path);
+                if (b != null) { d = new android.graphics.drawable.BitmapDrawable(getResources(), b); customIcons.put(path, d); }
+            }
+            if (d != null) return d;
+        }
+        return r.loadIcon(getPackageManager());
     }
 
     private View tile(final ResolveInfo r, int iconDp, boolean label) {
@@ -1314,7 +1336,7 @@ public class HomeActivity extends Activity {
     private final List<ResolveInfo> shown = new ArrayList<ResolveInfo>();
     private LinearLayout drawerGrid, drawerDots;
     private int drawerPage = 0;
-    private static final int DRAWER_COLS = 6, DRAWER_ROWS = 3;
+    private int DRAWER_COLS = 6, DRAWER_ROWS = 3, drawerIconDp = 104;
     private TextView drawerCount;
 
     private View buildDrawer() {
@@ -1373,8 +1395,8 @@ public class HomeActivity extends Activity {
         t.setOrientation(LinearLayout.VERTICAL);
         t.setGravity(Gravity.CENTER_HORIZONTAL);
         ImageView iv = new ImageView(this);
-        iv.setImageDrawable(r.loadIcon(getPackageManager()));   // ícono real, sin placa
-        t.addView(iv, new LinearLayout.LayoutParams(dp(104), dp(104)));
+        iv.setImageDrawable(appIcon(r));   // ícono real (o personalizado), sin placa
+        t.addView(iv, new LinearLayout.LayoutParams(dp(drawerIconDp), dp(drawerIconDp)));
         TextView tv = txt(String.valueOf(r.loadLabel(getPackageManager())), 14, P.text);
         tv.setTypeface(Typeface.DEFAULT);
         tv.setGravity(Gravity.CENTER);
@@ -1400,10 +1422,30 @@ public class HomeActivity extends Activity {
     private void openDrawer(boolean fromLeft) {
         drawerFromLeft = fromLeft;
         drawerPage = 0;
+        applyDrawerBackground();
         refreshDrawer();
         drawer.setTranslationX(fromLeft ? -root.getWidth() : root.getWidth());
         drawer.setVisibility(View.VISIBLE);
         drawer.animate().translationX(0).setDuration(220).start();
+    }
+
+    /** Fondo del cajón: opacidad configurable y, si se pide, la pantalla de atrás difuminada (una sola captura al abrir). */
+    private void applyDrawerBackground() {
+        int alpha = 100;
+        try { alpha = Integer.parseInt(prefs.getString("drawer.alpha", "100")); } catch (Exception e) { }
+        int base = (P.dark ? 0x0E0F13 : 0xF2F2F7) | (Math.round(alpha * 2.55f) << 24);
+        if (!"on".equals(prefs.getString("drawer.blur", "off")) || root.getWidth() == 0) { drawer.setBackgroundColor(base); return; }
+        try {
+            int w = root.getWidth() / 8, hh = root.getHeight() / 8;
+            android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(w, hh, android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas c = new android.graphics.Canvas(b);
+            c.scale(1 / 8f, 1 / 8f);
+            root.draw(c);
+            Views.boxBlur(b, 3);
+            android.graphics.drawable.Drawable[] layers = {
+                    new android.graphics.drawable.BitmapDrawable(getResources(), b), new android.graphics.drawable.ColorDrawable(base)};
+            drawer.setBackground(new android.graphics.drawable.LayerDrawable(layers));
+        } catch (Exception e) { drawer.setBackgroundColor(base); }
     }
 
     private void closeDrawer() {
@@ -1810,12 +1852,26 @@ public class HomeActivity extends Activity {
         shown.clear();
         for (ResolveInfo r : launchables()) if (!hidden.contains(key(r))) shown.add(r);
         sorted(shown);
+        // orden personalizado (Ajustes RAV4 → Cajón de apps → Orden): las de la lista primero, en ese orden
+        if ("custom".equals(prefs.getString("drawer.sort", "name"))) {
+            final List<String> order = java.util.Arrays.asList(prefs.getString("drawer.order", "").split(","));
+            Collections.sort(shown, new Comparator<ResolveInfo>() {
+                public int compare(ResolveInfo a, ResolveInfo b) {
+                    int ia = order.indexOf(key(a)), ib = order.indexOf(key(b));
+                    if (ia < 0) ia = 9999; if (ib < 0) ib = 9999;
+                    return ia - ib;
+                }
+            });
+        }
         if (drawerCount != null) drawerCount.setText(shown.size() + " apps · " + hidden.size() + " ocultas");
         showDrawerPage(drawerPage);
     }
 
     private void showDrawerPage(int page) {
         if (drawerGrid == null) return;
+        String sz = prefs.getString("drawer.size", "m");
+        DRAWER_COLS = "s".equals(sz) ? 7 : "l".equals(sz) ? 5 : 6;
+        drawerIconDp = "s".equals(sz) ? 84 : "l".equals(sz) ? 124 : 104;
         int per = DRAWER_COLS * DRAWER_ROWS;
         int pages = Math.max(1, (shown.size() + per - 1) / per);
         drawerPage = Math.max(0, Math.min(pages - 1, page));

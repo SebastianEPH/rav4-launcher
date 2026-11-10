@@ -126,6 +126,14 @@ public class SettingsActivity extends Activity {
         }
         content.addView(ap);
 
+        section("Velocímetro y animaciones");
+        LinearLayout va = card();
+        va.addView(segRow("Tamaño del velocímetro (Cockpit)", null, "cockpit.size",
+                new String[]{"Pequeño", "Mediano", "Grande"}, new String[]{"s", "m", "l"}, "m"));
+        va.addView(segRow("Animaciones", "Carretera, estela de la aguja, barrido al encender", "native.anim",
+                new String[]{"Sí", "No"}, new String[]{"on", "off"}, "on"));
+        content.addView(va);
+
         section("Brillo automático");
         LinearLayout bc = card();
         bc.addView(segRow("Ajustar el brillo según la hora", "El launcher sube o baja el brillo solo", "autobright",
@@ -133,7 +141,19 @@ public class SettingsActivity extends Activity {
         content.addView(bc);
         if ("on".equals(prefs.getString("autobright", "off"))) content.addView(bandsEditor());
 
-        section("Apps (mostrar u ocultar)");
+        section("Cajón de apps");
+        LinearLayout dc = card();
+        dc.addView(segRow("Tamaño de los íconos", null, "drawer.size",
+                new String[]{"Pequeño", "Mediano", "Grande"}, new String[]{"s", "m", "l"}, "m"));
+        dc.addView(segRow("Opacidad del fondo", null, "drawer.alpha",
+                new String[]{"70 %", "85 %", "100 %"}, new String[]{"70", "85", "100"}, "100"));
+        dc.addView(segRow("Difuminar el fondo", "Se calcula una vez al abrir (no da lag)", "drawer.blur",
+                new String[]{"Sí", "No"}, new String[]{"on", "off"}, "off"));
+        dc.addView(segRow("Orden de las apps", "Personalizado: usa ▲▼ en la lista de abajo", "drawer.sort",
+                new String[]{"Por nombre", "Personalizado"}, new String[]{"name", "custom"}, "name"));
+        content.addView(dc);
+
+        section("Apps (toca el ícono para cambiarlo)");
         content.addView(appsCard());
 
         section("Permisos");
@@ -528,6 +548,20 @@ public class SettingsActivity extends Activity {
             }
         });
         if (apps.isEmpty()) { c.addView(pad(tv("No se pudieron leer las apps.", 14, DIM))); return c; }
+        final boolean custom = "custom".equals(prefs.getString("drawer.sort", "name"));
+        final List<String> keys = new ArrayList<String>();
+        if (custom) {
+            final List<String> order = java.util.Arrays.asList(prefs.getString("drawer.order", "").split(","));
+            Collections.sort(apps, new java.util.Comparator<ResolveInfo>() {
+                public int compare(ResolveInfo a, ResolveInfo b) {
+                    int ia = order.indexOf(a.activityInfo.packageName + "/" + a.activityInfo.name);
+                    int ib = order.indexOf(b.activityInfo.packageName + "/" + b.activityInfo.name);
+                    if (ia < 0) ia = 9999; if (ib < 0) ib = 9999;
+                    return ia - ib;
+                }
+            });
+        }
+        for (ResolveInfo r : apps) keys.add(r.activityInfo.packageName + "/" + r.activityInfo.name);
         int shown = 0;
         for (int i = 0; i < apps.size(); i++) {
             final ResolveInfo r = apps.get(i);
@@ -538,14 +572,31 @@ public class SettingsActivity extends Activity {
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setPadding(dp(12), dp(8), dp(12), dp(8));
             ImageView iv = new ImageView(this);
-            iv.setImageDrawable(r.loadIcon(pm));
-            LinearLayout.LayoutParams il = new LinearLayout.LayoutParams(dp(40), dp(40));
+            final String customPath = prefs.getString("icon." + k, null);
+            android.graphics.Bitmap cb = customPath != null ? android.graphics.BitmapFactory.decodeFile(customPath) : null;
+            if (cb != null) iv.setImageBitmap(cb); else iv.setImageDrawable(r.loadIcon(pm));
+            LinearLayout.LayoutParams il = new LinearLayout.LayoutParams(dp(44), dp(44));
             il.rightMargin = dp(12);
             iv.setAlpha(isHidden ? 0.4f : 1f);
+            iv.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { pickIconFor(k); } });
             row.addView(iv, il);
             TextView name = tv(String.valueOf(r.loadLabel(pm)), 15, isHidden ? DIM : TXT);
             name.setSingleLine(true); name.setEllipsize(android.text.TextUtils.TruncateAt.END);
             row.addView(name, new LinearLayout.LayoutParams(0, -2, 1f));
+            if (customPath != null) {
+                TextView rs = smallBtn("↺ Original");
+                rs.setOnClickListener(new View.OnClickListener() {
+                    public void onClick(View v) { prefs.edit().remove("icon." + k).apply(); touch(); rebuild(); }
+                });
+                row.addView(rs);
+            }
+            if (custom) {
+                final int pos = i;
+                TextView up = smallBtn("▲"), dn = smallBtn("▼");
+                up.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { moveApp(keys, pos, -1); } });
+                dn.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { moveApp(keys, pos, 1); } });
+                row.addView(up); row.addView(dn);
+            }
             final TextView tgl = tv(isHidden ? "Oculta" : "Visible", 14, 0xFFFFFFFF);
             tgl.setGravity(Gravity.CENTER);
             tgl.setPadding(dp(16), dp(7), dp(16), dp(7));
@@ -568,6 +619,68 @@ public class SettingsActivity extends Activity {
             shown++;
         }
         return c;
+    }
+
+    private TextView smallBtn(String t) {
+        TextView b = tv(t, 14, TXT);
+        b.setGravity(Gravity.CENTER);
+        b.setPadding(dp(12), dp(7), dp(12), dp(7));
+        GradientDrawable g = new GradientDrawable(); g.setColor(0x14FFFFFF); g.setCornerRadius(dp(12));
+        b.setBackground(g);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+        lp.rightMargin = dp(8);
+        b.setLayoutParams(lp);
+        return b;
+    }
+
+    private void moveApp(List<String> keys, int pos, int d) {
+        int np = pos + d;
+        if (np < 0 || np >= keys.size()) return;
+        Collections.swap(keys, pos, np);
+        StringBuilder sb = new StringBuilder();
+        for (String k : keys) { if (sb.length() > 0) sb.append(","); sb.append(k); }
+        prefs.edit().putString("drawer.order", sb.toString()).apply();
+        touch(); rebuild();
+    }
+
+    // ---------- reemplazar el ícono de una app por una imagen (galería o USB) ----------
+    private String pickingKey;
+
+    private void pickIconFor(String key) {
+        pickingKey = key;
+        try {
+            Intent it = new Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(Intent.createChooser(it, "Elegir ícono"), 77);
+        } catch (Exception e) {
+            android.widget.Toast.makeText(this, "No hay una app para elegir imágenes", android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int req, int res, Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req != 77 || res != RESULT_OK || data == null || data.getData() == null || pickingKey == null) return;
+        try {
+            java.io.InputStream in = getContentResolver().openInputStream(data.getData());
+            android.graphics.Bitmap src = android.graphics.BitmapFactory.decodeStream(in);
+            in.close();
+            if (src == null) throw new Exception("imagen inválida");
+            // recorte cuadrado al centro y 192 px: liviano para el launcher
+            int side = Math.min(src.getWidth(), src.getHeight());
+            android.graphics.Bitmap sq = android.graphics.Bitmap.createBitmap(src, (src.getWidth() - side) / 2, (src.getHeight() - side) / 2, side, side);
+            android.graphics.Bitmap out = android.graphics.Bitmap.createScaledBitmap(sq, 192, 192, true);
+            java.io.File dir = new java.io.File(getFilesDir(), "icons");
+            dir.mkdirs();
+            java.io.File f = new java.io.File(dir, Integer.toHexString(pickingKey.hashCode()) + "_" + System.currentTimeMillis() + ".png");
+            java.io.FileOutputStream o = new java.io.FileOutputStream(f);
+            out.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, o);
+            o.close();
+            prefs.edit().putString("icon." + pickingKey, f.getAbsolutePath()).apply();
+            touch();
+            rebuild();
+        } catch (Exception e) {
+            android.widget.Toast.makeText(this, "No se pudo usar esa imagen: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+        }
     }
 
     private View pad(TextView t) { t.setPadding(dp(14), dp(12), dp(14), dp(12)); return t; }
