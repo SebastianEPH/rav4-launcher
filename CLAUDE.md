@@ -170,6 +170,9 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
   vertical). Con el cajón abierto: ← página siguiente, → anterior; en la primera página → lo cierra.
 - Ocultar/mostrar apps desde **Ajustes Launcher → Apps** (lista con botón Visible/Oculta; escribe el set `hidden`).
 - Nada de círculos en los íconos (fue un rechazo explícito).
+- **REGLA: los íconos de apps NUNCA llevan fondo, placa, círculo, squircle ni contorno**, en ningún tema (nativo ni web),
+  tampoco en temas nuevos. Siempre el ícono real tal cual (`HomeActivity.appIcon(r)` / `<img>` sin fondo en `.app .ic`).
+  Nada de `Theme.squircle`/`Theme.circle` ni `iconBg` para íconos de apps. Las etiquetas tampoco llevan fondo (usar sombra).
 - Controles y apps empiezan por la **izquierda**, lado del conductor.
 - Hora en **12 h con AM/PM por defecto** (pref compartida `web.clock` = "12"/"24"; nativa y web). Los registros técnicos (CAN, log) usan 24 h.
 - No copiar íconos de marcas (Apple, Google, Volkswagen): se usan los íconos reales de cada app.

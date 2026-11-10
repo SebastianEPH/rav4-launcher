@@ -273,10 +273,9 @@ body[data-fx="high"] .road .grid { animation: roadmove var(--roadDur, 6s) linear
 .home .track { position: absolute; top: 0; left: 0; height: 100%; display: flex; transition: transform .45s cubic-bezier(.2,.9,.25,1); }
 .home .page { height: 100%; display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(3, 1fr); padding: .5rem 1rem; }
 .app { display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform .3s cubic-bezier(.3,1.6,.5,1); }
-.app .ic { width: 6.6rem; height: 6.6rem; border-radius: 1.55rem; background: var(--iconbg, #2c2c2e); display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 .6rem 1.8rem rgba(0,0,0,.35); overflow: hidden; position: relative; }
-.app .ic::after { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 45%; background: linear-gradient(180deg, rgba(255,255,255,.18), transparent); }
-.app .ic img { width: 78%; height: 78%; }
+/* regla: íconos de apps sin fondo ni placa, en todos los temas */
+.app .ic { width: 6.6rem; height: 6.6rem; background: transparent; display: flex; align-items: center; justify-content: center; position: relative; }
+.app .ic img { width: 100%; height: 100%; }
 body[data-mode="light"] { --iconbg: #fff; }
 .app label { margin-top: .6rem; font-size: 1.02rem; max-width: 9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 .1rem .5rem rgba(0,0,0,.5); }
 body[data-mode="light"] .app label { text-shadow: none; }

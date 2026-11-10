@@ -922,12 +922,12 @@ public class HomeActivity extends Activity {
         t.setOrientation(LinearLayout.VERTICAL);
         t.setGravity(Gravity.CENTER);
         ImageView iv = new ImageView(this);
-        iv.setImageDrawable(Theme.squircle(getResources(), r.loadIcon(getPackageManager()), dp(110), P.iconBg));
+        iv.setImageDrawable(appIcon(r));   // regla: ícono real, sin placa ni fondo
         t.addView(iv, new LinearLayout.LayoutParams(dp(110), dp(110)));
         TextView tv = txt(String.valueOf(r.loadLabel(getPackageManager())), 17, 0xFFFFFFFF);
         tv.setSingleLine(true);
         tv.setPadding(dp(10), dp(3), dp(10), dp(3));
-        tv.setBackground(box(0x99202024, 0, 8));
+        tv.setShadowLayer(dp(3), 0, dp(1), 0xCC000000);
         LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(-2, -2);
         tl.topMargin = dp(8);
         t.addView(tv, tl);
