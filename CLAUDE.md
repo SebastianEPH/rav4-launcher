@@ -66,7 +66,7 @@ Código Java en el paquete `pe.radio.rav4`:
 - `WebHome.java` — la interfaz web (ver abajo): WebView + puente JS `Radio`.
 - `CanBridge.java` — lee el bus CAN por el servicio AIDL de `com.nwd.can.setting` (ver FINDINGS.md → Bus CAN)
   y graba todo en `RAV4Launcher/can_<fecha>.txt` en el USB para analizarlo en el Mac.
-- `SettingsActivity.java` — ventana "Ajustes RAV4" (tema, apariencia, interfaz, permisos, actualización).
+- `SettingsActivity.java` — ventana "Ajustes Launcher" (tema, apariencia, interfaz, permisos, actualización).
 - `Updater.java` — "Buscar actualización" (⚙ Ajustes → Sistema): lee el último Release de GitHub,
   compara su tag con `versionName`, descarga el APK y lo instala con `PackageInstaller`. La primera vez
   Android pide permitir "instalar apps de esta fuente". El CI pone `versionCode=100+run_number` y
@@ -78,7 +78,7 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 - Los mismos 5 temas rehechos con efectos: aurora animada (Glass/Inicio), cielo que cambia con la
   hora con sol/luna/nubes/estrellas (Dusk), carretera neón cuya velocidad sigue a la del auto +
   velocímetro SVG con aguja (Cockpit), CRT + log en vivo + comando tecleándose (Terminal).
-- **Sin panel lateral**: toda la configuración vive en la ventana aparte **"Ajustes RAV4"** (`SettingsActivity`,
+- **Sin panel lateral**: toda la configuración vive en la ventana aparte **"Ajustes Launcher"** (`SettingsActivity`,
   **100% nativa, sin WebView**), con ícono propio en la lista de apps y botón ⚙ en el dock. Al volver, el launcher
   compara `stamp` y solo se rearma si algo cambió. Gestos (nativa y web): **← abre las apps**; en Inicio ←/→ cambian
   de página. **No hay gesto hacia abajo ni centro de control** (se quitó del nativo para igualar al HTML).
@@ -113,7 +113,7 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 - **Congelar al tocar**: `pointerdown` añade `body.freeze` (pausa las animaciones de fondo vía CSS y salta el dibujo
   de partículas); `pointerup`/`pointercancel` lo quitan 650 ms después **solo si no hay una hoja abierta**. Mientras el cajón de
   apps (o cualquier `.sheet`) está abierto, las animaciones de fondo quedan detenidas; se reanudan al cerrarlo.
-- **Permisos**: Android no permite "permiso total". Ajustes RAV4 → Permisos
+- **Permisos**: Android no permite "permiso total". Ajustes Launcher → Permisos
   pide **todos** los útiles (lista `SettingsActivity.PERMS` con su "para qué"): ubicación, almacenamiento, micrófono,
   cámara, teléfono/contactos, ajustes del sistema, instalar apps, notificaciones (`MediaListener`), mostrar encima,
   acceso de uso, sin optimización de batería, no molestar y launcher predeterminado. Sin accesibilidad ni admin
@@ -140,30 +140,30 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
 
 ### Gestos (interfaz nativa)
 - Deslizar ← : abre el cajón de apps (en tema Inicio ←/→ cambian de página).
-- **No hay centro de control** (gesto hacia abajo eliminado, igual que en el HTML). Config en "Ajustes RAV4".
+- **No hay centro de control** (gesto hacia abajo eliminado, igual que en el HTML). Config en "Ajustes Launcher".
 
 ### Reglas de UX acordadas con el usuario
 - Brillo: **nunca por debajo del 18 %** (`MIN_BRIGHTNESS=46/255`). Por debajo la pantalla se apaga.
   El launcher lo vigila cada segundo y lo corrige lo haya bajado quien lo haya bajado.
-- **Brillo automático por tramos** (Ajustes RAV4 → Brillo automático): pref `autobright` on/off y
+- **Brillo automático por tramos** (Ajustes Launcher → Brillo automático): pref `autobright` on/off y
   `autobright.bands` = "hora:porcentaje,.." (ej. "7:90,19:55,22:25"). El tramo vigente es el de mayor hora ≤ ahora
   (envuelve medianoche). Forma `autobright.shape`: **Arco suave** (`curve`, interpolación coseno entre puntos, `Views.brightAtF`) o Escalones (`steps`). `HomeActivity.applyAutoBrightness` lo aplica al cambiar de tramo (un ajuste manual dentro
   del mismo tramo se respeta); nunca baja del 18 %. Editor **táctil grande** (`SettingsActivity.BandGraph`, 440 dp):
   arrastrar un punto (↕ brillo, ↔ hora), tocar un espacio vacío agrega un tramo, mantener presionado lo borra.
-- **Ajustes RAV4 en pestañas**: General · Brillo · Apps · Permisos · Sistema (tocar o deslizar ←/→). Corre en su propia
+- **Ajustes Launcher en pestañas**: General · Brillo · Apps · Permisos · Sistema (tocar o deslizar ←/→). Corre en su propia
   tarea (`taskAffinity` aparte): sin eso, abrirlo desde el cajón solo traía el launcher al frente y "no abría".
 - Brillo: deslizador de brillo actual, perfiles rápidos (Día brillante / Equilibrado / Nocturno), "Aplicar ahora" y
   transición suave entre tramos (`autobright.fade`, ~30 s). Cajón: opacidad del fondo 1–100 % (`drawer.alpha`).
   Cambiar ícono: botón "Cambiar ícono" en cada app (pref `icon.<clave>` = PNG 192 px en `files/icons`).
 - **Modo claro en todo lo nativo**: el Cockpit toma sus colores del modo (`Views.fg()`, `HomeActivity.cTxt/cDim/cCard`)
-  y Ajustes RAV4 arma su paleta con `Theme.fromPrefs` (`SettingsActivity.palette()`); si cambia el modo se recrea.
+  y Ajustes Launcher arma su paleta con `Theme.fromPrefs` (`SettingsActivity.palette()`); si cambia el modo se recrea.
   Nada de colores oscuros fijos.
 - **Configuración global**: tema, modo y acento usan las mismas claves (`theme`, `mode`, `accent`) en la interfaz
   nativa y en la web (`WebHome.globalKey`); las horas del modo automático (`web.darkFrom/To`) valen para ambas.
   Auto · CAN en nativo se muestra como Cockpit. Nada de configuraciones separadas por interfaz.
 - El cajón de apps: íconos **grandes y reales (sin placa)**, **páginas horizontales de 6×3** con puntos (nada de scroll
   vertical). Con el cajón abierto: ← página siguiente, → anterior; en la primera página → lo cierra.
-- Ocultar/mostrar apps desde **Ajustes RAV4 → Apps** (lista con botón Visible/Oculta; escribe el set `hidden`).
+- Ocultar/mostrar apps desde **Ajustes Launcher → Apps** (lista con botón Visible/Oculta; escribe el set `hidden`).
 - Nada de círculos en los íconos (fue un rechazo explícito).
 - Controles y apps empiezan por la **izquierda**, lado del conductor.
 - Hora en **12 h con AM/PM por defecto** (pref compartida `web.clock` = "12"/"24"; nativa y web). Los registros técnicos (CAN, log) usan 24 h.

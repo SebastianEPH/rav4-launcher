@@ -31,7 +31,7 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * "Ajustes RAV4" — ventana nativa (sin WebView) para configurar el launcher: interfaz, tema, apariencia,
+ * "Ajustes Launcher" — ventana nativa (sin WebView) para configurar el launcher: interfaz, tema, apariencia,
  * brillo automático, permisos y sistema. Al volver, el launcher compara "stamp" y solo se rearma si algo cambió.
  */
 public class SettingsActivity extends Activity {
@@ -70,7 +70,7 @@ public class SettingsActivity extends Activity {
         LinearLayout head = new LinearLayout(this);
         head.setGravity(Gravity.CENTER_VERTICAL);
         head.setPadding(dp(20), dp(16), dp(20), dp(12));
-        TextView title = tv("Ajustes RAV4", 24, TXT);
+        TextView title = tv("Ajustes Launcher", 24, TXT);
         title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
         head.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
         TextView done = tv("Listo", 17, 0xFFFFFFFF);

@@ -51,7 +51,7 @@ El **Panel** (deslizar →) reúne volumen, brillo, WiFi, Bluetooth, tema, opcio
 **Launcher**
 - 🎨 Dos interfaces: **Nativa** (Java, la más liviana) y **Web animada** (HTML/CSS/JS en un WebView).
 - ✨ Efectos Altos / Suaves / Ninguno; si la radio no da ~35 fps, se bajan solos.
-- ⚙️ **Ajustes RAV4**: app aparte (con su ícono) para tema, apariencia, interfaz, permisos y actualización; el launcher queda liviano.
+- ⚙️ **Ajustes Launcher**: app aparte (con su ícono) para tema, apariencia, interfaz, permisos y actualización; el launcher queda liviano.
 - 👆 Deslizar **← abre las apps**. Mantén presionada una app para fijarla en el dock, ocultarla o desinstalarla.
 - 🌗 Modo oscuro, claro o automático según la hora.
 - ⬆️ **Actualización desde el propio launcher**: busca el último Release, lo descarga e instala encima.
@@ -62,7 +62,7 @@ El **Panel** (deslizar →) reúne volumen, brillo, WiFi, Bluetooth, tema, opcio
 2. Cópialo a un USB, instálalo en la radio y elígelo como launcher predeterminado.
 3. Para la interfaz animada: ⚙ **Ajustes del launcher → Interfaz → Web (animada)**.
 
-De ahí en adelante se actualiza solo: **Ajustes RAV4 → Buscar actualización**. La primera
+De ahí en adelante se actualiza solo: **Ajustes Launcher → Buscar actualización**. La primera
 vez Android pide permitir "instalar apps de esta fuente".
 
 > La radio tiene el USB bloqueado en modo host por firmware (no hay ADB), así que cada versión se

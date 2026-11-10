@@ -22,7 +22,7 @@ area() {
   esac
 }
 
-echo "Instala desde el launcher: **Ajustes RAV4 → Buscar actualización**."
+echo "Instala desde el launcher: **Ajustes Launcher → Buscar actualización**."
 echo "O descarga el \`.apk\` de abajo, cópialo a un USB e instálalo en la radio: está firmado con la misma clave y se instala encima."
 echo
 echo "## Novedades desde ${PREV:-el inicio}"
@@ -56,7 +56,7 @@ cat <<'EOF'
 - Velocidad y viaje por GPS, voltaje de la batería del auto, volumen real de la radio (NWD) y brillo con mínimo seguro.
 - **Bus CAN en vivo** (tema Auto · CAN): puertas, RPM, luces, freno de mano, cinturón… y grabación en `.txt` al USB.
 - Temas configurables: modo claro/oscuro/automático por horas, color de acento, reloj 12/24 h y opciones de cada tema.
-- **Ajustes RAV4** en ventana aparte (launcher liviano), desinstalar apps del sistema y actualización desde el propio launcher.
+- **Ajustes Launcher** en ventana aparte (launcher liviano), desinstalar apps del sistema y actualización desde el propio launcher.
 EOF
 echo
 

@@ -486,7 +486,7 @@
     if (!pinned.length) pinned = visibleApps().slice(0, 4);
     $('#dock').innerHTML = pinned.slice(0, 6).map(function (a) {
       return '<button class="dock-app" data-app="' + esc(a.key) + '"><img src="' + a.icon + '" alt=""></button>';
-    }).join('') + '<button class="dock-app set-btn" id="btnSet" aria-label="Ajustes RAV4"><svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm7.4-2.5a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5z"/></svg></button>' +
+    }).join('') + '<button class="dock-app set-btn" id="btnSet" aria-label="Ajustes Launcher"><svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm7.4-2.5a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5z"/></svg></button>' +
       '<button class="dock-app apps-btn" id="btnApps" aria-label="Todas las apps"><span><i></i><i></i><i></i><i></i></span></button>';
   }
 
@@ -670,7 +670,7 @@
   }
 
   function renderPanelState() {
-    if (!$('#panel')) return;   // los ajustes viven en la ventana aparte "Ajustes RAV4"
+    if (!$('#panel')) return;   // los ajustes viven en la ventana aparte "Ajustes Launcher"
     $('#themeList').innerHTML = ORDER.map(function (k) {
       var t = THEMES[k], c = t.pv;
       return '<button class="th' + (k === prefs.theme ? ' on' : '') + '" data-theme-pick="' + k + '"><div class="pv" style="background:linear-gradient(135deg,' + c[0] + ',' + c[0] + ' 40%,' + c[1] + ')">' +
@@ -811,7 +811,7 @@
     var el;
     if ((el = t.closest('[data-app]'))) { R.launch(el.getAttribute('data-app')); if (SIM) toast('Simulado: abrir ' + (el.textContent || 'app')); setTimeout(closeSheets, 300); return; }
     if (t.closest('#btnApps')) { openSheet('drawer'); return; }
-    if (t.closest('#btnSet')) { R.openSettings(); if (SIM) toast('Simulado: se abre la ventana Ajustes RAV4'); return; }
+    if (t.closest('#btnSet')) { R.openSettings(); if (SIM) toast('Simulado: se abre la ventana Ajustes Launcher'); return; }
     if (t.closest('[data-close]') || t.id === 'scrim') { closeSheets(); return; }
     if (t.closest('#showHidden')) { showHiddenApps = !showHiddenApps; renderDrawer(); return; }
     if ((el = t.closest('[data-theme-pick]'))) { setPref('theme', el.getAttribute('data-theme-pick')); return; }
@@ -944,7 +944,7 @@
   window.RAV4 = {
     back: function () { if (!closeSheets() && prefs.theme === 'home') showHomePage(0); },
     resume: function () { closeSheets(); poll(); },
-    // al volver de "Ajustes RAV4" con cambios: releer todo y rearmar el tema
+    // al volver de "Ajustes Launcher" con cambios: releer todo y rearmar el tema
     reloadPrefs: function () {
       prefs = { theme: R.pref('theme', 'cockpit'), mode: R.pref('mode', 'dark'), fx: R.pref('fx', 'low'), icons: 'plain',
         accent: R.pref('accent', 'theme'), clock: R.pref('clock', '12'), darkFrom: R.pref('darkFrom', '18'), darkTo: R.pref('darkTo', '6') };

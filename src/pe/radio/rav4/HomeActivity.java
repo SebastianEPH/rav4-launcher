@@ -71,7 +71,7 @@ public class HomeActivity extends Activity {
 
     private final Handler h = new Handler();
     private SharedPreferences prefs;
-    private Set<String> hidden, pinned;
+    private Set<String> hidden, pinned, dockKeys = new HashSet<String>();
     private Theme.Pal P;
     private WebHome web;   // != null cuando la interfaz es la web (assets/web)
     private boolean lastDark;
@@ -165,7 +165,7 @@ public class HomeActivity extends Activity {
     protected void onResume() {
         super.onResume();
         immersive();
-        // solo se rearma si en "Ajustes RAV4" cambió algo
+        // solo se rearma si en "Ajustes Launcher" cambió algo
         long st = prefs.getLong("stamp", 0);
         if (st != appliedStamp) { appliedStamp = st; if (useWeb() != (web != null) || web == null) applyTheme(); else web.js("RAV4.reloadPrefs()"); }
         rebuildDock();
@@ -175,7 +175,7 @@ public class HomeActivity extends Activity {
     private long appliedStamp = -1;
     private static boolean introDone = false;
 
-    /** Abre la ventana aparte "Ajustes RAV4". */
+    /** Abre la ventana aparte "Ajustes Launcher". */
     void openLauncherSettings() {
         try { startActivity(new Intent(this, SettingsActivity.class)); } catch (Exception e) { }
     }
@@ -287,7 +287,7 @@ public class HomeActivity extends Activity {
             prefs.edit().putStringSet("hidden", hs).putBoolean("init", true).apply();
         }
         hidden = new HashSet<String>(prefs.getStringSet("hidden", new HashSet<String>()));
-        hidden.remove(getPackageName() + "/" + SettingsActivity.class.getName());   // Ajustes RAV4 nunca se oculta
+        hidden.remove(getPackageName() + "/" + SettingsActivity.class.getName());   // Ajustes Launcher nunca se oculta
         pinned = new HashSet<String>(prefs.getStringSet("pinned", new HashSet<String>()));
     }
 
@@ -302,7 +302,7 @@ public class HomeActivity extends Activity {
         Intent i = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
         List<ResolveInfo> out = new ArrayList<ResolveInfo>();
         for (ResolveInfo r : getPackageManager().queryIntentActivities(i, 0))
-            if (!r.activityInfo.name.equals(HomeActivity.class.getName())) out.add(r);   // "Ajustes RAV4" sí aparece
+            if (!r.activityInfo.name.equals(HomeActivity.class.getName())) out.add(r);   // "Ajustes Launcher" sí aparece
         return out;
     }
 
@@ -997,11 +997,15 @@ public class HomeActivity extends Activity {
             for (String k : PROJECTION_KEYS) if (s.contains(k)) { items.put(key(r), r); break; }
         }
         for (String pkg : DOCK_FIXED) for (ResolveInfo r : all) if (r.activityInfo.packageName.equals(pkg)) items.put(key(r), r);
+        // las que el usuario quitó del dock (aunque se agreguen solas) no vuelven
+        Set<String> undock = prefs.getStringSet("undock", new HashSet<String>());
+        for (String k : undock) items.remove(k);
         for (ResolveInfo r : all) if (pinned.contains(key(r))) items.put(key(r), r);
-        // Ajustes RAV4 siempre en el dock, en todos los temas
-        for (ResolveInfo r : all) if (r.activityInfo.name.equals(SettingsActivity.class.getName())) items.put(key(r), r);
         // si quedó vacío, usar las primeras apps visibles (igual que el dock del web)
-        if (items.isEmpty()) for (ResolveInfo r : sorted(all)) { if (!hidden.contains(key(r))) items.put(key(r), r); if (items.size() >= 5) break; }
+        if (items.isEmpty()) for (ResolveInfo r : sorted(all)) { if (!hidden.contains(key(r)) && !undock.contains(key(r))) items.put(key(r), r); if (items.size() >= 5) break; }
+        // Ajustes Launcher siempre en el dock, en todos los temas
+        for (ResolveInfo r : all) if (r.activityInfo.name.equals(SettingsActivity.class.getName())) items.put(key(r), r);
+        dockKeys = new HashSet<String>(items.keySet());
 
         // 3) apps
         int max = P.dusk ? 10 : P.glass ? 6 : 10, i = 0;
@@ -1244,7 +1248,7 @@ public class HomeActivity extends Activity {
 
     private final Map<String, Drawable> customIcons = new java.util.HashMap<String, Drawable>();
 
-    /** Ícono real de la app, sin placa; o el que el usuario eligió en Ajustes RAV4 → Apps (pref "icon.<clave>"). */
+    /** Ícono real de la app, sin placa; o el que el usuario eligió en Ajustes Launcher → Apps (pref "icon.<clave>"). */
     private Drawable appIcon(ResolveInfo r) {
         String path = prefs.getString("icon." + key(r), null);
         if (path != null) {
@@ -1302,14 +1306,16 @@ public class HomeActivity extends Activity {
     private void appMenu(final ResolveInfo r) {
         final String k = key(r);
         final String pkg = r.activityInfo.packageName;
-        final boolean isHidden = hidden.contains(k), isPinned = pinned.contains(k);
-        final String[] opts = {isPinned ? "Quitar del dock" : "Fijar en el dock",
+        final boolean isHidden = hidden.contains(k), isPinned = pinned.contains(k) || dockKeys.contains(k);
+        final boolean isSettings = r.activityInfo.name.equals(SettingsActivity.class.getName());
+        final String[] opts = isSettings ? new String[]{"Abrir Ajustes Launcher"} : new String[]{isPinned ? "Quitar del dock" : "Fijar en el dock",
                 isHidden ? "Mostrar" : "Ocultar", "Info de la app", "Desinstalar de la radio"};
         new AlertDialog.Builder(this, alertStyle())
                 .setTitle(r.loadLabel(getPackageManager()))
                 .setItems(opts, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface d, int w) {
-                        if (w == 0) togglePin(k);
+                        if (isSettings) { openLauncherSettings(); return; }
+                        if (w == 0) setDocked(k, !isPinned);
                         if (w == 1) toggleHidden(k);
                         if (w == 2) appInfo(pkg);
                         if (w == 3) confirmUninstall(r, pkg);
@@ -1351,6 +1357,13 @@ public class HomeActivity extends Activity {
         android.widget.Toast.makeText(this, "Orden enviada: se intentará quitar " + pkg
                 + ". Si sigue apareciendo, la radio no permitió quitarla.", android.widget.Toast.LENGTH_LONG).show();
         h.postDelayed(new Runnable() { public void run() { rebuildDock(); refreshDrawer(); if (homeGrid != null) showPage(homePage); if (web != null) web.appsChanged(); } }, 2500);
+    }
+
+    private void setDocked(String k, boolean on) {
+        Set<String> undock = new HashSet<String>(prefs.getStringSet("undock", new HashSet<String>()));
+        if (on) { pinned.add(k); undock.remove(k); } else { pinned.remove(k); undock.add(k); }
+        prefs.edit().putStringSet("undock", undock).apply();
+        saveSets(); rebuildDock(); refreshDrawer(); if (web != null) web.appsChanged();
     }
 
     private void togglePin(String k) { if (!pinned.remove(k)) pinned.add(k); saveSets(); rebuildDock(); refreshDrawer(); if (web != null) web.appsChanged(); }
@@ -1883,7 +1896,7 @@ public class HomeActivity extends Activity {
         shown.clear();
         for (ResolveInfo r : launchables()) if (!hidden.contains(key(r))) shown.add(r);
         sorted(shown);
-        // orden personalizado (Ajustes RAV4 → Cajón de apps → Orden): las de la lista primero, en ese orden
+        // orden personalizado (Ajustes Launcher → Cajón de apps → Orden): las de la lista primero, en ese orden
         if ("custom".equals(prefs.getString("drawer.sort", "name"))) {
             final List<String> order = java.util.Arrays.asList(prefs.getString("drawer.order", "").split(","));
             Collections.sort(shown, new Comparator<ResolveInfo>() {
@@ -2097,7 +2110,7 @@ public class HomeActivity extends Activity {
             row.addView(names, new LinearLayout.LayoutParams(0, -2, 1f));
             boolean hd = hidden.contains(k), pn = pinned.contains(k);
             row.addView(pill(pn ? "★ En dock" : "☆ Dock", pn, new View.OnClickListener() {
-                public void onClick(View v) { togglePin(k); fillAppList(filter); }
+                public void onClick(View v) { setDocked(k, !(pinned.contains(k) || dockKeys.contains(k))); fillAppList(filter); }
             }));
             row.addView(pill(hd ? "Oculta" : "Visible", !hd, new View.OnClickListener() {
                 public void onClick(View v) { toggleHidden(k); fillAppList(filter); }
@@ -2418,7 +2431,7 @@ public class HomeActivity extends Activity {
     static String keyOf(ResolveInfo r) { return key(r); }
     List<ResolveInfo> webLaunchables() { return launchables(); }
     boolean webIsHidden(String k) { return hidden.contains(k); }
-    boolean webIsPinned(String k) { return pinned.contains(k); }
+    boolean webIsPinned(String k) { return pinned.contains(k) || dockKeys.contains(k); }
     SharedPreferences webPrefs() { return prefs; }
     void webStart(ResolveInfo r) { start(r); }
     void webAppMenu(ResolveInfo r) { appMenu(r); }
