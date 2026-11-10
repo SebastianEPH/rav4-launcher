@@ -573,60 +573,154 @@ public class Views {
     }
 
     /** Fondo de pantalla dibujado (original): "ondas", "noche", "atardecer" o "rav4". */
-    /** Visualizador de audio circular (tema Sonido): barras alrededor de un círculo que late con los graves. */
+    /** Paletas del espectro (Ajustes Launcher → Tema actual → Espectro). */
+    public static int[] specPalette(String name) {
+        if ("fuego".equals(name)) return new int[]{0xFFFFE14D, 0xFFFF7A00, 0xFFFF1F3D};
+        if ("oceano".equals(name)) return new int[]{0xFF7CF7FF, 0xFF00A3FF, 0xFF1B3BFF};
+        if ("matrix".equals(name)) return new int[]{0xFFB6FFB0, 0xFF39FF6A, 0xFF0A8F2E};
+        if ("atardecer".equals(name)) return new int[]{0xFFFFD27A, 0xFFFF7EB3, 0xFF7B5CFF};
+        if ("hielo".equals(name)) return new int[]{0xFFFFFFFF, 0xFFBFE6FF, 0xFF7FB2FF};
+        if ("oro".equals(name)) return new int[]{0xFFFFF3B0, 0xFFFFC94D, 0xFFB8860B};
+        if ("arcoiris".equals(name)) return null;   // color por banda
+        return new int[]{0xFF00E5FF, 0xFF7C4DFF, 0xFFFF2D95};   // neón
+    }
+
+    /**
+     * Visualizador de audio. Estilos: circle (círculo), bars (barras con picos), mirror (espejo desde el centro),
+     * wave (onda suave rellena), led (matriz de LEDs como un equipo de auto), rings (anillos que laten),
+     * radial (rayos desde abajo, como un sol).
+     */
     public static class Spectrum extends View {
         public final float[] mags = new float[64];   // 0..1, los escribe el Visualizer o la simulación
         private final float[] shown = new float[64], peak = new float[64];
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        public boolean bars = false;   // false = círculo, true = barras horizontales
-        public int c1 = 0xFFFF2D95, c2 = 0xFF7C4DFF, c3 = 0xFF00E5FF;
+        private final Path path = new Path();
+        public String style = "circle";
+        public int[] pal = specPalette("neon");
+        public float gain = 1f;
+        public boolean bars = false;   // compatibilidad: true = "bars"
         private float beat = 0, rot = 0;
         public Spectrum(Context c) { super(c); }
+
+        public void configure(String style, String palette, float gain) { this.style = style; this.pal = specPalette(palette); this.gain = gain; invalidate(); }
+
+        private int col(int i, int n, int which) {
+            if (pal == null) return android.graphics.Color.HSVToColor(new float[]{(i * 300f / n + rot * 0.5f) % 360, 0.85f, 1f});
+            return pal[Math.min(which, pal.length - 1)];
+        }
+        private int lerp(int a, int b, float t) {
+            t = Math.max(0, Math.min(1, t));
+            return android.graphics.Color.argb(255, (int) (android.graphics.Color.red(a) + (android.graphics.Color.red(b) - android.graphics.Color.red(a)) * t),
+                    (int) (android.graphics.Color.green(a) + (android.graphics.Color.green(b) - android.graphics.Color.green(a)) * t),
+                    (int) (android.graphics.Color.blue(a) + (android.graphics.Color.blue(b) - android.graphics.Color.blue(a)) * t));
+        }
+        /** color de una banda según su altura (bajo = color 0, alto = color 2) */
+        private int colH(int i, int n, float h) {
+            if (pal == null) return col(i, n, 0);
+            return h < 0.5f ? lerp(pal[0], pal[1], h * 2) : lerp(pal[1], pal[2], (h - 0.5f) * 2);
+        }
+
         @Override protected void onDraw(Canvas c) {
             float w = getWidth(), h = getHeight();
+            int n = mags.length;
             float bass = 0;
-            for (int i = 0; i < mags.length; i++) {
-                shown[i] += (mags[i] - shown[i]) * (mags[i] > shown[i] ? 0.6f : 0.15f);
-                peak[i] = Math.max(peak[i] - 0.01f, shown[i]);
+            for (int i = 0; i < n; i++) {
+                float m = Math.min(1f, mags[i] * gain);
+                shown[i] += (m - shown[i]) * (m > shown[i] ? 0.6f : 0.15f);
+                peak[i] = Math.max(peak[i] - 0.008f, shown[i]);
                 if (i < 6) bass += shown[i] / 6f;
             }
             beat += (bass - beat) * 0.3f;
-            p.setStyle(Paint.Style.FILL);
-            if (bars) {
-                float bw = w / mags.length;
-                for (int i = 0; i < mags.length; i++) {
-                    float bh = Math.max(2, shown[i] * h);
-                    p.setShader(new LinearGradient(0, h, 0, h - bh, c3, c1, Shader.TileMode.CLAMP));
-                    c.drawRoundRect(i * bw + 1, h - bh, (i + 1) * bw - 1, h, 3, 3, p);
-                    p.setShader(null); p.setColor(fg(0x99));
-                    c.drawRect(i * bw + 1, h - peak[i] * h - 3, (i + 1) * bw - 1, h - peak[i] * h, p);
-                }
-                if (anim) postInvalidateOnAnimation();
-                return;
-            }
-            float cx = w / 2f, cy = h / 2f, base = Math.min(w, h) * 0.24f * (1 + beat * 0.12f), len = Math.min(w, h) * 0.22f;
             rot += anim ? 0.15f + beat * 0.8f : 0;
-            // halo que late
-            p.setShader(new android.graphics.RadialGradient(cx, cy, base * 1.9f, (c2 & 0xFFFFFF) | ((int) (60 + beat * 120) << 24), 0, Shader.TileMode.CLAMP));
-            c.drawCircle(cx, cy, base * 1.9f, p);
-            p.setShader(null);
-            p.setStrokeCap(Paint.Cap.ROUND);
-            p.setStyle(Paint.Style.STROKE);
-            float sw = (float) (2 * Math.PI * base / (mags.length * 2)) * 0.6f;
-            p.setStrokeWidth(Math.max(3, sw));
-            for (int k = 0; k < mags.length * 2; k++) {
-                int i = k < mags.length ? k : mags.length * 2 - 1 - k;   // espejo: el círculo queda simétrico
-                double a = Math.toRadians(rot + k * 360.0 / (mags.length * 2) - 90);
-                float l = 4 + shown[i] * len;
-                float x0 = cx + (float) Math.cos(a) * base, y0 = cy + (float) Math.sin(a) * base;
-                float x1 = cx + (float) Math.cos(a) * (base + l), y1 = cy + (float) Math.sin(a) * (base + l);
-                p.setShader(new LinearGradient(x0, y0, x1, y1, c3, k % 2 == 0 ? c1 : c2, Shader.TileMode.CLAMP));
-                c.drawLine(x0, y0, x1, y1, p);
+            p.setShader(null); p.setStyle(Paint.Style.FILL); p.setStrokeCap(Paint.Cap.BUTT);
+            String st = bars ? "bars" : style;
+
+            if ("bars".equals(st) || "mirror".equals(st)) {
+                boolean mir = "mirror".equals(st);
+                float bw = w / n, mid = mir ? h / 2f : h;
+                for (int i = 0; i < n; i++) {
+                    float bh = Math.max(2, shown[i] * (mir ? h / 2f : h));
+                    int ct = colH(i, n, shown[i]);
+                    p.setShader(new LinearGradient(0, mid, 0, mid - bh, pal == null ? ct : pal[0], ct, Shader.TileMode.CLAMP));
+                    c.drawRoundRect(i * bw + 1, mid - bh, (i + 1) * bw - 1, mir ? mid + bh : mid, 3, 3, p);
+                    p.setShader(null);
+                    if (!mir) { p.setColor(fg(0xAA)); c.drawRect(i * bw + 1, h - peak[i] * h - 3, (i + 1) * bw - 1, h - peak[i] * h, p); }
+                }
+            } else if ("wave".equals(st)) {
+                path.reset();
+                float mid = h * 0.6f;
+                path.moveTo(0, h);
+                for (int i = 0; i < n; i++) {
+                    float x = w * i / (n - 1), y = mid - shown[i] * h * 0.55f * (float) (0.8 + 0.2 * Math.sin(rot / 8 + i * 0.5));
+                    if (i == 0) path.lineTo(x, y);
+                    else { float px = w * (i - 1) / (n - 1); path.quadTo(px, mid - shown[i - 1] * h * 0.55f, (px + x) / 2, (y + mid - shown[i - 1] * h * 0.55f) / 2); }
+                }
+                path.lineTo(w, mid); path.lineTo(w, h); path.close();
+                int a = col(0, n, 2), b = col(n / 2, n, 0);
+                p.setShader(new LinearGradient(0, mid - h * 0.5f, 0, h, (a & 0xFFFFFF) | 0xDD000000, (b & 0xFFFFFF) | 0x22000000, Shader.TileMode.CLAMP));
+                c.drawPath(path, p);
+                p.setShader(new LinearGradient(0, 0, w, 0, col(0, n, 0), col(n - 1, n, 2), Shader.TileMode.CLAMP));
+                p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(4);
+                c.drawPath(path, p);
+            } else if ("led".equals(st)) {
+                int cols = 24, rows = Math.max(6, (int) (h / (w / cols)));
+                float cw = w / cols, ch = h / rows;
+                for (int x = 0; x < cols; x++) {
+                    float v = shown[x * n / cols];
+                    int lit = Math.round(v * rows);
+                    for (int y = 0; y < rows; y++) {
+                        float t = y / (float) rows;
+                        boolean on = y < lit;
+                        int cc = colH(x * n / cols, n, t);
+                        p.setColor(on ? cc : (fg(0x14)));
+                        c.drawRoundRect(x * cw + 2, h - (y + 1) * ch + 2, (x + 1) * cw - 2, h - y * ch - 2, 3, 3, p);
+                    }
+                }
+            } else if ("rings".equals(st)) {
+                float cx = w / 2f, cy = h / 2f, R = Math.min(w, h) * 0.48f;
+                p.setStyle(Paint.Style.STROKE);
+                for (int k = 0; k < 8; k++) {
+                    float v = 0; for (int i = k * 8; i < k * 8 + 8; i++) v += shown[i] / 8f;
+                    p.setStrokeWidth(3 + v * 14);
+                    int cc = col(k * 8, n, k % 3);
+                    p.setColor((cc & 0xFFFFFF) | ((int) (70 + v * 185) << 24));
+                    c.drawCircle(cx, cy, R * (0.18f + k * 0.1f) * (1 + v * 0.15f), p);
+                }
+            } else if ("radial".equals(st)) {
+                float cx = w / 2f, cy = h * 1.02f, R = Math.min(w, h) * 0.18f, len = Math.min(w * 0.5f, h) * 0.85f;
+                p.setStrokeCap(Paint.Cap.ROUND); p.setStyle(Paint.Style.STROKE);
+                p.setStrokeWidth(Math.max(3, w / n * 0.55f));
+                for (int i = 0; i < n; i++) {
+                    double a = Math.toRadians(180 + 180.0 * (i + 0.5) / n);
+                    float l = R + 4 + shown[i] * len;
+                    float x0 = cx + (float) Math.cos(a) * R, y0 = cy + (float) Math.sin(a) * R;
+                    float x1 = cx + (float) Math.cos(a) * l, y1 = cy + (float) Math.sin(a) * l;
+                    p.setShader(new LinearGradient(x0, y0, x1, y1, col(i, n, 0), colH(i, n, shown[i] + 0.3f), Shader.TileMode.CLAMP));
+                    c.drawLine(x0, y0, x1, y1, p);
+                }
+            } else {   // circle
+                float cx = w / 2f, cy = h / 2f, base = Math.min(w, h) * 0.24f * (1 + beat * 0.12f), len = Math.min(w, h) * 0.22f;
+                int c2 = col(0, n, 1);
+                p.setShader(new android.graphics.RadialGradient(cx, cy, base * 1.9f, (c2 & 0xFFFFFF) | ((int) (60 + beat * 120) << 24), 0, Shader.TileMode.CLAMP));
+                c.drawCircle(cx, cy, base * 1.9f, p);
+                p.setShader(null);
+                p.setStrokeCap(Paint.Cap.ROUND);
+                p.setStyle(Paint.Style.STROKE);
+                p.setStrokeWidth(Math.max(3, (float) (2 * Math.PI * base / (n * 2)) * 0.6f));
+                for (int k = 0; k < n * 2; k++) {
+                    int i = k < n ? k : n * 2 - 1 - k;
+                    double a = Math.toRadians(rot + k * 360.0 / (n * 2) - 90);
+                    float l = 4 + shown[i] * len;
+                    float x0 = cx + (float) Math.cos(a) * base, y0 = cy + (float) Math.sin(a) * base;
+                    float x1 = cx + (float) Math.cos(a) * (base + l), y1 = cy + (float) Math.sin(a) * (base + l);
+                    p.setShader(new LinearGradient(x0, y0, x1, y1, col(i, n, 0), col(i, n, k % 2 == 0 ? 2 : 1), Shader.TileMode.CLAMP));
+                    c.drawLine(x0, y0, x1, y1, p);
+                }
+                p.setShader(null);
+                p.setStrokeWidth(3); p.setColor(fg(0x40));
+                c.drawCircle(cx, cy, base - 8, p);
             }
-            p.setShader(null);
-            p.setStrokeWidth(3); p.setColor(fg(0x40));
-            c.drawCircle(cx, cy, base - 8, p);
-            p.setStyle(Paint.Style.FILL);
+            p.setShader(null); p.setStyle(Paint.Style.FILL);
             if (anim) postInvalidateOnAnimation();
         }
     }

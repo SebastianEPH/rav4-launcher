@@ -15,6 +15,10 @@ Todo esto sale de descompilar con `jadx` las APK del sistema exportadas con la a
 - Cambiarlo: broadcast **`com.nwd.action.ACTION_REQUEST_SET_SYSTEM_VOLUME`**, extra int
   **`extra_volume`** con el valor 0–40.
 - El AudioManager estándar de Android NO mueve el volumen real: por eso antes no funcionaba.
+- **Sin la barra del sistema (silencioso):** broadcast **`com.nwd.action.ACTION_HIGHTEMP_TRIGGER`** + `extra_volume`
+  (1–40). Lo usa `CpuTempMonitor` para bajar el volumen por temperatura; el receptor marca
+  `mbSlientSetVolume = true` y `NewOsSystemVolumeManager.setSystemVolume` salta `notifyAudioDataChange` (el aviso).
+  No acepta 0 (silencio va por la vía normal). Receptor registrado sin permiso.
 - Volúmenes separados que existen (futuros controles): `mcu_bt_volume`, `mcu_gps_volume`,
   `nwd_navi_vol`, `nwd_media_vol`, `nwd_media_mix_navi_vol`, y `ACTION_CHANGE_GAIN_VOL`.
 

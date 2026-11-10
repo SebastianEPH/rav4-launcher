@@ -149,6 +149,12 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
    (la radio FM/MCU no pasa por Android) se anima según `isMusicActive()` y el volumen. Volumen NWD grande con deslizador,
    "Sonando ahora" por MediaSessionManager (requiere acceso a notificaciones, `MediaListener`), espectro de barras
    (espacio `sound.slot1`).
+   **Espectro global** (Tema actual → Espectro): estilos `spec.style` (Barras, Espejo, Onda, LED, Círculo, Anillos, Sol),
+   colores `spec.colors` (Neón, Fuego, Océano, Matrix, Atardecer, Hielo, Oro, Arcoíris), sensibilidad `spec.gain`,
+   **fondo** detrás de cualquier tema `spec.bg` + `spec.bgStyle` + `spec.bgAlpha`, y tarjeta "Espectro de audio" en
+   todos los temas. Todos los `Views.Spectrum` salen de `HomeActivity.newSpec()` y reciben el mismo audio (`specs`).
+- **Volumen sin la barra del sistema**: `nwdSetVolume` usa `ACTION_HIGHTEMP_TRIGGER` (silencioso, 1–40) y si no cambia
+  en 700 ms repite con la vía normal. Opción en Ajustes → General → Sonido (`volume.silent`). Ver FINDINGS.md.
 
 Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto del auto).
 

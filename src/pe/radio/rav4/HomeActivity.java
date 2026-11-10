@@ -170,7 +170,7 @@ public class HomeActivity extends Activity {
         if (st != appliedStamp) { appliedStamp = st; if (useWeb() != (web != null) || web == null) applyTheme(); else web.js("RAV4.reloadPrefs()"); }
         rebuildDock();
         if (web != null) web.js("RAV4.resume()");
-        if (P.sound && spectrum != null) startViz();
+        if (!specs.isEmpty()) startViz();
     }
 
     @Override
@@ -200,7 +200,7 @@ public class HomeActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int c, String[] p, int[] r) {
         startGps();
-        if (c == 41 && P.sound && spectrum != null) startViz();
+        if (c == 41 && !specs.isEmpty()) startViz();
     }
 
     @Override
@@ -270,9 +270,16 @@ public class HomeActivity extends Activity {
             root.addView(new Views.Wallpaper(this, prefs.getString("wall", "ondas"), photo));
         }
         stopViz();
+        specs.clear(); spectrum = spectrumBars = null; sndVol = null;
+        if ("on".equals(prefs.getString("spec.bg", "off"))) {
+            Views.Spectrum bgs = newSpec(prefs.getString("spec.bgStyle", "wave"));
+            bgs.setAlpha(prefs.getInt("spec.bgAlpha", 35) / 100f);
+            root.addView(bgs, new FrameLayout.LayoutParams(-1, -1));
+        }
         View themeView = P.sound ? buildSound() : P.home ? buildHome() : P.cockpit ? buildCockpit() : P.dusk ? buildDusk() : P.glass ? buildGlass() : buildTerminal();
         root.addView(themeView);
         enterCards(themeView);
+        if (!specs.isEmpty()) startViz();
         if (gauge != null && !gaugeSwept) { gaugeSwept = true; gauge.sweep(); }
         root.addView(hints());
         drawer = buildDrawer();
@@ -644,6 +651,9 @@ public class HomeActivity extends Activity {
             LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, -2); bl.topMargin = dp(8);
             g.addView(b, bl);
             c.addView(g, new LinearLayout.LayoutParams(-1, 0, 1f));
+        } else if ("spectrum".equals(type)) {
+            c.addView(cockLabel("ESPECTRO"));
+            c.addView(newSpec(null), new LinearLayout.LayoutParams(-1, 0, 1f));
         } else if ("net".equals(type)) {
             c.addView(cockLabel("CONECTIVIDAD"));
             netWifi = txt("—", 17, cTxt()); netWifi.setTypeface(P.fontBold); netWifi.setSingleLine(true);
@@ -916,6 +926,18 @@ public class HomeActivity extends Activity {
 
     // ======================= TEMA SONIDO (visualizador + volumen + lo que suena) =======================
     private Views.Spectrum spectrum, spectrumBars;
+    private final List<Views.Spectrum> specs = new ArrayList<Views.Spectrum>();
+    private final float[] audio = new float[64];
+
+    /** Espectro con el estilo/colores elegidos (Tema actual → Espectro); recibe el audio en vivo. */
+    private Views.Spectrum newSpec(String forceStyle) {
+        Views.Spectrum sp = new Views.Spectrum(this);
+        float g = 1f;
+        try { g = Float.parseFloat(prefs.getString("spec.gain", "1")); } catch (Exception e) { }
+        sp.configure(forceStyle != null ? forceStyle : prefs.getString("spec.style", "bars"), prefs.getString("spec.colors", "neon"), g);
+        specs.add(sp);
+        return sp;
+    }
     private TextView sndVol, sndVolLbl, sndTitle, sndArtist, sndApp, sndSrc;
     private ImageView sndArt;
     private android.widget.SeekBar sndSeek;
@@ -959,7 +981,7 @@ public class HomeActivity extends Activity {
 
         // centro: visualizador circular con el volumen en medio
         FrameLayout center = new FrameLayout(this);
-        spectrum = new Views.Spectrum(this);
+        spectrum = newSpec("on".equals(prefs.getString("spec.soundUser", "off")) ? null : "circle");
         center.addView(spectrum, new FrameLayout.LayoutParams(-1, -1));
         LinearLayout mid = new LinearLayout(this);
         mid.setOrientation(LinearLayout.VERTICAL);
@@ -1048,12 +1070,10 @@ public class HomeActivity extends Activity {
         // tercer espacio configurable (por defecto: ecualizador de barras)
         LinearLayout eq = cockCard();
         eq.addView(cockLabel("ESPECTRO"));
-        spectrumBars = new Views.Spectrum(this);
-        spectrumBars.bars = true;
+        spectrumBars = newSpec(null);
         eq.addView(spectrumBars, new LinearLayout.LayoutParams(-1, 0, 1f));
         addSlot(right, "sound.slot1", eq, vWeight(1f, false));
 
-        startViz();
         feedSound();
         return wrap;
     }
@@ -1087,9 +1107,8 @@ public class HomeActivity extends Activity {
     private long lastFftAt = 0;
 
     private void onFft(byte[] fft) {
-        if (spectrum == null) return;
-        lastFftAt = SystemClock.elapsedRealtime();
-        int n = fft.length / 2, bands = spectrum.mags.length;
+        if (specs.isEmpty()) return;
+        int n = fft.length / 2, bands = audio.length;
         float[] out = new float[bands];
         boolean any = false;
         for (int b = 0; b < bands; b++) {
@@ -1105,28 +1124,29 @@ public class HomeActivity extends Activity {
             if (out[b] > 0.02f) any = true;
         }
         if (!any) return;   // silencio o la radio no entrega datos: sigue la simulación
-        System.arraycopy(out, 0, spectrum.mags, 0, bands);
-        if (spectrumBars != null) System.arraycopy(out, 0, spectrumBars.mags, 0, bands);
+        lastFftAt = SystemClock.elapsedRealtime();
+        System.arraycopy(out, 0, audio, 0, bands);
+        for (Views.Spectrum sp : specs) System.arraycopy(out, 0, sp.mags, 0, bands);
     }
 
     /** Si no hay datos reales, anima según si hay música sonando y el volumen. */
     private void simulate() {
-        if (spectrum == null) return;
+        if (specs.isEmpty()) return;
         boolean real = SystemClock.elapsedRealtime() - lastFftAt < 600;
         if (!real) {
             android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
             boolean playing = am.isMusicActive();
             float lvl = playing ? 0.35f + 0.5f * volNow() / (float) Math.max(1, volMax()) : 0.04f;
             double t = SystemClock.elapsedRealtime() / 1000.0;
-            for (int i = 0; i < spectrum.mags.length; i++) {
-                float shape = 1f - i / (float) spectrum.mags.length * 0.7f;
+            for (int i = 0; i < audio.length; i++) {
+                float shape = 1f - i / (float) audio.length * 0.7f;
                 float v = (float) (lvl * shape * (0.55 + 0.45 * Math.sin(t * (3 + i * 0.37) + i) * Math.sin(t * 1.7 + i * 0.9)));
                 if (playing && Math.random() < 0.08) v += 0.3f * shape;
-                spectrum.mags[i] = Math.max(0.02f, Math.min(1, Math.abs(v)));
-                if (spectrumBars != null) spectrumBars.mags[i] = spectrum.mags[i];
+                audio[i] = Math.max(0.02f, Math.min(1, Math.abs(v)));
+                for (Views.Spectrum sp : specs) sp.mags[i] = audio[i];
             }
         }
-        if (sndSrc != null) sndSrc.setText(real ? "audio en vivo" : vizReal ? "sin audio de Android · animación según volumen" : "animación según volumen (sin permiso de micrófono/audio)");
+        if (sndSrc != null) sndSrc.setText(real ? "audio en vivo (de Android)" : vizReal ? "sin audio de Android · animación según volumen" : "animación según volumen (sin permiso de micrófono/audio)");
         h.postDelayed(simTick, 60);
     }
 
@@ -1655,8 +1675,28 @@ public class HomeActivity extends Activity {
 
     private boolean isNwd() { return nwdVolume() >= 0; }
 
+    /**
+     * Cambia el volumen de la radio. Por defecto en modo SILENCIOSO (sin la barra del sistema en medio de la pantalla):
+     * com.nwd.setting.service acepta ACTION_HIGHTEMP_TRIGGER + extra_volume (1–40) y lo aplica con
+     * mbSlientSetVolume=true, que salta el aviso de volumen (ver FINDINGS.md). No acepta 0, así que el silencio usa
+     * la vía normal. Si en 700 ms el volumen no cambió, se repite por la vía normal.
+     */
     private void nwdSetVolume(int v) {
         v = Math.max(0, Math.min(nwdMax(), v));
+        final int want = v;
+        if (v >= 1 && !"off".equals(prefs.getString("volume.silent", "on"))) {
+            Intent i = new Intent("com.nwd.action.ACTION_HIGHTEMP_TRIGGER");
+            i.putExtra("extra_volume", v);
+            sendBroadcast(i);
+            h.postDelayed(new Runnable() { public void run() {
+                if (nwdVolume() != want) nwdSetVolumeUi(want);
+            } }, 700);
+            return;
+        }
+        nwdSetVolumeUi(v);
+    }
+
+    private void nwdSetVolumeUi(int v) {
         Intent i = new Intent("com.nwd.action.ACTION_REQUEST_SET_SYSTEM_VOLUME");
         i.putExtra("extra_volume", v);
         sendBroadcast(i);

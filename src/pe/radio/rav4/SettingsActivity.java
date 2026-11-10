@@ -169,13 +169,18 @@ public class SettingsActivity extends Activity {
         if (web()) ap.addView(segRow("Efectos (web)", "\"Altos\" agrega desenfoque; más lento", "web.fx",
                 new String[]{"Altos", "Suaves", "No"}, new String[]{"high", "low", "off"}, "low"));
         content.addView(ap);
+        section("Sonido");
+        LinearLayout so = card();
+        so.addView(segRow("Cambiar volumen sin la barra del sistema", "Si ves que no cambia en tu radio, ponlo en No", "volume.silent",
+                new String[]{"Sí", "No"}, new String[]{"on", "off"}, "on"));
+        content.addView(so);
 
     }
 
     // ---- pestaña "Tema actual": opciones propias del tema elegido ----
     static final String[] CARD_LABELS = {"Viaje", "Batería", "GPS", "Música", "Rumbo + calle", "Altitud y pendiente",
-            "0–100 y fuerza G", "Accesos (CarPlay, mapas)", "Controles (volumen, brillo)", "Reloj grande", "Conectividad (WiFi, Bluetooth)"};
-    static final String[] CARD_VALUES = {"trip", "batt", "gps", "music", "compass", "alt", "accel", "shortcuts", "controls", "clock", "net"};
+            "0–100 y fuerza G", "Accesos (CarPlay, mapas)", "Controles (volumen, brillo)", "Reloj grande", "Conectividad (WiFi, Bluetooth)", "Espectro de audio"};
+    static final String[] CARD_VALUES = {"trip", "batt", "gps", "music", "compass", "alt", "accel", "shortcuts", "controls", "clock", "net", "spectrum"};
 
     private void tabTema() {
         String th = prefs.getString("theme", "cockpit");
@@ -227,6 +232,7 @@ public class SettingsActivity extends Activity {
             }
             content.addView(t);
         }
+        specSection();
         section("Animaciones");
         LinearLayout a = card();
         a.addView(segRow("Animaciones", "Carretera, estela de la aguja, barrido al encender", "native.anim",
@@ -234,6 +240,116 @@ public class SettingsActivity extends Activity {
         a.addView(boolRow("Entrada de tarjetas", "Aparecen deslizándose al volver a Inicio", "anim.cards"));
         a.addView(boolRow("Números que ruedan", "Velocidad, voltaje y km cuentan en vez de saltar", "anim.roll"));
         content.addView(a);
+    }
+
+    // ---- Espectro de audio (global: tarjetas, fondo y tema Sonido) ----
+    static final String[] SPEC_STYLES = {"bars", "mirror", "wave", "led", "circle", "rings", "radial"};
+    static final String[] SPEC_STYLE_LBL = {"Barras", "Espejo", "Onda", "LED", "Círculo", "Anillos", "Sol"};
+    static final String[] SPEC_PALS = {"neon", "fuego", "oceano", "matrix", "atardecer", "hielo", "oro", "arcoiris"};
+    static final String[] SPEC_PAL_LBL = {"Neón", "Fuego", "Océano", "Matrix", "Atardecer", "Hielo", "Oro", "Arcoíris"};
+    private Views.Spectrum prevA, prevB;
+    private final android.os.Handler ph = new android.os.Handler();
+    private final Runnable prevTick = new Runnable() { public void run() {
+        if (prevA == null || prevA.getParent() == null) return;
+        double t = android.os.SystemClock.elapsedRealtime() / 1000.0;
+        for (int i = 0; i < 64; i++) {
+            float shape = 1f - i / 64f * 0.7f;
+            float v = (float) Math.abs(0.7 * shape * (0.55 + 0.45 * Math.sin(t * (3 + i * 0.37) + i) * Math.sin(t * 1.7 + i * 0.9)));
+            if (Math.random() < 0.06) v += 0.3f * shape;
+            prevA.mags[i] = prevB.mags[i] = Math.min(1, v);
+        }
+        ph.postDelayed(this, 60);
+    } };
+
+    private void specSection() {
+        section("Espectro de audio (todas las tarjetas, fondo y tema Sonido)");
+        LinearLayout c = card();
+        // vista previa animada
+        LinearLayout pv = new LinearLayout(this);
+        pv.setPadding(dp(14), dp(12), dp(14), dp(4));
+        float g = 1f; try { g = Float.parseFloat(prefs.getString("spec.gain", "1")); } catch (Exception e) { }
+        Theme.P = Theme.fromPrefs(prefs); Views.anim = true;
+        prevA = new Views.Spectrum(this);
+        prevA.configure(prefs.getString("spec.style", "bars"), prefs.getString("spec.colors", "neon"), g);
+        prevA.setBackground(round(0xFF0B0B12));
+        pv.addView(prevA, new LinearLayout.LayoutParams(0, dp(150), 1f));
+        prevB = new Views.Spectrum(this);
+        prevB.configure(prefs.getString("spec.bgStyle", "wave"), prefs.getString("spec.colors", "neon"), g);
+        prevB.setBackground(round(0xFF0B0B12));
+        LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(0, dp(150), 1f); bl.leftMargin = dp(10);
+        pv.addView(prevB, bl);
+        c.addView(pv);
+        LinearLayout pl = new LinearLayout(this);
+        pl.setPadding(dp(14), 0, dp(14), 0);
+        TextView la = tv("Tarjetas", 12, DIM); TextView lb = tv("Fondo", 12, DIM);
+        pl.addView(la, new LinearLayout.LayoutParams(0, -2, 1f)); pl.addView(lb, new LinearLayout.LayoutParams(0, -2, 1f));
+        c.addView(pl);
+        ph.removeCallbacks(prevTick); ph.post(prevTick);
+
+        c.addView(chipPicker("Estilo de las tarjetas", "spec.style", "bars", SPEC_STYLE_LBL, SPEC_STYLES));
+        c.addView(chipPicker("Colores", "spec.colors", "neon", SPEC_PAL_LBL, SPEC_PALS));
+        c.addView(segRow("Sensibilidad", "Súbela si las barras se mueven poco", "spec.gain",
+                new String[]{"Baja", "Normal", "Alta", "Máxima"}, new String[]{"0.7", "1", "1.4", "2"}, "1"));
+        c.addView(segRow("Espectro de fondo", "Detrás de cualquier tema, se mueve con la música", "spec.bg",
+                new String[]{"Sí", "No"}, new String[]{"on", "off"}, "off"));
+        if ("on".equals(prefs.getString("spec.bg", "off"))) {
+            c.addView(chipPicker("Estilo del fondo", "spec.bgStyle", "wave", SPEC_STYLE_LBL, SPEC_STYLES));
+            c.addView(sliderIntRow("Intensidad del fondo", "spec.bgAlpha", 10, 80, 35));
+        }
+        if ("sound".equals(prefs.getString("theme", ""))) c.addView(segRow("Centro del tema Sonido", null, "spec.soundUser",
+                new String[]{"Círculo", "Estilo elegido"}, new String[]{"off", "on"}, "off"));
+        content.addView(c);
+    }
+
+    private GradientDrawable round(int color) { GradientDrawable g = new GradientDrawable(); g.setColor(color); g.setCornerRadius(dp(12)); return g; }
+
+    private LinearLayout sliderIntRow(String label, final String key, final int min, int max, int def) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(14), dp(12), dp(14), dp(12));
+        final TextView l = tv(label + " · " + prefs.getInt(key, def) + " %", 16, TXT);
+        row.addView(l, new LinearLayout.LayoutParams(dp(300), -2));
+        SeekBar sb = new SeekBar(this);
+        sb.setMax(max - min);
+        sb.setProgress(prefs.getInt(key, def) - min);
+        tint(sb);
+        final String lbl = label;
+        sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            public void onProgressChanged(SeekBar s, int v, boolean u) { l.setText(lbl + " · " + (v + min) + " %"); }
+            public void onStartTrackingTouch(SeekBar s) { s.getParent().requestDisallowInterceptTouchEvent(true); }
+            public void onStopTrackingTouch(SeekBar s) { prefs.edit().putInt(key, s.getProgress() + min).apply(); touch(); }
+        });
+        row.addView(sb, new LinearLayout.LayoutParams(0, dp(44), 1f));
+        return row;
+    }
+
+    /** Fila de opciones en cuadrícula (para listas largas). */
+    private LinearLayout chipPicker(String label, final String key, String def, String[] labels, final String[] values) {
+        LinearLayout w = new LinearLayout(this);
+        w.setOrientation(LinearLayout.VERTICAL);
+        w.setPadding(dp(14), dp(12), dp(14), dp(12));
+        w.addView(tv(label, 16, TXT));
+        android.widget.GridLayout g = new android.widget.GridLayout(this);
+        g.setColumnCount(8);
+        String cur = prefs.getString(key, def);
+        for (int i = 0; i < values.length; i++) {
+            final String val = values[i];
+            boolean on = val.equals(cur);
+            TextView b = tv(labels[i], 14, on ? 0xFFFFFFFF : TXT);
+            b.setGravity(Gravity.CENTER);
+            b.setSingleLine(true);
+            b.setPadding(dp(6), dp(12), dp(6), dp(12));
+            GradientDrawable sg = new GradientDrawable(); sg.setColor(on ? ACC : SOFT); sg.setCornerRadius(dp(10));
+            b.setBackground(sg);
+            b.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { prefs.edit().putString(key, val).apply(); touch(); rebuild(); } });
+            android.widget.GridLayout.LayoutParams lp = new android.widget.GridLayout.LayoutParams(
+                    android.widget.GridLayout.spec(i / 8), android.widget.GridLayout.spec(i % 8, 1f));
+            lp.width = 0;
+            lp.setMargins(dp(3), dp(6), dp(3), 0);
+            g.addView(b, lp);
+        }
+        w.addView(g, new LinearLayout.LayoutParams(-1, -2));
+        return w;
     }
 
     private LinearLayout boolRow(String label, String desc, final String key) {
