@@ -68,8 +68,35 @@
     list.sort(function (a, b) { return a.h - b.h; });
     R.setPref('autobright.bands', list.map(function (b) { return b.h + ':' + b.p; }).join(','));
   }
+  // brillo del tramo que cubre una hora (misma lógica que HomeActivity.autoBrightnessFor)
+  function brightAt(list, hour) {
+    var best = -1, bestH = -1, lastP = -1, lastH = -1;
+    list.forEach(function (b) {
+      if (b.h > lastH) { lastH = b.h; lastP = b.p; }
+      if (b.h <= hour && b.h > bestH) { bestH = b.h; best = b.p; }
+    });
+    return best >= 0 ? best : lastP;
+  }
+  function renderGraph(list) {
+    var g = document.getElementById('bgraph');
+    if (!g) return;
+    var W = 240, H = 92, y = function (p) { return H - 6 - (p / 100) * (H - 12); }, x = function (h) { return (h / 24) * W; };
+    // línea escalonada del día (0..24)
+    var d = 'M0,' + y(brightAt(list, 0));
+    for (var h = 1; h <= 24; h++) { d += ' L' + x(h).toFixed(1) + ',' + y(brightAt(list, h - 1)).toFixed(1); if (h < 24) d += ' L' + x(h).toFixed(1) + ',' + y(brightAt(list, h)).toFixed(1); }
+    var area = d + ' L' + W + ',' + H + ' L0,' + H + ' Z';
+    var now = new Date(), nx = x(now.getHours() + now.getMinutes() / 60).toFixed(1);
+    var html = '<path class="area" d="' + area + '"/>' +
+      '<line class="floor" x1="0" y1="' + y(18) + '" x2="' + W + '" y2="' + y(18) + '"/><text class="floor-t" x="2" y="' + (y(18) - 2) + '">18% mín.</text>' +
+      '<path class="line" d="' + d + '"/>' +
+      '<line class="now" x1="' + nx + '" y1="0" x2="' + nx + '" y2="' + H + '"/>';
+    list.forEach(function (b) { html += '<circle class="dot" cx="' + x(b.h).toFixed(1) + '" cy="' + y(b.p).toFixed(1) + '" r="3.2"/>'; });
+    g.innerHTML = html;
+  }
+
   function renderBands() {
     var list = bandList();
+    renderGraph(list);
     $('#bands').innerHTML = list.map(function (b, i) {
       return '<div class="band" data-i="' + i + '"><div class="hr"><button data-bh="-1">−</button><em>' +
         hourTxt(b.h) + '</em><button data-bh="1">+</button></div>' +
@@ -82,6 +109,7 @@
     var i = +e.target.closest('.band').getAttribute('data-i'), list = bandList();
     list[i].p = +e.target.value;
     e.target.closest('.band').querySelector('.lvl b').textContent = list[i].p + ' %';
+    renderGraph(list);
     saveBands(list);
   });
 
