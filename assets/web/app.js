@@ -22,7 +22,7 @@
     theme: params.theme || R.pref('theme', 'cockpit'),
     mode: params.mode || R.pref('mode', 'dark'),
     fx: params.fx || (R.pref('fxv2', '') ? R.pref('fx', 'low') : 'low'),
-    icons: params.icons || R.pref('icons', 'plain'),
+    icons: 'plain',
     accent: params.accent || R.pref('accent', 'theme'),
     clock: R.pref('clock', '12'),
     darkFrom: R.pref('darkFrom', '18'),
