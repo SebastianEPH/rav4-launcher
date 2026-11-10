@@ -144,6 +144,12 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
    entrada de tarjetas (`anim.cards`, tarjetas marcadas con tag `R_CARD`).
 5. **Inicio** — cuadrícula de íconos grandes con páginas (estilo pantalla de inicio iOS/CarPlay).
 
+6. **Sonido** (solo nativo; en web cae a Cockpit) — visualizador circular (`Views.Spectrum`) con el audio real vía
+   `android.media.audiofx.Visualizer(0)` (necesita RECORD_AUDIO + MODIFY_AUDIO_SETTINGS); si la radio no entrega audio
+   (la radio FM/MCU no pasa por Android) se anima según `isMusicActive()` y el volumen. Volumen NWD grande con deslizador,
+   "Sonando ahora" por MediaSessionManager (requiere acceso a notificaciones, `MediaListener`), espectro de barras
+   (espacio `sound.slot1`).
+
 Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto del auto).
 
 ### Gestos (interfaz nativa)

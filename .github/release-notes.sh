@@ -54,6 +54,7 @@ echo "## Qué trae el launcher"
 cat <<'EOF'
 - Dos interfaces: **Nativa** (Java, liviana) y **Web animada** con 6 temas: Terminal, Glass, Dusk, Cockpit, Inicio y Auto · CAN.
 - Cockpit con tarjetas a elección (rumbo y calle, altitud y pendiente, 0–100 y fuerza G, accesos a CarPlay/mapas, controles, reloj) en Ajustes Launcher → Tema actual.
+- Tema Sonido: visualizador del audio que suena, volumen grande con deslizador y lo que se está reproduciendo.
 - Velocidad y viaje por GPS, voltaje de la batería del auto, volumen real de la radio (NWD) y brillo con mínimo seguro.
 - **Bus CAN en vivo** (tema Auto · CAN): puertas, RPM, luces, freno de mano, cinturón… y grabación en `.txt` al USB.
 - Temas configurables: modo claro/oscuro/automático por horas, color de acento, reloj 12/24 h y opciones de cada tema.

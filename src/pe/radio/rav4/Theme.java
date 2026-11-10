@@ -16,11 +16,11 @@ import java.util.Calendar;
 /** Temas (terminal / glass) y modos (oscuro / claro / auto). */
 public class Theme {
 
-    public static final String TERMINAL = "terminal", GLASS = "glass", DUSK = "dusk", COCKPIT = "cockpit", HOME = "home";
+    public static final String TERMINAL = "terminal", GLASS = "glass", DUSK = "dusk", COCKPIT = "cockpit", HOME = "home", SOUND = "sound";
     public static final String DARK = "dark", LIGHT = "light", AUTO = "auto";
 
     public static class Pal {
-        public boolean dark, glass, dusk, cockpit, home;
+        public boolean dark, glass, dusk, cockpit, home, sound;
         public int bg3; // tercer color del degradado (dusk)
         public int bg, bg2, panel, border, text, dim, accent, ok, warn, err, track, iconBg;
         public Typeface font, fontBold;
@@ -57,8 +57,9 @@ public class Theme {
         p.dusk = DUSK.equals(theme);
         p.cockpit = COCKPIT.equals(theme);
         p.home = HOME.equals(theme);
-        p.glass = GLASS.equals(theme) || p.dusk || p.cockpit || p.home;
-        if (p.cockpit || p.home) {
+        p.sound = SOUND.equals(theme);
+        p.glass = GLASS.equals(theme) || p.dusk || p.cockpit || p.home || p.sound;
+        if (p.cockpit || p.home || p.sound) {
             p.font = Typeface.create("sans-serif", Typeface.NORMAL);
             p.fontBold = Typeface.create("sans-serif-medium", Typeface.NORMAL);
             p.radius = 20;

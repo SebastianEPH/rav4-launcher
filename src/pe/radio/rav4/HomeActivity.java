@@ -170,6 +170,13 @@ public class HomeActivity extends Activity {
         if (st != appliedStamp) { appliedStamp = st; if (useWeb() != (web != null) || web == null) applyTheme(); else web.js("RAV4.reloadPrefs()"); }
         rebuildDock();
         if (web != null) web.js("RAV4.resume()");
+        if (P.sound && spectrum != null) startViz();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopViz();
     }
 
     private long appliedStamp = -1;
@@ -191,7 +198,10 @@ public class HomeActivity extends Activity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int c, String[] p, int[] r) { startGps(); }
+    public void onRequestPermissionsResult(int c, String[] p, int[] r) {
+        startGps();
+        if (c == 41 && P.sound && spectrum != null) startViz();
+    }
 
     @Override
     public void onBackPressed() { closeOverlays(); }
@@ -259,7 +269,8 @@ public class HomeActivity extends Activity {
                         getResources().getIdentifier("rav4", "drawable", getPackageName()));
             root.addView(new Views.Wallpaper(this, prefs.getString("wall", "ondas"), photo));
         }
-        View themeView = P.home ? buildHome() : P.cockpit ? buildCockpit() : P.dusk ? buildDusk() : P.glass ? buildGlass() : buildTerminal();
+        stopViz();
+        View themeView = P.sound ? buildSound() : P.home ? buildHome() : P.cockpit ? buildCockpit() : P.dusk ? buildDusk() : P.glass ? buildGlass() : buildTerminal();
         root.addView(themeView);
         enterCards(themeView);
         if (gauge != null && !gaugeSwept) { gaugeSwept = true; gauge.sweep(); }
@@ -903,6 +914,258 @@ public class HomeActivity extends Activity {
         return l;
     }
 
+    // ======================= TEMA SONIDO (visualizador + volumen + lo que suena) =======================
+    private Views.Spectrum spectrum, spectrumBars;
+    private TextView sndVol, sndVolLbl, sndTitle, sndArtist, sndApp, sndSrc;
+    private ImageView sndArt;
+    private android.widget.SeekBar sndSeek;
+    private android.media.audiofx.Visualizer viz;
+    private boolean vizReal = false, sndTouch = false;
+    private final Runnable simTick = new Runnable() { public void run() { simulate(); } };
+
+    private View buildSound() {
+        final int C1 = 0xFFFF2D95, C2 = 0xFF7C4DFF, C3 = 0xFF00E5FF;
+        FrameLayout wrap = new FrameLayout(this);
+        View bg = new View(this);
+        bg.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR, P.dark
+                ? new int[]{0xFF07040F, 0xFF140A2A, 0xFF05101A} : new int[]{0xFFF4EEFF, 0xFFE9E3FB, 0xFFE3F6FB}));
+        wrap.addView(bg, new FrameLayout.LayoutParams(-1, -1));
+
+        LinearLayout row = new LinearLayout(this);
+        row.setPadding(dp(16), dp(14), dp(16), dp(16));
+        wrap.addView(row, new FrameLayout.LayoutParams(-1, -1));
+
+        // dock izquierdo (lado del conductor)
+        LinearLayout leftDock = new LinearLayout(this);
+        leftDock.setOrientation(LinearLayout.VERTICAL);
+        leftDock.setGravity(Gravity.CENTER_HORIZONTAL);
+        clock = txt("--:--", 18, cTxt());
+        clock.setTypeface(P.fontBold);
+        clock.setGravity(Gravity.CENTER);
+        clock.setSingleLine(true);
+        leftDock.addView(clock, new LinearLayout.LayoutParams(-1, -2));
+        dock = new LinearLayout(this);
+        dock.setOrientation(LinearLayout.VERTICAL);
+        dock.setGravity(Gravity.CENTER);
+        leftDock.addView(dock, new LinearLayout.LayoutParams(-1, 0, 1f));
+        TextView appsBtn = txt("▦", 28, 0xFFFFFFFF);
+        appsBtn.setGravity(Gravity.CENTER);
+        GradientDrawable ab = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{C1, C2});
+        ab.setCornerRadius(dp(18));
+        appsBtn.setBackground(ab);
+        appsBtn.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { openDrawer(true); } });
+        leftDock.addView(appsBtn, new LinearLayout.LayoutParams(dp(58), dp(58)));
+        row.addView(leftDock, new LinearLayout.LayoutParams(dp(80), -1));
+
+        // centro: visualizador circular con el volumen en medio
+        FrameLayout center = new FrameLayout(this);
+        spectrum = new Views.Spectrum(this);
+        center.addView(spectrum, new FrameLayout.LayoutParams(-1, -1));
+        LinearLayout mid = new LinearLayout(this);
+        mid.setOrientation(LinearLayout.VERTICAL);
+        mid.setGravity(Gravity.CENTER);
+        sndArt = new ImageView(this);
+        sndArt.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        sndArt.setClipToOutline(true);
+        GradientDrawable artBg = new GradientDrawable(); artBg.setShape(GradientDrawable.OVAL); artBg.setColor(0x00000000);
+        sndArt.setBackground(artBg);
+        sndArt.setVisibility(View.GONE);
+        mid.addView(sndArt, new LinearLayout.LayoutParams(dp(120), dp(120)));
+        sndVol = txt("--", 72, cTxt());
+        sndVol.setTypeface(P.fontBold);
+        sndVol.setGravity(Gravity.CENTER);
+        mid.addView(sndVol, new LinearLayout.LayoutParams(-1, -2));
+        sndVolLbl = txt("VOLUMEN", 13, cDim());
+        sndVolLbl.setLetterSpacing(0.25f);
+        sndVolLbl.setGravity(Gravity.CENTER);
+        mid.addView(sndVolLbl, new LinearLayout.LayoutParams(-1, -2));
+        center.addView(mid, new FrameLayout.LayoutParams(-1, -1));
+        sndSrc = txt("", 11, cDim());
+        center.addView(sndSrc, new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(0, -1, 1.35f);
+        cl.leftMargin = dp(8);
+        row.addView(center, cl);
+
+        // derecha: lo que suena, volumen, barras
+        LinearLayout right = new LinearLayout(this);
+        right.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(0, -1, 1f);
+        rl.leftMargin = dp(12);
+        row.addView(right, rl);
+
+        LinearLayout now = cockCard();
+        now.addView(cockLabel("SONANDO AHORA"));
+        sndTitle = txt("Nada sonando", 22, cTxt());
+        sndTitle.setTypeface(P.fontBold);
+        sndTitle.setSingleLine(true);
+        sndTitle.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+        sndTitle.setMarqueeRepeatLimit(-1);
+        sndTitle.setSelected(true);
+        now.addView(sndTitle);
+        sndArtist = txt("", 14, cDim());
+        sndArtist.setSingleLine(true);
+        now.addView(sndArtist);
+        sndApp = txt("", 12, cDim());
+        now.addView(sndApp);
+        LinearLayout mc = new LinearLayout(this);
+        mc.setGravity(Gravity.CENTER);
+        TextView prevB = mediaBtn("⏮", android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS); prevB.setTextColor(cTxt());
+        mc.addView(prevB, new LinearLayout.LayoutParams(0, -2, 1f));
+        TextView play = txt("⏯", 28, 0xFFFFFFFF);
+        play.setGravity(Gravity.CENTER);
+        GradientDrawable pb = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{C1, C2});
+        pb.setShape(GradientDrawable.OVAL);
+        play.setBackground(pb);
+        play.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { media(android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE); } });
+        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(dp(60), dp(60));
+        pl.leftMargin = pl.rightMargin = dp(16);
+        mc.addView(play, pl);
+        TextView nextB = mediaBtn("⏭", android.view.KeyEvent.KEYCODE_MEDIA_NEXT); nextB.setTextColor(cTxt());
+        mc.addView(nextB, new LinearLayout.LayoutParams(0, -2, 1f));
+        now.addView(mc, new LinearLayout.LayoutParams(-1, 0, 1f));
+        right.addView(now, vWeight(1.2f, true));
+
+        LinearLayout volC = cockCard();
+        volC.addView(cockLabel("VOLUMEN DE LA RADIO"));
+        LinearLayout vr = new LinearLayout(this);
+        vr.setGravity(Gravity.CENTER_VERTICAL);
+        vr.addView(cBtn("🔇", new View.OnClickListener() { public void onClick(View v) { mute(); h.postDelayed(new Runnable() { public void run() { feedSound(); } }, 300); } }));
+        vr.addView(cBtn("−", new View.OnClickListener() { public void onClick(View v) { vol(-1); h.postDelayed(new Runnable() { public void run() { feedSound(); } }, 300); } }));
+        sndSeek = new android.widget.SeekBar(this);
+        sndSeek.setMax(volMax());
+        sndSeek.getProgressDrawable().setColorFilter(C1, android.graphics.PorterDuff.Mode.SRC_IN);
+        sndSeek.getThumb().setColorFilter(C1, android.graphics.PorterDuff.Mode.SRC_IN);
+        sndSeek.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            public void onProgressChanged(android.widget.SeekBar s, int v, boolean user) { if (user) { setVolume(v); sndVol.setText(String.valueOf(v)); } }
+            public void onStartTrackingTouch(android.widget.SeekBar s) { sndTouch = true; s.getParent().requestDisallowInterceptTouchEvent(true); }
+            public void onStopTrackingTouch(android.widget.SeekBar s) { sndTouch = false; }
+        });
+        vr.addView(sndSeek, new LinearLayout.LayoutParams(0, dp(46), 1f));
+        vr.addView(cBtn("+", new View.OnClickListener() { public void onClick(View v) { vol(1); h.postDelayed(new Runnable() { public void run() { feedSound(); } }, 300); } }));
+        volC.addView(vr, new LinearLayout.LayoutParams(-1, 0, 1f));
+        right.addView(volC, vWeight(0.8f, true));
+
+        // tercer espacio configurable (por defecto: ecualizador de barras)
+        LinearLayout eq = cockCard();
+        eq.addView(cockLabel("ESPECTRO"));
+        spectrumBars = new Views.Spectrum(this);
+        spectrumBars.bars = true;
+        eq.addView(spectrumBars, new LinearLayout.LayoutParams(-1, 0, 1f));
+        addSlot(right, "sound.slot1", eq, vWeight(1f, false));
+
+        startViz();
+        feedSound();
+        return wrap;
+    }
+
+    /** Captura el audio que sale por Android (Visualizer de la mezcla global). Si la radio no lo permite, se simula. */
+    private void startViz() {
+        stopViz();
+        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            try { requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, 41); } catch (Exception e) { }
+        } else try {
+            viz = new android.media.audiofx.Visualizer(0);
+            viz.setEnabled(false);
+            viz.setCaptureSize(android.media.audiofx.Visualizer.getCaptureSizeRange()[1] >= 512 ? 512 : android.media.audiofx.Visualizer.getCaptureSizeRange()[1]);
+            viz.setDataCaptureListener(new android.media.audiofx.Visualizer.OnDataCaptureListener() {
+                public void onWaveFormDataCapture(android.media.audiofx.Visualizer v, byte[] w, int rate) { }
+                public void onFftDataCapture(android.media.audiofx.Visualizer v, byte[] fft, int rate) { onFft(fft); }
+            }, Math.min(android.media.audiofx.Visualizer.getMaxCaptureRate(), 20000), false, true);
+            viz.setEnabled(true);
+            vizReal = true;
+        } catch (Throwable t) { viz = null; vizReal = false; }
+        h.removeCallbacks(simTick);
+        h.post(simTick);
+    }
+
+    private void stopViz() {
+        h.removeCallbacks(simTick);
+        if (viz != null) { try { viz.setEnabled(false); viz.release(); } catch (Throwable t) { } viz = null; }
+    }
+
+
+    private long lastFftAt = 0;
+
+    private void onFft(byte[] fft) {
+        if (spectrum == null) return;
+        lastFftAt = SystemClock.elapsedRealtime();
+        int n = fft.length / 2, bands = spectrum.mags.length;
+        float[] out = new float[bands];
+        boolean any = false;
+        for (int b = 0; b < bands; b++) {
+            // escala logarítmica: los graves ocupan más barras, como un ecualizador real
+            int lo = (int) Math.pow(n, (float) b / bands), hi = Math.max(lo + 1, (int) Math.pow(n, (float) (b + 1) / bands));
+            float m = 0;
+            for (int k = lo; k < hi && k < n; k++) {
+                float re = fft[2 * k], im = fft[2 * k + 1];
+                m = Math.max(m, (float) Math.hypot(re, im));
+            }
+            float db = m > 0 ? (float) (20 * Math.log10(m)) : 0;
+            out[b] = Math.max(0, Math.min(1, db / 42f));
+            if (out[b] > 0.02f) any = true;
+        }
+        if (!any) return;   // silencio o la radio no entrega datos: sigue la simulación
+        System.arraycopy(out, 0, spectrum.mags, 0, bands);
+        if (spectrumBars != null) System.arraycopy(out, 0, spectrumBars.mags, 0, bands);
+    }
+
+    /** Si no hay datos reales, anima según si hay música sonando y el volumen. */
+    private void simulate() {
+        if (spectrum == null) return;
+        boolean real = SystemClock.elapsedRealtime() - lastFftAt < 600;
+        if (!real) {
+            android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+            boolean playing = am.isMusicActive();
+            float lvl = playing ? 0.35f + 0.5f * volNow() / (float) Math.max(1, volMax()) : 0.04f;
+            double t = SystemClock.elapsedRealtime() / 1000.0;
+            for (int i = 0; i < spectrum.mags.length; i++) {
+                float shape = 1f - i / (float) spectrum.mags.length * 0.7f;
+                float v = (float) (lvl * shape * (0.55 + 0.45 * Math.sin(t * (3 + i * 0.37) + i) * Math.sin(t * 1.7 + i * 0.9)));
+                if (playing && Math.random() < 0.08) v += 0.3f * shape;
+                spectrum.mags[i] = Math.max(0.02f, Math.min(1, Math.abs(v)));
+                if (spectrumBars != null) spectrumBars.mags[i] = spectrum.mags[i];
+            }
+        }
+        if (sndSrc != null) sndSrc.setText(real ? "audio en vivo" : vizReal ? "sin audio de Android · animación según volumen" : "animación según volumen (sin permiso de micrófono/audio)");
+        h.postDelayed(simTick, 60);
+    }
+
+    /** Volumen y "sonando ahora" (sesiones de música activas; requiere acceso a notificaciones). */
+    private void feedSound() {
+        if (sndVol == null) return;
+        int v = volNow();
+        if (!sndTouch) { sndVol.setText(String.valueOf(v)); sndSeek.setMax(volMax()); sndSeek.setProgress(v); }
+        sndVolLbl.setText(v == 0 ? "SILENCIO" : "VOLUMEN · " + Math.round(v * 100f / Math.max(1, volMax())) + " %");
+        try {
+            android.media.session.MediaSessionManager msm = (android.media.session.MediaSessionManager) getSystemService(MEDIA_SESSION_SERVICE);
+            List<android.media.session.MediaController> list = msm.getActiveSessions(new android.content.ComponentName(this, MediaListener.class));
+            android.media.session.MediaController best = null;
+            for (android.media.session.MediaController mc : list) {
+                android.media.session.PlaybackState ps = mc.getPlaybackState();
+                if (best == null || ps != null && ps.getState() == android.media.session.PlaybackState.STATE_PLAYING) best = mc;
+            }
+            if (best != null && best.getMetadata() != null) {
+                android.media.MediaMetadata md = best.getMetadata();
+                String t = md.getString(android.media.MediaMetadata.METADATA_KEY_TITLE);
+                String a = md.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST);
+                sndTitle.setText(t != null ? t : "Sonando");
+                sndArtist.setText(a != null ? a : "");
+                String app = best.getPackageName();
+                try { app = String.valueOf(getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(app, 0))); } catch (Exception e) { }
+                android.media.session.PlaybackState ps = best.getPlaybackState();
+                sndApp.setText(app + (ps != null && ps.getState() == android.media.session.PlaybackState.STATE_PLAYING ? " · reproduciendo" : " · en pausa"));
+                android.graphics.Bitmap art = md.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART);
+                if (art == null) art = md.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART);
+                if (art != null) { sndArt.setImageBitmap(art); sndArt.setVisibility(View.VISIBLE); sndVol.setTextSize(44); }
+                else { sndArt.setVisibility(View.GONE); sndVol.setTextSize(72); }
+            } else { sndTitle.setText("Nada sonando"); sndArtist.setText(""); sndApp.setText("Abre la radio, Bluetooth o tu app de música"); sndArt.setVisibility(View.GONE); }
+        } catch (SecurityException se) {
+            sndTitle.setText("Música");
+            sndArtist.setText("");
+            sndApp.setText("Para ver qué suena: Ajustes Launcher → Permisos → Notificaciones");
+        } catch (Exception e) { }
+    }
+
     // ======================= TEMA INICIO (cuadrícula de íconos con páginas) =======================
     private int homePage = 0;
     private LinearLayout homeGrid, homeDots;
@@ -1291,7 +1554,7 @@ public class HomeActivity extends Activity {
         int max = P.dusk ? 10 : P.glass ? 6 : 10, i = 0;
         for (ResolveInfo r : items.values()) {
             if (i++ >= max) break;
-            if (P.cockpit || P.home) {
+            if (P.cockpit || P.home || P.sound) {
                 if (i > 5) break;
                 View t = tile(r, 64, false);
                 dock.addView(t, new LinearLayout.LayoutParams(-1, dp(84)));
@@ -1312,7 +1575,7 @@ public class HomeActivity extends Activity {
             View t = tile(r, P.glass ? 60 : 54, !P.glass);
             dock.addView(t, P.glass ? new LinearLayout.LayoutParams(-1, 0, 1f) : new LinearLayout.LayoutParams(0, -1, 1f));
         }
-        if (P.glass && !P.dusk && !P.cockpit && !P.home) {
+        if (P.glass && !P.dusk && !P.cockpit && !P.home && !P.sound) {
             // separador y "Launchpad" (todas las apps), como al final del Dock de la Mac
             View sep = new View(this);
             sep.setBackgroundColor(P.dark ? 0x40FFFFFF : 0x33000000);
@@ -2027,7 +2290,7 @@ public class HomeActivity extends Activity {
         if (!ccUserTouch) {
             int vol = volNow();
             ccVol.setProgress(vol);
-            ccVolV.setText(vol + "/" + volMax());
+            if (ccVolV != null) ccVolV.setText(vol + "/" + volMax());
             try {
                 int b = android.provider.Settings.System.getInt(getContentResolver(), android.provider.Settings.System.SCREEN_BRIGHTNESS);
                 ccBr.setProgress(b);
@@ -2168,7 +2431,8 @@ public class HomeActivity extends Activity {
             android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
             am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, v, 0);
         }
-        ccVolV.setText(v + "/" + volMax());
+        if (ccVolV != null) ccVolV.setText(v + "/" + volMax());
+        feedSound();
     }
 
     private void setBrightness(int v) {
@@ -2800,6 +3064,7 @@ public class HomeActivity extends Activity {
         }
         feedControls();
         feedNet();
+        if (sndVol != null && (SystemClock.elapsedRealtime() / 1000) % 2 == 0) feedSound();
         if (!bigClocks.isEmpty() && clock != null) {
             bigClocks.get(0).setText(clock.getText());
             if (date != null) bigClocks.get(1).setText(date.getText());

@@ -180,7 +180,7 @@ public class SettingsActivity extends Activity {
     private void tabTema() {
         String th = prefs.getString("theme", "cockpit");
         boolean cock = "cockpit".equals(th) || "auto".equals(th);
-        String name = "terminal".equals(th) ? "Terminal" : "glass".equals(th) ? "Glass" : "dusk".equals(th) ? "Dusk"
+        String name = "sound".equals(th) ? "Sonido" : "terminal".equals(th) ? "Terminal" : "glass".equals(th) ? "Glass" : "dusk".equals(th) ? "Dusk"
                 : "home".equals(th) ? "Inicio" : "Cockpit";
         section("Tema " + name);
         if (cock) {
@@ -219,6 +219,8 @@ public class SettingsActivity extends Activity {
                 t.addView(slotPicker("Segunda tarjeta (Mi RAV4)", "dusk.slot1", "default", "Original: Mi RAV4"));
                 t.addView(slotPicker("Tercera tarjeta (controles)", "dusk.slot2", "default", "Original: controles"));
                 t.addView(slotPicker("Cuarta tarjeta (GPS)", "dusk.slot3", "default", "Original: GPS"));
+            } else if ("sound".equals(th)) {
+                t.addView(slotPicker("Derecha · abajo (espectro)", "sound.slot1", "default", "Original: espectro"));
             } else {
                 t.addView(slotPicker("Columna derecha · arriba", "home.slot1", "default", "Ninguna"));
                 t.addView(slotPicker("Columna derecha · abajo", "home.slot2", "default", "Ninguna"));
@@ -541,9 +543,9 @@ public class SettingsActivity extends Activity {
         String cur = prefs.getString(key, w ? "cockpit" : "terminal");
         String[][] themes = w
                 ? new String[][]{{"terminal", "Terminal"}, {"glass", "Glass"}, {"dusk", "Dusk"}, {"cockpit", "Cockpit"}, {"home", "Inicio"}, {"auto", "Auto · CAN"}}
-                : new String[][]{{"terminal", "Terminal"}, {"glass", "Glass"}, {"dusk", "Dusk"}, {"cockpit", "Cockpit"}, {"home", "Inicio"}};
+                : new String[][]{{"terminal", "Terminal"}, {"glass", "Glass"}, {"dusk", "Dusk"}, {"cockpit", "Cockpit"}, {"home", "Inicio"}, {"sound", "Sonido"}};
         int[][] cols = {{0xFF0B0E13, 0xFF58A6FF}, {0xFF0B1426, 0xFF2B1747}, {0xFFE58FA6, 0xFF231A3A},
-                {0xFF030406, 0xFF00E5FF}, {0xFF120C2A, 0xFFFF375F}, {0xFF0B1A3A, 0xFFF97316}};
+                {0xFF030406, 0xFF00E5FF}, {0xFF120C2A, 0xFFFF375F}, w ? new int[]{0xFF0B1A3A, 0xFFF97316} : new int[]{0xFF140A2A, 0xFFFF2D95}};
         LinearLayout gridWrap = new LinearLayout(this);
         gridWrap.setOrientation(LinearLayout.VERTICAL);
         LinearLayout rowl = null;

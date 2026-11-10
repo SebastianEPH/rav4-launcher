@@ -573,6 +573,64 @@ public class Views {
     }
 
     /** Fondo de pantalla dibujado (original): "ondas", "noche", "atardecer" o "rav4". */
+    /** Visualizador de audio circular (tema Sonido): barras alrededor de un círculo que late con los graves. */
+    public static class Spectrum extends View {
+        public final float[] mags = new float[64];   // 0..1, los escribe el Visualizer o la simulación
+        private final float[] shown = new float[64], peak = new float[64];
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        public boolean bars = false;   // false = círculo, true = barras horizontales
+        public int c1 = 0xFFFF2D95, c2 = 0xFF7C4DFF, c3 = 0xFF00E5FF;
+        private float beat = 0, rot = 0;
+        public Spectrum(Context c) { super(c); }
+        @Override protected void onDraw(Canvas c) {
+            float w = getWidth(), h = getHeight();
+            float bass = 0;
+            for (int i = 0; i < mags.length; i++) {
+                shown[i] += (mags[i] - shown[i]) * (mags[i] > shown[i] ? 0.6f : 0.15f);
+                peak[i] = Math.max(peak[i] - 0.01f, shown[i]);
+                if (i < 6) bass += shown[i] / 6f;
+            }
+            beat += (bass - beat) * 0.3f;
+            p.setStyle(Paint.Style.FILL);
+            if (bars) {
+                float bw = w / mags.length;
+                for (int i = 0; i < mags.length; i++) {
+                    float bh = Math.max(2, shown[i] * h);
+                    p.setShader(new LinearGradient(0, h, 0, h - bh, c3, c1, Shader.TileMode.CLAMP));
+                    c.drawRoundRect(i * bw + 1, h - bh, (i + 1) * bw - 1, h, 3, 3, p);
+                    p.setShader(null); p.setColor(fg(0x99));
+                    c.drawRect(i * bw + 1, h - peak[i] * h - 3, (i + 1) * bw - 1, h - peak[i] * h, p);
+                }
+                if (anim) postInvalidateOnAnimation();
+                return;
+            }
+            float cx = w / 2f, cy = h / 2f, base = Math.min(w, h) * 0.24f * (1 + beat * 0.12f), len = Math.min(w, h) * 0.22f;
+            rot += anim ? 0.15f + beat * 0.8f : 0;
+            // halo que late
+            p.setShader(new android.graphics.RadialGradient(cx, cy, base * 1.9f, (c2 & 0xFFFFFF) | ((int) (60 + beat * 120) << 24), 0, Shader.TileMode.CLAMP));
+            c.drawCircle(cx, cy, base * 1.9f, p);
+            p.setShader(null);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            p.setStyle(Paint.Style.STROKE);
+            float sw = (float) (2 * Math.PI * base / (mags.length * 2)) * 0.6f;
+            p.setStrokeWidth(Math.max(3, sw));
+            for (int k = 0; k < mags.length * 2; k++) {
+                int i = k < mags.length ? k : mags.length * 2 - 1 - k;   // espejo: el círculo queda simétrico
+                double a = Math.toRadians(rot + k * 360.0 / (mags.length * 2) - 90);
+                float l = 4 + shown[i] * len;
+                float x0 = cx + (float) Math.cos(a) * base, y0 = cy + (float) Math.sin(a) * base;
+                float x1 = cx + (float) Math.cos(a) * (base + l), y1 = cy + (float) Math.sin(a) * (base + l);
+                p.setShader(new LinearGradient(x0, y0, x1, y1, c3, k % 2 == 0 ? c1 : c2, Shader.TileMode.CLAMP));
+                c.drawLine(x0, y0, x1, y1, p);
+            }
+            p.setShader(null);
+            p.setStrokeWidth(3); p.setColor(fg(0x40));
+            c.drawCircle(cx, cy, base - 8, p);
+            p.setStyle(Paint.Style.FILL);
+            if (anim) postInvalidateOnAnimation();
+        }
+    }
+
     /** Dock vertical estilo macOS: al pasar el dedo los íconos cercanos se agrandan (efecto lupa). */
     public static class MacDock extends android.widget.LinearLayout {
         public MacDock(Context c) { super(c); setOrientation(VERTICAL); setClipChildren(false); setClipToPadding(false); }
