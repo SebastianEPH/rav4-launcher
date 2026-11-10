@@ -204,11 +204,15 @@ public class HomeActivity extends Activity {
     /** Gestos (igual al HTML): ← abre las apps; en Inicio ←/→ cambian de página. No hay gesto hacia abajo. */
     private final Views.GestureFrame.Listener gestures = new Views.GestureFrame.Listener() {
         public boolean wants(int dir) {
-            if (isOpen(drawer)) return dir == (drawerFromLeft ? Views.LEFT : Views.RIGHT);
+            if (isOpen(drawer)) return dir == Views.LEFT || dir == Views.RIGHT;
             return dir == Views.RIGHT || dir == Views.LEFT;
         }
         public void swipe(int dir) {
-            if (isOpen(drawer)) closeDrawer();
+            if (isOpen(drawer)) {
+                if (dir == Views.LEFT) showDrawerPage(drawerPage + 1);
+                else if (drawerPage > 0) showDrawerPage(drawerPage - 1);
+                else closeDrawer();
+            }
             else if (P.home && dir == Views.LEFT) showPage(homePage + 1);
             else if (P.home && dir == Views.RIGHT) showPage(homePage - 1);
             else openDrawer(dir != Views.LEFT);
@@ -1306,10 +1310,11 @@ public class HomeActivity extends Activity {
         } catch (Exception e) { }
     }
 
-    // ======================= cajón de apps =======================
+    // ======================= cajón de apps (páginas horizontales, como el Home) =======================
     private final List<ResolveInfo> shown = new ArrayList<ResolveInfo>();
-    private BaseAdapter adapter;
-
+    private LinearLayout drawerGrid, drawerDots;
+    private int drawerPage = 0;
+    private static final int DRAWER_COLS = 6, DRAWER_ROWS = 3;
     private TextView drawerCount;
 
     private View buildDrawer() {
@@ -1347,29 +1352,15 @@ public class HomeActivity extends Activity {
         sl.setMargins(0, dp(18), 0, dp(8));
         d.addView(sep, sl);
 
-        GridView grid = new GridView(this);
-        grid.setNumColumns(6);
-        grid.setVerticalSpacing(dp(22));
-        grid.setHorizontalSpacing(dp(8));
-        grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
-        grid.setSelector(new android.graphics.drawable.ColorDrawable(0x00000000));
-        grid.setClipToPadding(false);
-        grid.setPadding(0, dp(14), 0, dp(20));
-        grid.setVerticalScrollBarEnabled(false);
-        adapter = new BaseAdapter() {
-            public int getCount() { return shown.size(); }
-            public Object getItem(int i) { return shown.get(i); }
-            public long getItemId(int i) { return i; }
-            public View getView(int i, View v, ViewGroup parent) {
-                View t = drawerTile(shown.get(i));
-                t.setLayoutParams(new GridView.LayoutParams(-1, dp(172)));
-                return t;
-            }
-        };
-        grid.setAdapter(adapter);
-        d.addView(grid, new LinearLayout.LayoutParams(-1, 0, 1f));
+        drawerGrid = new LinearLayout(this);
+        drawerGrid.setOrientation(LinearLayout.VERTICAL);
+        d.addView(drawerGrid, new LinearLayout.LayoutParams(-1, 0, 1f));
 
-        TextView hint = txt("Mantén presionada una app para fijarla en el dock, ocultarla o ver su información", 13, P.dim);
+        drawerDots = new LinearLayout(this);
+        drawerDots.setGravity(Gravity.CENTER);
+        d.addView(drawerDots, new LinearLayout.LayoutParams(-1, dp(26)));
+
+        TextView hint = txt("Desliza ← / → para ver más apps · mantén presionada una app para fijarla, ocultarla o ver su información", 13, P.dim);
         hint.setGravity(Gravity.CENTER);
         hint.setPadding(0, dp(6), 0, dp(4));
         d.addView(hint);
@@ -1408,6 +1399,7 @@ public class HomeActivity extends Activity {
 
     private void openDrawer(boolean fromLeft) {
         drawerFromLeft = fromLeft;
+        drawerPage = 0;
         refreshDrawer();
         drawer.setTranslationX(fromLeft ? -root.getWidth() : root.getWidth());
         drawer.setVisibility(View.VISIBLE);
@@ -1814,16 +1806,41 @@ public class HomeActivity extends Activity {
     }
 
     private void refreshDrawer() {
-        if (adapter == null) return;
-        PackageManager pm = getPackageManager();
+        if (drawerGrid == null) return;
         shown.clear();
-        for (ResolveInfo r : launchables()) {
-            if (hidden.contains(key(r))) continue;
-            shown.add(r);
-        }
+        for (ResolveInfo r : launchables()) if (!hidden.contains(key(r))) shown.add(r);
         sorted(shown);
         if (drawerCount != null) drawerCount.setText(shown.size() + " apps · " + hidden.size() + " ocultas");
-        adapter.notifyDataSetChanged();
+        showDrawerPage(drawerPage);
+    }
+
+    private void showDrawerPage(int page) {
+        if (drawerGrid == null) return;
+        int per = DRAWER_COLS * DRAWER_ROWS;
+        int pages = Math.max(1, (shown.size() + per - 1) / per);
+        drawerPage = Math.max(0, Math.min(pages - 1, page));
+        drawerGrid.removeAllViews();
+        for (int rI = 0; rI < DRAWER_ROWS; rI++) {
+            LinearLayout line = new LinearLayout(this);
+            line.setGravity(Gravity.CENTER_VERTICAL);
+            for (int c = 0; c < DRAWER_COLS; c++) {
+                int idx = drawerPage * per + rI * DRAWER_COLS + c;
+                View cell = idx < shown.size() ? drawerTile(shown.get(idx)) : new View(this);
+                line.addView(cell, new LinearLayout.LayoutParams(0, -1, 1f));
+            }
+            drawerGrid.addView(line, new LinearLayout.LayoutParams(-1, 0, 1f));
+        }
+        drawerDots.removeAllViews();
+        for (int i = 0; pages > 1 && i < pages; i++) {
+            View dt = new View(this);
+            GradientDrawable g = new GradientDrawable();
+            g.setShape(GradientDrawable.OVAL);
+            g.setColor(i == drawerPage ? (P.dark ? 0xFFFFFFFF : 0xFF000000) : (P.dark ? 0x66FFFFFF : 0x44000000));
+            dt.setBackground(g);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(9), dp(9));
+            lp.setMargins(dp(5), 0, dp(5), 0);
+            drawerDots.addView(dt, lp);
+        }
     }
 
     // ======================= ajustes del launcher =======================

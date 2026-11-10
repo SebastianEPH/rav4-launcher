@@ -149,7 +149,8 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
   `autobright.bands` = "hora:porcentaje,.." (ej. "7:90,19:55,22:25"). El tramo vigente es el de mayor hora ≤ ahora
   (envuelve medianoche). `HomeActivity.applyAutoBrightness` lo aplica al cambiar de tramo (un ajuste manual dentro
   del mismo tramo se respeta); nunca baja del 18 %. El editor muestra un gráfico SVG en vivo (brillo×hora, línea de piso 18 %, marca de la hora actual) que se actualiza al mover los deslizadores.
-- El cajón de apps: íconos **grandes y reales (sin placa)**, 6 columnas, nombres, fondo opaco.
+- El cajón de apps: íconos **grandes y reales (sin placa)**, **páginas horizontales de 6×3** con puntos (nada de scroll
+  vertical). Con el cajón abierto: ← página siguiente, → anterior; en la primera página → lo cierra.
 - Ocultar/mostrar apps desde **Ajustes RAV4 → Apps** (lista con botón Visible/Oculta; escribe el set `hidden`).
 - Nada de círculos en los íconos (fue un rechazo explícito).
 - Controles y apps empiezan por la **izquierda**, lado del conductor.
