@@ -181,6 +181,8 @@ public class Views {
 
     // ===== Tema Cockpit (igual al de la interfaz web): colores cian/rosa =====
     static final int COCK_ACC = 0xFF00E5FF, COCK_ACC2 = 0xFFFF2D95, COCK_DIM = 0x99FFFFFF;
+    /** Color de primer plano del Cockpit con la transparencia dada: blanco en oscuro, casi negro en claro. */
+    static int fg(int alpha) { return (alpha << 24) | (Theme.P.dark ? 0xFFFFFF : 0x0B0C10); }
     /** false = sin animaciones (carretera quieta, sin estela ni halo, sin barrido). */
     public static boolean anim = true;
 
@@ -204,7 +206,8 @@ public class Views {
             float w = getWidth(), h = getHeight();
             float horizon = h * 0.52f;
             // fondo
-            p.setShader(new LinearGradient(0, 0, 0, h, new int[]{0xFF020306, 0xFF05060C, 0xFF0A0420}, null, Shader.TileMode.CLAMP));
+            p.setShader(new LinearGradient(0, 0, 0, h, Theme.P.dark ? new int[]{0xFF020306, 0xFF05060C, 0xFF0A0420}
+                    : new int[]{0xFFF4F6FA, 0xFFE7ECF3, 0xFFDDE4EE}, null, Shader.TileMode.CLAMP));
             p.setStyle(Paint.Style.FILL);
             c.drawRect(0, 0, w, h, p);
             p.setShader(null);
@@ -222,7 +225,7 @@ public class Views {
             p.setStrokeWidth(2);
             for (int i = -7; i <= 7; i++) {
                 float bx = cxp + i * (w / 5f);
-                p.setColor(0x3300E5FF);
+                p.setColor(Theme.P.dark ? 0x3300E5FF : 0x400077C8);
                 c.drawLine(cxp, horizon, bx, h, p);
             }
             // líneas horizontales con perspectiva, desplazándose hacia el conductor
@@ -265,14 +268,14 @@ public class Views {
             }
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(2);
-            p.setColor(0x33FFFFFF);
+            p.setColor(fg(0x33));
             c.drawCircle(cx, cy, r, p);
             c.save();
             c.rotate(-shown, cx, cy);
             p.setStyle(Paint.Style.FILL);
             p.setTextAlign(Paint.Align.CENTER);
             String[] d = {"N", "E", "S", "O"};
-            int[] col = {COCK_ACC2, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
+            int[] col = {COCK_ACC2, fg(0xFF), fg(0xFF), fg(0xFF)};
             for (int i = 0; i < 4; i++) {
                 double a = Math.toRadians(i * 90 - 90);
                 float tx = cx + (float) Math.cos(a) * (r - dp(9)), ty = cy + (float) Math.sin(a) * (r - dp(9));
@@ -326,7 +329,7 @@ public class Views {
         protected void onDraw(Canvas c) {
             float w = getWidth(), h = getHeight(), r = h / 2f;
             p.setShader(null);
-            p.setColor(0x1AFFFFFF);
+            p.setColor(fg(0x1A));
             c.drawRoundRect(0, 0, w, h, r, r, p);
             if (frac > 0.01f) {
                 float fw = Math.max(h, w * frac);
@@ -389,7 +392,7 @@ public class Views {
             p.setStrokeCap(Paint.Cap.ROUND);
             p.setStrokeWidth(rad * 0.1f);
             p.setShader(null);
-            p.setColor(0x14FFFFFF);
+            p.setColor(fg(0x14));
             c.drawArc(r, START, SWEEP, false, p);
 
             // marcas
@@ -399,14 +402,14 @@ public class Views {
                 double a = Math.toRadians(START + SWEEP * v / max);
                 float r1 = rad * 0.88f, r2 = rad * (major ? 0.76f : 0.82f);
                 p.setStrokeWidth(major ? 3 : 2);
-                p.setColor(major ? 0xD8FFFFFF : 0x66FFFFFF);
+                p.setColor(major ? fg(0xD8) : fg(0x66));
                 c.drawLine(cx + (float) Math.cos(a) * r1, cy + (float) Math.sin(a) * r1,
                         cx + (float) Math.cos(a) * r2, cy + (float) Math.sin(a) * r2, p);
             }
             // números
             p.setStyle(Paint.Style.FILL);
             p.setTextAlign(Paint.Align.CENTER);
-            p.setColor(0xB3FFFFFF);
+            p.setColor(fg(0xB3));
             p.setTextSize(rad * 0.1f);
             for (int v = 0; v <= max; v += 20) {
                 double a = Math.toRadians(START + SWEEP * v / max);
@@ -440,7 +443,7 @@ public class Views {
             drawNeedle(c, cx, cy, rad, START + SWEEP * frac, COCK_ACC2, rad * 0.035f);
             // cubo central
             p.setStyle(Paint.Style.FILL);
-            p.setColor(0xFF0B0D14);
+            p.setColor(Theme.P.dark ? 0xFF0B0D14 : 0xFFFFFFFF);
             c.drawCircle(cx, cy, rad * 0.08f, p);
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(3);
@@ -449,12 +452,12 @@ public class Views {
 
             // lectura central
             p.setStyle(Paint.Style.FILL);
-            p.setColor(0xFFFFFFFF);
+            p.setColor(fg(0xFF));
             p.setFakeBoldText(true);
             p.setTextSize(rad * 0.52f);
             c.drawText(String.valueOf(Math.round(shown)), cx, cy + rad * 0.68f, p);
             p.setFakeBoldText(false);
-            p.setColor(COCK_DIM);
+            p.setColor(fg(0x99));
             p.setTextSize(rad * 0.1f);
             c.drawText("KM/H", cx, cy + rad * 0.86f, p);
             if (sub.length() > 0) {

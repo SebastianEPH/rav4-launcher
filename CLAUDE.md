@@ -155,6 +155,9 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
 - Brillo: deslizador de brillo actual, perfiles rápidos (Día brillante / Equilibrado / Nocturno), "Aplicar ahora" y
   transición suave entre tramos (`autobright.fade`, ~30 s). Cajón: opacidad del fondo 1–100 % (`drawer.alpha`).
   Cambiar ícono: botón "Cambiar ícono" en cada app (pref `icon.<clave>` = PNG 192 px en `files/icons`).
+- **Modo claro en todo lo nativo**: el Cockpit toma sus colores del modo (`Views.fg()`, `HomeActivity.cTxt/cDim/cCard`)
+  y Ajustes RAV4 arma su paleta con `Theme.fromPrefs` (`SettingsActivity.palette()`); si cambia el modo se recrea.
+  Nada de colores oscuros fijos.
 - **Configuración global**: tema, modo y acento usan las mismas claves (`theme`, `mode`, `accent`) en la interfaz
   nativa y en la web (`WebHome.globalKey`); las horas del modo automático (`web.darkFrom/To`) valen para ambas.
   Auto · CAN en nativo se muestra como Cockpit. Nada de configuraciones separadas por interfaz.

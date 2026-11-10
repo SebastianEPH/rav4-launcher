@@ -442,13 +442,13 @@ public class HomeActivity extends Activity {
         LinearLayout top = new LinearLayout(this);
         top.setGravity(Gravity.CENTER_VERTICAL);
         top.setPadding(dp(4), 0, dp(4), dp(8));
-        clock = txt("--:--", 22, 0xFFFFFFFF);
+        clock = txt("--:--", 22, cTxt());
         clock.setTypeface(P.fontBold);
         top.addView(clock);
-        date = txt("", 13, 0x99FFFFFF);
+        date = txt("", 13, cDim());
         date.setPadding(dp(10), dp(6), 0, 0);
         top.addView(date);
-        cockTopMid = txt("", 14, 0x99FFFFFF);
+        cockTopMid = txt("", 14, cDim());
         cockTopMid.setGravity(Gravity.CENTER);
         top.addView(cockTopMid, new LinearLayout.LayoutParams(0, -2, 1f));
         cockTopBatt = txt("", 15, ACC);
@@ -468,9 +468,9 @@ public class HomeActivity extends Activity {
         dock.setOrientation(LinearLayout.VERTICAL);
         dock.setGravity(Gravity.CENTER);
         leftDock.addView(dock, new LinearLayout.LayoutParams(-1, 0, 1f));
-        TextView gear = txt("⚙", 26, 0xFFFFFFFF);
+        TextView gear = txt("⚙", 26, cTxt());
         gear.setGravity(Gravity.CENTER);
-        gear.setBackground(box(0xD10E1016, 0x2900E5FF, 18));
+        gear.setBackground(box(cCard(), 0x2900E5FF, 18));
         LinearLayout.LayoutParams gearL = new LinearLayout.LayoutParams(dp(58), dp(58));
         gearL.bottomMargin = dp(10);
         gear.setLayoutParams(gearL);
@@ -511,10 +511,10 @@ public class HomeActivity extends Activity {
         LinearLayout tripTxt = new LinearLayout(this);
         tripTxt.setOrientation(LinearLayout.VERTICAL);
         tripTxt.addView(cockLabel("VIAJE"));
-        tripBig = txt("0.0 km", 30, 0xFFFFFFFF);
+        tripBig = txt("0.0 km", 30, cTxt());
         tripBig.setTypeface(P.fontBold);
         tripTxt.addView(tripBig);
-        tripSub = txt("", 13, 0x99FFFFFF);
+        tripSub = txt("", 13, cDim());
         tripSub.setLineSpacing(0, 1.2f);
         tripTxt.addView(tripSub);
         tripCard.addView(tripTxt, new LinearLayout.LayoutParams(0, -1, 1f));
@@ -535,17 +535,17 @@ public class HomeActivity extends Activity {
         LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, dp(8));
         bl.topMargin = dp(10);
         batt.addView(cockBattBar, bl);
-        cockBattState = txt("", 12, 0x99FFFFFF);
+        cockBattState = txt("", 12, cDim());
         cockBattState.setPadding(0, dp(6), 0, 0);
         batt.addView(cockBattState);
         r2.addView(batt, hWeight(1f, true));
 
         LinearLayout gps = cockCard();
         gps.addView(cockLabel("GPS"));
-        cockSats = txt("—", 32, 0xFFFFFFFF);
+        cockSats = txt("—", 32, cTxt());
         cockSats.setTypeface(P.fontBold);
         gps.addView(cockSats);
-        cockGpsSub = txt("", 13, 0x99FFFFFF);
+        cockGpsSub = txt("", 13, cDim());
         cockGpsSub.setLineSpacing(0, 1.2f);
         gps.addView(cockGpsSub);
         r2.addView(gps, hWeight(1f, false));
@@ -556,7 +556,8 @@ public class HomeActivity extends Activity {
         music.addView(cockLabel("MÚSICA"));
         LinearLayout mc = new LinearLayout(this);
         mc.setGravity(Gravity.CENTER);
-        mc.addView(mediaBtn("⏮", android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS), new LinearLayout.LayoutParams(0, -2, 1f));
+        TextView prevB = mediaBtn("⏮", android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS); prevB.setTextColor(cTxt());
+        mc.addView(prevB, new LinearLayout.LayoutParams(0, -2, 1f));
         TextView play = txt("⏯", 30, 0xFFFFFFFF);
         play.setGravity(Gravity.CENTER);
         GradientDrawable pb = new GradientDrawable();
@@ -567,7 +568,8 @@ public class HomeActivity extends Activity {
         LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(dp(64), dp(64));
         pl.leftMargin = pl.rightMargin = dp(20);
         mc.addView(play, pl);
-        mc.addView(mediaBtn("⏭", android.view.KeyEvent.KEYCODE_MEDIA_NEXT), new LinearLayout.LayoutParams(0, -2, 1f));
+        TextView nextB = mediaBtn("⏭", android.view.KeyEvent.KEYCODE_MEDIA_NEXT); nextB.setTextColor(cTxt());
+        mc.addView(nextB, new LinearLayout.LayoutParams(0, -2, 1f));
         music.addView(mc, new LinearLayout.LayoutParams(-1, 0, 1f));
         right.addView(music, vWeight(1f, false));
         return wrap;
@@ -581,11 +583,16 @@ public class HomeActivity extends Activity {
 
 
     /** Tarjeta del Cockpit: fondo oscuro translúcido, bordes redondeados (igual al web). */
+    // Colores del Cockpit según el modo (Oscuro / Claro / Automático)
+    private int cTxt() { return P.dark ? 0xFFFFFFFF : 0xFF0B0C10; }
+    private int cDim() { return P.dark ? 0x99FFFFFF : 0x99000000; }
+    private int cCard() { return P.dark ? 0xD10E1016 : 0xE6FFFFFF; }
+
     private LinearLayout cockCard() {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable g = new GradientDrawable();
-        g.setColor(0xD10E1016);
+        g.setColor(cCard());
         g.setCornerRadius(dp(20));
         g.setStroke(1, 0x2900E5FF);
         c.setBackground(g);
@@ -594,7 +601,7 @@ public class HomeActivity extends Activity {
     }
 
     private TextView cockLabel(String s) {
-        TextView t = txt(s, 12, 0x99FFFFFF);
+        TextView t = txt(s, 12, cDim());
         t.setTypeface(P.fontBold);
         t.setAllCaps(true);
         t.setLetterSpacing(0.1f);

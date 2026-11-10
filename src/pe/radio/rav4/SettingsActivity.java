@@ -36,8 +36,20 @@ import java.util.Set;
  */
 public class SettingsActivity extends Activity {
 
-    private static final int BG = 0xFF0B0C10, CARD = 0xFF17181E, LINE = 0x14FFFFFF,
-            TXT = 0xFFF2F4F8, DIM = 0x8CF2F4F8, ACC = 0xFF0A84FF, OK = 0xFF30D158, WARN = 0xFFFF9F0A;
+    private static final int ACC = 0xFF0A84FF, OK = 0xFF30D158, WARN = 0xFFFF9F0A;
+    // Paleta según el modo global (Oscuro / Claro / Automático), igual que el launcher
+    private int BG, CARD, LINE, TXT, DIM, SOFT;
+    private boolean darkUi;
+
+    private void palette() {
+        darkUi = Theme.fromPrefs(prefs).dark;
+        BG = darkUi ? 0xFF0B0C10 : 0xFFF2F2F7;
+        CARD = darkUi ? 0xFF17181E : 0xFFFFFFFF;
+        LINE = darkUi ? 0x14FFFFFF : 0x14000000;
+        TXT = darkUi ? 0xFFF2F4F8 : 0xFF111216;
+        DIM = darkUi ? 0x8CF2F4F8 : 0x8C111216;
+        SOFT = darkUi ? 0x14FFFFFF : 0x10000000;
+    }
 
     private SharedPreferences prefs;
     private LinearLayout content;
@@ -48,6 +60,7 @@ public class SettingsActivity extends Activity {
         super.onCreate(b);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         prefs = getSharedPreferences("rav4", MODE_PRIVATE);
+        palette();
 
         LinearLayout rootc = new LinearLayout(this);
         rootc.setOrientation(LinearLayout.VERTICAL);
@@ -122,6 +135,7 @@ public class SettingsActivity extends Activity {
     }
 
     private void rebuild() {
+        if (Theme.fromPrefs(prefs).dark != darkUi) { recreate(); return; }
         renderTabs();
         content.removeAllViews();
         if (tab == 0) tabGeneral();
@@ -373,7 +387,7 @@ public class SettingsActivity extends Activity {
 
     private LinearLayout seg(final String key, String[] labels, final String[] values, String def) {
         LinearLayout seg = new LinearLayout(this);
-        GradientDrawable bg = new GradientDrawable(); bg.setColor(0x14FFFFFF); bg.setCornerRadius(dp(12));
+        GradientDrawable bg = new GradientDrawable(); bg.setColor(SOFT); bg.setCornerRadius(dp(12));
         seg.setBackground(bg);
         seg.setPadding(dp(3), dp(3), dp(3), dp(3));
         String cur = prefs.getString(key, def);
@@ -435,7 +449,7 @@ public class SettingsActivity extends Activity {
             sg.setCornerRadius(dp(12));
             sw.setBackground(sg);
             cell.addView(sw, new LinearLayout.LayoutParams(-1, dp(56)));
-            TextView nm = tv((on ? "✓ " : "") + themes[i][1], 14, on ? 0xFFFFFFFF : TXT);
+            TextView nm = tv((on ? "✓ " : "") + themes[i][1], 14, on ? ACC : TXT);
             nm.setPadding(dp(10), dp(8), dp(10), dp(8));
             cell.addView(nm);
             cell.setOnClickListener(new View.OnClickListener() {
@@ -484,7 +498,7 @@ public class SettingsActivity extends Activity {
     private TextView stepBtn(String sign, final String key, final int delta, final int def) {
         TextView b = tv(sign, 18, TXT);
         b.setGravity(Gravity.CENTER);
-        GradientDrawable g = new GradientDrawable(); g.setShape(GradientDrawable.OVAL); g.setColor(0x14FFFFFF);
+        GradientDrawable g = new GradientDrawable(); g.setShape(GradientDrawable.OVAL); g.setColor(SOFT);
         b.setBackground(g);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(36), dp(36));
         b.setLayoutParams(lp);
@@ -591,7 +605,7 @@ public class SettingsActivity extends Activity {
     private TextView bandHour(String sign, final int idx, final int delta) {
         TextView b = tv(sign, 18, TXT);
         b.setGravity(Gravity.CENTER);
-        GradientDrawable g = new GradientDrawable(); g.setShape(GradientDrawable.OVAL); g.setColor(0x14FFFFFF);
+        GradientDrawable g = new GradientDrawable(); g.setShape(GradientDrawable.OVAL); g.setColor(SOFT);
         b.setBackground(g);
         b.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -715,7 +729,7 @@ public class SettingsActivity extends Activity {
             Collections.sort(l, new java.util.Comparator<int[]>() { public int compare(int[] a, int[] b) { return a[0] - b[0]; } });
             float L = left(), R = right(), T = top(), B = bottom();
             // cuadrícula: 25/50/75/100 %
-            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(1); p.setColor(0x14FFFFFF);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(1); p.setColor(SOFT);
             p.setPathEffect(null);
             for (int v = 25; v <= 100; v += 25) c.drawLine(L, yFor(v), R, yFor(v), p);
             for (int hr = 0; hr <= 24; hr += 3) c.drawLine(xFor(hr), T, xFor(hr), B, p);
@@ -844,7 +858,7 @@ public class SettingsActivity extends Activity {
             tgl.setGravity(Gravity.CENTER);
             tgl.setPadding(dp(16), dp(7), dp(16), dp(7));
             GradientDrawable g = new GradientDrawable(); g.setCornerRadius(dp(14));
-            g.setColor(isHidden ? 0x1AFFFFFF : ACC);
+            g.setColor(isHidden ? SOFT : ACC);
             if (isHidden) g.setStroke(dp(1), DIM);
             tgl.setBackground(g);
             tgl.setTextColor(isHidden ? DIM : 0xFFFFFFFF);
@@ -868,7 +882,7 @@ public class SettingsActivity extends Activity {
         TextView b = tv(t, 14, TXT);
         b.setGravity(Gravity.CENTER);
         b.setPadding(dp(12), dp(7), dp(12), dp(7));
-        GradientDrawable g = new GradientDrawable(); g.setColor(0x14FFFFFF); g.setCornerRadius(dp(12));
+        GradientDrawable g = new GradientDrawable(); g.setColor(SOFT); g.setCornerRadius(dp(12));
         b.setBackground(g);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
         lp.rightMargin = dp(8);
