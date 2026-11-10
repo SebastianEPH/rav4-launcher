@@ -323,12 +323,7 @@ public class WebHome {
         public void canMark(String text) { WebHome.this.can().mark(text); }
 
         @JavascriptInterface
-        public String perms() { try { return a.webPerms().toString(); } catch (Exception e) { return "[]"; } }
-
-        @JavascriptInterface
-        public void grant(final String id) {
-            ui(new Runnable() { public void run() { if ("all".equals(id)) a.startPermWizard(); else a.permRequest(id); } });
-        }
+        public void openSettings() { ui(new Runnable() { public void run() { a.openLauncherSettings(); } }); }
 
         @JavascriptInterface
         public String can() {

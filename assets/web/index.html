@@ -23,7 +23,6 @@
   </div>
 
   <header id="status">
-    <button class="st-btn" id="btnPanel" aria-label="Abrir panel"><span class="burger"><i></i><i></i><i></i></span></button>
     <div class="st-time"><b data-k="time">--:--</b><small class="ampm" data-k="ampm"></small><span data-k="dateShort"></span></div>
     <div class="st-mid" id="stMid"></div>
     <div class="st-icons">
@@ -39,84 +38,6 @@
   <main id="view"></main>
   <div id="edgeHint"></div>
 </div>
-
-<!-- panel lateral izquierdo (lado del conductor): controles y configuración -->
-<section id="panel" class="sheet left">
-  <div class="loadbar"><i></i></div>
-  <div class="sheet-head">
-    <h2>Panel</h2>
-    <button class="close" data-close>✕</button>
-  </div>
-  <div class="sheet-body">
-    <div class="group">
-      <h3>Controles</h3>
-      <div class="slider-row">
-        <button class="round" id="volDown">−</button>
-        <div class="slider" id="volSlider"><div class="fill"></div><div class="knob"></div><label>Volumen <b id="volVal">—</b></label></div>
-        <button class="round" id="volUp">+</button>
-      </div>
-      <div class="slider-row">
-        <button class="round" id="brDown">☼</button>
-        <div class="slider" id="brSlider"><div class="fill"></div><div class="knob"></div><label>Brillo <b id="brVal">—</b></label></div>
-        <button class="round" id="brUp">☀</button>
-      </div>
-      <div class="tiles">
-        <button class="tile" data-act="mute"><span>🔇</span>Silencio</button>
-        <button class="tile" data-toggle="wifi"><span>📶</span>WiFi</button>
-        <button class="tile" data-toggle="bt"><span>🔵</span>Bluetooth</button>
-        <button class="tile" data-open="phone"><span>📱</span>CarPlay / AA</button>
-        <button class="tile" data-open="car"><span>🚙</span>Datos del auto</button>
-        <button class="tile" data-act="resetTrip"><span>↺</span>Reiniciar viaje</button>
-      </div>
-    </div>
-
-    <div class="group">
-      <h3>Tema</h3>
-      <div class="themes" id="themeList"></div>
-    </div>
-
-    <div class="group">
-      <h3 id="themeOptsTitle">Opciones del tema</h3>
-      <div id="themeOpts"></div>
-    </div>
-
-    <div class="group">
-      <h3>Apariencia</h3>
-      <div class="seg" data-pref="mode">
-        <button data-v="dark">Oscuro</button><button data-v="light">Claro</button><button data-v="auto">Automático</button>
-      </div>
-      <div class="hours" id="darkHours">
-        <div><span>Oscuro desde</span><button class="round sm" data-hour="darkFrom:-1">−</button><b id="hFrom">18:00</b><button class="round sm" data-hour="darkFrom:1">+</button></div>
-        <div><span>hasta</span><button class="round sm" data-hour="darkTo:-1">−</button><b id="hTo">06:00</b><button class="round sm" data-hour="darkTo:1">+</button></div>
-      </div>
-      <h3 class="sub">Color de acento</h3>
-      <div class="accents" id="accents"></div>
-      <div class="group two">
-        <div><h3 class="sub">Reloj</h3><div class="seg" data-pref="clock"><button data-v="12">12 h (AM/PM)</button><button data-v="24">24 h</button></div></div>
-        <div><h3 class="sub">Efectos</h3><div class="seg" data-pref="fx"><button data-v="high">Altos</button><button data-v="low">Suaves</button><button data-v="off">No</button></div></div>
-      </div>
-      <p class="hint">Efectos "Altos" agrega el desenfoque de vidrio: se ve mejor pero la radio puede ir lenta.</p>
-    </div>
-
-    <div class="group">
-      <h3>Permisos</h3>
-      <div class="perms" id="perms"></div>
-      <button class="grant-all" id="grantAll">Conceder todos los permisos</button>
-      <p class="hint">Android no deja dar todo de un toque: se abre la pantalla de cada permiso que falte; actívalo, vuelve, y sigue solo con el siguiente.</p>
-    </div>
-
-    <div class="group">
-      <h3>Sistema</h3>
-      <div class="list">
-        <button data-act="checkUpdate">Buscar actualización <i>›</i></button>
-        <button data-open="home">Elegir launcher predeterminado <i>›</i></button>
-        <button data-open="android">Ajustes de Android <i>›</i></button>
-        <button data-act="useNative">Volver a la interfaz nativa <i>›</i></button>
-      </div>
-      <p class="ver" id="version"></p>
-    </div>
-  </div>
-</section>
 
 <!-- cajón de apps (derecha) -->
 <section id="drawer" class="sheet right">

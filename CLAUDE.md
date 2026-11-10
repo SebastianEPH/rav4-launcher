@@ -66,6 +66,7 @@ Código Java en el paquete `pe.radio.rav4`:
 - `WebHome.java` — la interfaz web (ver abajo): WebView + puente JS `Radio`.
 - `CanBridge.java` — lee el bus CAN por el servicio AIDL de `com.nwd.can.setting` (ver FINDINGS.md → Bus CAN)
   y graba todo en `RAV4Launcher/can_<fecha>.txt` en el USB para analizarlo en el Mac.
+- `SettingsActivity.java` — ventana "Ajustes RAV4" (tema, apariencia, interfaz, permisos, actualización).
 - `Updater.java` — "Buscar actualización" (⚙ Ajustes → Sistema): lee el último Release de GitHub,
   compara su tag con `versionName`, descarga el APK y lo instala con `PackageInstaller`. La primera vez
   Android pide permitir "instalar apps de esta fuente". El CI pone `versionCode=100+run_number` y
@@ -77,9 +78,11 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 - Los mismos 5 temas rehechos con efectos: aurora animada (Glass/Inicio), cielo que cambia con la
   hora con sol/luna/nubes/estrellas (Dusk), carretera neón cuya velocidad sigue a la del auto +
   velocímetro SVG con aguja (Cockpit), CRT + log en vivo + comando tecleándose (Terminal).
-- Gestos: **→ abre el Panel** (controles + ajustes, desde la izquierda) y **← abre las apps**.
-  Ya **no hay gesto hacia abajo** (el usuario pidió quitarlo: estorbaba). En Inicio ←/→ cambian de
-  página salvo que el gesto empiece en el borde izquierdo.
+- **Sin panel lateral**: toda la configuración vive en la ventana aparte **"Ajustes RAV4"** (`SettingsActivity` +
+  `assets/web/settings.html/js`), con ícono propio en la lista de apps y botón ⚙ en el dock (también la abre el
+  engranaje de la interfaz nativa). Al volver, el launcher compara `stamp` y solo se rearma si algo cambió.
+  Así el launcher queda liviano (decisión del usuario). Gestos: **← abre las apps**; en Inicio ←/→ cambian de página.
+  No hay gesto hacia abajo (estorbaba).
 - 6 temas: Terminal, Glass, Dusk, Cockpit, Inicio y **Auto · CAN** (vidrio líquido estilo iOS con íconos
   propios: puertas animadas, tacómetro, señales y registro en vivo del bus CAN para probar qué llega).
 - **Todo configurable** desde el Panel: modo Oscuro/Claro/Automático con **horas configurables**
@@ -105,12 +108,12 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
   Los íconos se sirven por `https://rav4.local/icon/<clave>?v=<lastUpdateTime>` (shouldInterceptRequest, caché en
   `cache/icons`), en paralelo. El Panel se arma recién al abrirlo (barra de carga) y los permisos al final.
   El servicio CAN se conecta solo cuando la página lo pide. El Panel muestra los tiempos de arranque medidos.
-- **Permisos**: Android no permite "permiso total". Panel → Permisos (y ⚙ Ajustes → "Permisos (darlos todos)")
-  pide **todos** los útiles (lista `HomeActivity.PERMS` con su "para qué"): ubicación, almacenamiento, micrófono,
+- **Permisos**: Android no permite "permiso total". Ajustes RAV4 → Permisos
+  pide **todos** los útiles (lista `SettingsActivity.PERMS` con su "para qué"): ubicación, almacenamiento, micrófono,
   cámara, teléfono/contactos, ajustes del sistema, instalar apps, notificaciones (`MediaListener`), mostrar encima,
   acceso de uso, sin optimización de batería, no molestar y launcher predeterminado. Sin accesibilidad ni admin
   del dispositivo (control total, sin uso aquí). "Conceder todos" pide cada uno una vez por recorrido,
-  abre la pantalla de cada uno que falte y continúa solo al volver (`HomeActivity.startPermWizard`).
+  abre la pantalla de cada uno que falte y continúa solo al volver (`SettingsActivity.startPermWizard`).
 - Íconos de apps **siempre solos** (sin placa oscura detrás). Sin opción: el usuario la pidió quitar.
 - **Compatibilidad**: el WebView de la radio puede ser Chrome ~74 → nada de `?.`, `??`, `:is()`,
   `inset`, `clamp()/min()`, `aspect-ratio`, ni `gap` en flex (en grid sí).

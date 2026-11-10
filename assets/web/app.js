@@ -229,11 +229,11 @@
   THEMES.cockpit = {
     name: 'Cockpit', pv: ['#030406', '#00e5ff', '#ff2d95'],
     html: function () {
-      G.max = +opt('scale') || 180;
+      G.max = Math.min(220, +opt('scale') || 180);   // en Perú los tableros llegan a 220
       ARC_LEN = G.r * 270 * Math.PI / 180;
       var ticks = '';
-      for (var v = 0; v <= G.max; v += (G.max > 200 ? 20 : 10)) {
-        var a = 135 + 270 * v / G.max, major = v % (G.max > 200 ? 40 : 20) === 0;
+      for (var v = 0; v <= G.max; v += 10) {
+        var a = 135 + 270 * v / G.max, major = v % 20 === 0;
         ticks += '<line class="tick' + (major ? ' major' : '') + '" x1="' + pt(a, 150).split(' ')[0] + '" y1="' + pt(a, 150).split(' ')[1] +
           '" x2="' + pt(a, major ? 132 : 140).split(' ')[0] + '" y2="' + pt(a, major ? 132 : 140).split(' ')[1] + '"/>';
         if (major) { var p = pt(a, 112).split(' '); ticks += '<text class="num" x="' + p[0] + '" y="' + p[1] + '">' + v + '</text>'; }
@@ -314,7 +314,7 @@
   THEMES.glass.opts = [{ k: 'aurora', label: 'Colores de la aurora', def: 'ocean', ch: [['ocean', 'Océano'], ['sunset', 'Atardecer'], ['forest', 'Bosque']] }];
   THEMES.dusk.opts = [{ k: 'sky', label: 'Cielo', def: 'hour', ch: [['hour', 'Según la hora'], ['day', 'Día'], ['sunset', 'Atardecer'], ['night', 'Noche']] },
     { k: 'greet', label: 'Saludo', def: 'on', ch: ONOFF }];
-  THEMES.cockpit.opts = [{ k: 'scale', label: 'Escala del velocímetro (km/h)', def: '180', ch: [['140', '140'], ['180', '180'], ['240', '240']] },
+  THEMES.cockpit.opts = [{ k: 'scale', label: 'Escala del velocímetro (km/h)', def: '180', ch: [['140', '140'], ['180', '180'], ['220', '220']] },
     { k: 'road', label: 'Carretera animada', def: 'on', ch: ONOFF }];
   THEMES.home.opts = [{ k: 'cols', label: 'Columnas de íconos', def: '6', ch: [['5', '5'], ['6', '6'], ['7', '7']] },
     { k: 'widgets', label: 'Widgets de velocidad, viaje y batería', def: 'on', ch: ONOFF }];
@@ -473,7 +473,8 @@
     if (!pinned.length) pinned = visibleApps().slice(0, 4);
     $('#dock').innerHTML = pinned.slice(0, 6).map(function (a) {
       return '<button class="dock-app" data-app="' + esc(a.key) + '"><img src="' + a.icon + '" alt=""></button>';
-    }).join('') + '<button class="dock-app apps-btn" id="btnApps" aria-label="Todas las apps"><span><i></i><i></i><i></i><i></i></span></button>';
+    }).join('') + '<button class="dock-app set-btn" id="btnSet" aria-label="Ajustes RAV4"><svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm7.4-2.5a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5z"/></svg></button>' +
+      '<button class="dock-app apps-btn" id="btnApps" aria-label="Todas las apps"><span><i></i><i></i><i></i><i></i></span></button>';
   }
 
   function loadApps() {
@@ -653,6 +654,7 @@
   }
 
   function renderPanelState() {
+    if (!$('#panel')) return;   // los ajustes viven en la ventana aparte "Ajustes RAV4"
     $('#themeList').innerHTML = ORDER.map(function (k) {
       var t = THEMES[k], c = t.pv;
       return '<button class="th' + (k === prefs.theme ? ' on' : '') + '" data-theme-pick="' + k + '"><div class="pv" style="background:linear-gradient(135deg,' + c[0] + ',' + c[0] + ' 40%,' + c[1] + ')">' +
@@ -687,6 +689,7 @@
   var dragging = null, sendT = 0;
   function sliderSet(el, f) { $('.fill', el).style.width = (Math.max(0, Math.min(1, f)) * 100) + '%'; }
   function syncControls() {
+    if (!$('#volSlider')) return;
     if (dragging !== 'vol' && S.volMax) { sliderSet($('#volSlider'), S.vol / S.volMax); $('#volVal').textContent = S.vol + ' / ' + S.volMax; }
     if (dragging !== 'br' && S.bright != null) { sliderSet($('#brSlider'), S.bright / 100); $('#brVal').textContent = S.bright + ' %'; }
     var tw = $('[data-toggle="wifi"]'), tb = $('[data-toggle="bt"]');
@@ -694,6 +697,7 @@
   }
   function bindSlider(id, kind) {
     var el = $(id);
+    if (!el) return;
     function val(e) { var r = el.getBoundingClientRect(); return (e.clientX - r.left) / r.width; }
     function apply(f, final) {
       f = Math.max(0, Math.min(1, f));
@@ -753,11 +757,10 @@
     g = null;
     if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
     suppressClick = true; setTimeout(function () { suppressClick = false; }, 60);
-    var panel = $('#panel').classList.contains('open'), drawer = $('#drawer').classList.contains('open');
-    if (panel) { if (dx < 0) closeSheets(); return; }
+    var drawer = $('#drawer').classList.contains('open');
     if (drawer) { if (dx > 0) closeSheets(); return; }
     if (prefs.theme === 'home' && !start.edge && start.target.closest && start.target.closest('#pages')) { showHomePage(homePage + (dx < 0 ? 1 : -1)); return; }
-    if (dx > 0) openSheet('panel'); else openSheet('drawer');
+    if (dx < 0) openSheet('drawer');
   }, true);
   document.addEventListener('pointercancel', function () { g = null; cancelLongPress(); $('#stage').classList.remove('dragging-edge'); }, true);
   document.addEventListener('click', function (e) { if (suppressClick || longFired) { e.stopPropagation(); e.preventDefault(); longFired = false; } }, true);
@@ -790,7 +793,7 @@
     var el;
     if ((el = t.closest('[data-app]'))) { R.launch(el.getAttribute('data-app')); if (SIM) toast('Simulado: abrir ' + (el.textContent || 'app')); setTimeout(closeSheets, 300); return; }
     if (t.closest('#btnApps')) { openSheet('drawer'); return; }
-    if (t.closest('#btnPanel')) { openSheet('panel'); return; }
+    if (t.closest('#btnSet')) { R.openSettings(); if (SIM) toast('Simulado: se abre la ventana Ajustes RAV4'); return; }
     if (t.closest('[data-close]') || t.id === 'scrim') { closeSheets(); return; }
     if (t.closest('#showHidden')) { showHiddenApps = !showHiddenApps; renderDrawer(); return; }
     if ((el = t.closest('[data-theme-pick]'))) { setPref('theme', el.getAttribute('data-theme-pick')); return; }
@@ -825,6 +828,7 @@
 
   // ================= permisos =================
   function renderPerms() {
+    if (!$('#perms')) return;
     var list = [];
     try { list = JSON.parse(R.perms ? R.perms() : '[]'); } catch (e) { }
     var missing = list.filter(function (p) { return !p.ok; }).length;
@@ -921,7 +925,13 @@
   // ================= API para Android (WebHome.java) =================
   window.RAV4 = {
     back: function () { if (!closeSheets() && prefs.theme === 'home') showHomePage(0); },
-    resume: function () { var p = $('#panel').classList.contains('open'); if (!p) closeSheets(); else renderPerms(); poll(); },
+    resume: function () { closeSheets(); poll(); },
+    // al volver de "Ajustes RAV4" con cambios: releer todo y rearmar el tema
+    reloadPrefs: function () {
+      prefs = { theme: R.pref('theme', 'cockpit'), mode: R.pref('mode', 'dark'), fx: R.pref('fx', 'low'), icons: 'plain',
+        accent: R.pref('accent', 'theme'), clock: R.pref('clock', '12'), darkFrom: R.pref('darkFrom', '18'), darkTo: R.pref('darkTo', '6') };
+      mountTheme();
+    },
     appsChanged: loadApps
   };
 
@@ -968,6 +978,7 @@
       setPref: function (k, v) { store[k] = v; try { localStorage.setItem('rav4sim', JSON.stringify(store)); } catch (e) { } },
       resetTrip: function () { dist = 0; max = 0; moving = 0; }, checkUpdate: function () { toast('Simulado: buscar actualización'); },
       useNative: function () { toast('Simulado: volver a la interfaz nativa'); },
+      openSettings: function () { },
       version: function () { return 'web-preview'; }, boot: function () { return '{"proc":-1,"page":120,"apps":300}'; }, permission: function () { },
       perms: function () {
         return JSON.stringify([['location', 'Ubicación (GPS)', 'Velocidad, viaje y rumbo'], ['storage', 'Almacenamiento', 'Grabar el bus CAN en el USB'],
@@ -1009,13 +1020,10 @@
   if (!SIM && !R.pref('fxv2', '')) { R.setPref('fxv2', '1'); R.setPref('fx', prefs.fx); }
   scale();
   window.addEventListener('resize', function () { scale(); if (current && current.apps) current.apps(); });
-  bindSlider('#volSlider', 'vol');
-  bindSlider('#brSlider', 'br');
   // Primero la pantalla; lo demás (apps, datos) llega después y se completa solo.
   mountTheme();
   requestAnimationFrame(function () { if (R.ready) R.ready(); });
   setTimeout(function () { loadApps(); poll(); setInterval(poll, 500); requestAnimationFrame(frame); }, 0);
   if (params.rec) { step = +params.step || 1; showStep(); }
-  if (params.panel) openSheet('panel');
   if (params.drawer) openSheet('drawer');
 })();

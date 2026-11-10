@@ -603,3 +603,5 @@ body[data-icons="plain"] .dock-app:not(.apps-btn) img { width: 4.3rem; height: 4
 .sheet.loading .loadbar { opacity: 1; }
 .sheet.loading .sheet-body { opacity: .35; }
 @keyframes loadbar { from { left: -35%; } to { left: 100%; } }
+.dock-app.set-btn svg { width: 2.2rem; height: 2.2rem; fill: var(--fg); opacity: .85; }
+body[data-icons="plain"] .dock-app.set-btn { background: var(--card) !important; border: 1px solid var(--card-b) !important; }

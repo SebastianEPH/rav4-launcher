@@ -150,7 +150,22 @@ public class HomeActivity extends Activity {
     }
 
     @Override
-    protected void onResume() { super.onResume(); immersive(); rebuildDock(); if (web != null) web.js("RAV4.resume()"); continueWizard(); }
+    protected void onResume() {
+        super.onResume();
+        immersive();
+        // solo se rearma si en "Ajustes RAV4" cambió algo
+        long st = prefs.getLong("stamp", 0);
+        if (st != appliedStamp) { appliedStamp = st; if (useWeb() != (web != null) || web == null) applyTheme(); else web.js("RAV4.reloadPrefs()"); }
+        rebuildDock();
+        if (web != null) web.js("RAV4.resume()");
+    }
+
+    private long appliedStamp = -1;
+
+    /** Abre la ventana aparte "Ajustes RAV4". */
+    void openLauncherSettings() {
+        try { startActivity(new Intent(this, SettingsActivity.class)); } catch (Exception e) { }
+    }
 
     @Override
     public void onWindowFocusChanged(boolean f) { super.onWindowFocusChanged(f); if (f) immersive(); }
@@ -163,7 +178,7 @@ public class HomeActivity extends Activity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int c, String[] p, int[] r) { startGps(); continueWizard(); }
+    public void onRequestPermissionsResult(int c, String[] p, int[] r) { startGps(); }
 
     @Override
     public void onBackPressed() { closeOverlays(); }
@@ -238,9 +253,7 @@ public class HomeActivity extends Activity {
         cc = buildCC();
         cc.setVisibility(View.GONE);
         root.addView(cc);
-        settings = buildSettings();
-        settings.setVisibility(View.GONE);
-        root.addView(settings);
+        settings = null;   // los ajustes viven en SettingsActivity
         setContentView(root);
         getWindow().setBackgroundDrawable(null);   // la foto de arranque ya no hace falta: evita dibujarla en cada cuadro
         rebuildDock();
@@ -277,7 +290,7 @@ public class HomeActivity extends Activity {
         Intent i = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
         List<ResolveInfo> out = new ArrayList<ResolveInfo>();
         for (ResolveInfo r : getPackageManager().queryIntentActivities(i, 0))
-            if (!r.activityInfo.packageName.equals(getPackageName())) out.add(r);
+            if (!r.activityInfo.name.equals(HomeActivity.class.getName())) out.add(r);   // "Ajustes RAV4" sí aparece
         return out;
     }
 
@@ -1784,9 +1797,6 @@ public class HomeActivity extends Activity {
                 startActivity(new Intent("android.settings.SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             }
         }));
-        left.addView(action("Permisos (darlos todos)", new View.OnClickListener() {
-            public void onClick(View v) { startPermWizard(); }
-        }));
         left.addView(action("Reiniciar viaje", new View.OnClickListener() { public void onClick(View v) { resetTrip(); } }));
         left.addView(action("Buscar actualización", new View.OnClickListener() {
             public void onClick(View v) { new Updater(HomeActivity.this, alertStyle()).check(); }
@@ -1821,6 +1831,7 @@ public class HomeActivity extends Activity {
     }
 
     private void openSettings() {
+        if (settings == null) { openLauncherSettings(); return; }
         View f = settings.findViewWithTag("filter");
         listHiddenOnly = false;
         fillAppList((TextView) f);
@@ -1927,7 +1938,7 @@ public class HomeActivity extends Activity {
             }
             // modo auto: cambia claro/oscuro según la hora
             if (Theme.AUTO.equals(prefs.getString("mode", Theme.DARK)) && Theme.isDarkNow(Theme.AUTO) != lastDark
-                    && settings.getVisibility() != View.VISIBLE) applyTheme();
+                    && (settings == null || settings.getVisibility() != View.VISIBLE)) applyTheme();
 
             Date now = new Date();
             boolean fr = fresh();
@@ -2129,120 +2140,6 @@ public class HomeActivity extends Activity {
         float hrs = movingMs / 3600000f;
         tAvg.setText(hrs > 0.003f ? String.format(Locale.US, "%.0f", (distM / 1000f) / hrs) : "--");
         tMax.setText(String.format(Locale.US, "%.0f", maxKmh));
-    }
-
-    // ======================= permisos =======================
-    // Android no deja que una app se dé todos los permisos sola: los especiales se activan en su propia pantalla.
-    // El asistente pide cada uno que falte, en orden, y sigue solo cuando el usuario vuelve al launcher.
-    // {id, nombre, para qué, permisos de Android (si es de diálogo; vacío = pantalla especial)}
-    static final String[][] PERMS = {
-            {"location", "Ubicación (GPS)", "Velocidad, viaje y rumbo", "android.permission.ACCESS_FINE_LOCATION"},
-            {"storage", "Almacenamiento", "Grabar el bus CAN en el USB", "android.permission.WRITE_EXTERNAL_STORAGE,android.permission.READ_EXTERNAL_STORAGE"},
-            {"mic", "Micrófono", "Comandos de voz", "android.permission.RECORD_AUDIO"},
-            {"camera", "Cámara", "Cámara de retroceso / dashcam", "android.permission.CAMERA"},
-            {"phone", "Teléfono y contactos", "Llamar desde el launcher", "android.permission.READ_CONTACTS,android.permission.READ_PHONE_STATE,android.permission.CALL_PHONE"},
-            {"settings", "Modificar ajustes del sistema", "Brillo y su mínimo seguro", ""},
-            {"install", "Instalar apps", "Actualizarse desde GitHub", ""},
-            {"notif", "Acceso a notificaciones", "Ver y controlar la música que suena", ""},
-            {"overlay", "Mostrar sobre otras apps", "Velocímetro flotante encima de Waze/CarPlay", ""},
-            {"usage", "Acceso de uso", "Apps recientes y más usadas", ""},
-            {"battery", "Sin optimización de batería", "Que Android no lo cierre (ni la grabación CAN)", ""},
-            {"dnd", "No molestar", "Modo manejo", ""},
-            {"home", "Launcher predeterminado", "Que el botón Inicio abra este launcher", ""}};
-    private boolean permWizard = false;
-
-    private boolean runtimeOk(String perms) {
-        if (Build.VERSION.SDK_INT < 23) return true;
-        for (String p : perms.split(",")) if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) return false;
-        return true;
-    }
-
-    boolean permGranted(String id) {
-        try {
-            for (String[] p : PERMS) if (p[0].equals(id) && p[3].length() > 0) return runtimeOk(p[3]);
-            if (Build.VERSION.SDK_INT < 23) return true;
-            if ("settings".equals(id)) return android.provider.Settings.System.canWrite(this);
-            if ("install".equals(id)) return Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls();
-            if ("overlay".equals(id)) return android.provider.Settings.canDrawOverlays(this);
-            if ("notif".equals(id)) {
-                String l = android.provider.Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
-                return l != null && l.contains(getPackageName());
-            }
-            if ("usage".equals(id)) {
-                android.app.AppOpsManager ao = (android.app.AppOpsManager) getSystemService(APP_OPS_SERVICE);
-                return ao.checkOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), getPackageName()) == android.app.AppOpsManager.MODE_ALLOWED;
-            }
-            if ("battery".equals(id)) return ((android.os.PowerManager) getSystemService(POWER_SERVICE)).isIgnoringBatteryOptimizations(getPackageName());
-            if ("dnd".equals(id)) return ((android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE)).isNotificationPolicyAccessGranted();
-            if ("home".equals(id)) {
-                ResolveInfo r = getPackageManager().resolveActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), PackageManager.MATCH_DEFAULT_ONLY);
-                return r != null && r.activityInfo != null && getPackageName().equals(r.activityInfo.packageName);
-            }
-        } catch (Exception e) { }
-        return false;
-    }
-
-    void permRequest(String id) {
-        try {
-            Uri me = Uri.parse("package:" + getPackageName());
-            for (String[] p : PERMS) if (p[0].equals(id) && p[3].length() > 0) {
-                // todos los permisos "de diálogo" que falten, en una sola tanda
-                List<String> l = new ArrayList<String>();
-                for (String[] q : PERMS) if (q[3].length() > 0 && !runtimeOk(q[3])) for (String x : q[3].split(",")) l.add(x);
-                if (Build.VERSION.SDK_INT >= 23 && !l.isEmpty()) requestPermissions(l.toArray(new String[0]), 3);
-                return;
-            }
-            String action = "settings".equals(id) ? "android.settings.action.MANAGE_WRITE_SETTINGS"
-                    : "install".equals(id) ? "android.settings.MANAGE_UNKNOWN_APP_SOURCES"
-                    : "overlay".equals(id) ? "android.settings.action.MANAGE_OVERLAY_PERMISSION"
-                    : "battery".equals(id) ? "android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
-                    : "notif".equals(id) ? "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"
-                    : "usage".equals(id) ? "android.settings.USAGE_ACCESS_SETTINGS"
-                    : "dnd".equals(id) ? "android.settings.NOTIFICATION_POLICY_ACCESS_SETTINGS"
-                    : "android.settings.HOME_SETTINGS";
-            boolean withPkg = !"notif".equals(id) && !"usage".equals(id) && !"dnd".equals(id) && !"home".equals(id);
-            Intent it = withPkg ? new Intent(action, me) : new Intent(action);
-            startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-        } catch (Exception e) { appInfo(getPackageName()); }
-    }
-
-    private final Set<String> permAsked = new HashSet<String>();
-
-    void startPermWizard() { permAsked.clear(); permWizard = true; continueWizard(); }
-
-    private void continueWizard() {
-        if (!permWizard) return;
-        h.postDelayed(new Runnable() {
-            public void run() {
-                if (!permWizard) return;
-                int missing = 0;
-                for (String[] p : PERMS) {
-                    if (permGranted(p[0])) continue;
-                    missing++;
-                    if (permAsked.contains(p[0])) continue;
-                    // los de diálogo se piden juntos: se marcan todos como ya preguntados
-                    if (p[3].length() > 0) { for (String[] q : PERMS) if (q[3].length() > 0) permAsked.add(q[0]); }
-                    else permAsked.add(p[0]);
-                    android.widget.Toast.makeText(HomeActivity.this, "Permiso: " + p[1] + " — " + p[2], android.widget.Toast.LENGTH_LONG).show();
-                    permRequest(p[0]);
-                    return;
-                }
-                permWizard = false;
-                android.widget.Toast.makeText(HomeActivity.this, missing == 0 ? "✅ Todos los permisos concedidos"
-                        : "Quedaron " + missing + " permisos sin dar; puedes darlos uno por uno en Permisos.", android.widget.Toast.LENGTH_LONG).show();
-                if (web != null) web.js("RAV4.resume()");
-            }
-        }, 700);
-    }
-
-    org.json.JSONArray webPerms() throws org.json.JSONException {
-        org.json.JSONArray a = new org.json.JSONArray();
-        for (String[] p : PERMS) {
-            org.json.JSONObject o = new org.json.JSONObject();
-            o.put("id", p[0]); o.put("name", p[1]); o.put("desc", p[2]); o.put("ok", permGranted(p[0]));
-            a.put(o);
-        }
-        return a;
     }
 
     // ======================= puente para la interfaz web (WebHome) =======================
