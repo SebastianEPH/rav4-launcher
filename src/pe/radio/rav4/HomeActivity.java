@@ -3205,6 +3205,13 @@ public class HomeActivity extends Activity {
         else { revving = false; feedGauge(curKmh); updateDriveState(); }
     } };
 
+    private final Runnable revStart = new Runnable() { public void run() {
+        if (curKmh >= 2) return;
+        revHeld = true;
+        feedGaugeSub(P.glass ? "Acelerando ▲ · demostración" : "rev ▲ · demo");
+        if (!revving) { revving = true; h.removeCallbacks(revTick); h.post(revTick); }
+    } };
+
     private void revOnTouch(View v) {
         v.setOnTouchListener(new View.OnTouchListener() { public boolean onTouch(View view, android.view.MotionEvent e) {
             int a = e.getActionMasked();
@@ -3214,12 +3221,13 @@ public class HomeActivity extends Activity {
                     return false;
                 }
                 view.getParent().requestDisallowInterceptTouchEvent(true);
-                revHeld = true;
-                feedGaugeSub(P.glass ? "Acelerando ▲ · demostración" : "rev ▲ · demo");
-                if (!revving) { revving = true; h.removeCallbacks(revTick); h.post(revTick); }
+                // la demostración arranca recién tras 3 s con el dedo apoyado
+                h.removeCallbacks(revStart);
+                h.postDelayed(revStart, 3000);
                 return true;
             }
             if (a == android.view.MotionEvent.ACTION_UP || a == android.view.MotionEvent.ACTION_CANCEL) {
+                h.removeCallbacks(revStart);
                 if (revHeld) { revHeld = false; feedGaugeSub(P.glass ? "Estacionado" : "parked"); }
                 return true;
             }
