@@ -1185,15 +1185,26 @@ public class HomeActivity extends Activity {
         if (!"on".equals(prefs.getString("autobright", "off"))) { lastAutoPct = -1; return; }
         if (Build.VERSION.SDK_INT >= 23 && !android.provider.Settings.System.canWrite(this)) return;
         int target = autoBrightnessFor(java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY));
-        if (target < 0 || target == lastAutoPct) return;
-        lastAutoPct = target;
-        int v = Math.max(MIN_BRIGHTNESS, Math.min(255, Math.round(target * 255f / 100f)));
+        if (target < 0) return;
+        int goal = Math.max(MIN_BRIGHTNESS, Math.min(255, Math.round(target * 255f / 100f)));
+        if (target != lastAutoPct) { lastAutoPct = target; fadeGoal = goal; }
+        if (fadeGoal < 0) return;
         try {
             android.content.ContentResolver cr = getContentResolver();
+            int cur = android.provider.Settings.System.getInt(cr, android.provider.Settings.System.SCREEN_BRIGHTNESS, goal);
+            int next = goal;
+            // transición suave: llega al tramo nuevo en ~30 s (un paso por segundo)
+            if ("on".equals(prefs.getString("autobright.fade", "on")) && Math.abs(goal - cur) > 3) {
+                int step = Math.max(2, Math.abs(goal - cur) / 30 + 1);
+                next = cur + (goal > cur ? Math.min(step, goal - cur) : -Math.min(step, cur - goal));
+            }
             android.provider.Settings.System.putInt(cr, android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE, 0);
-            android.provider.Settings.System.putInt(cr, android.provider.Settings.System.SCREEN_BRIGHTNESS, v);
-        } catch (Exception e) { }
+            android.provider.Settings.System.putInt(cr, android.provider.Settings.System.SCREEN_BRIGHTNESS, next);
+            if (next == goal) fadeGoal = -1;   // llegó: desde aquí se respeta el ajuste manual
+        } catch (Exception e) { fadeGoal = -1; }
     }
+
+    private int fadeGoal = -1;
 
     /** Porcentaje de brillo del tramo que cubre la hora dada; -1 si no hay tramos definidos. */
     private int autoBrightnessFor(int hour) {
@@ -1257,6 +1268,7 @@ public class HomeActivity extends Activity {
     }
 
     private void start(ResolveInfo r) {
+        if (r.activityInfo.name.equals(SettingsActivity.class.getName())) { openLauncherSettings(); return; }
         Intent it = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
                 .setClassName(r.activityInfo.packageName, r.activityInfo.name)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);

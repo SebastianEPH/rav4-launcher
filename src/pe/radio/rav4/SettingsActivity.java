@@ -67,6 +67,9 @@ public class SettingsActivity extends Activity {
         done.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { finish(); } });
         head.addView(done);
         rootc.addView(head, new LinearLayout.LayoutParams(-1, -2));
+        tabBar = new LinearLayout(this);
+        tabBar.setPadding(dp(16), 0, dp(16), dp(10));
+        rootc.addView(tabBar, new LinearLayout.LayoutParams(-1, -2));
 
         ScrollView sv = new ScrollView(this);
         sv.setFillViewport(true);
@@ -97,9 +100,38 @@ public class SettingsActivity extends Activity {
     private boolean web() { return "web".equals(prefs.getString("engine", "native")); }
 
     // ======================= construcción de la pantalla =======================
-    private void rebuild() {
-        content.removeAllViews();
+    // Pestañas (se cambian tocándolas o deslizando a los lados)
+    private static final String[] TABS = {"General", "Brillo", "Apps", "Permisos", "Sistema"};
+    private static int tab = 0;
+    private LinearLayout tabBar;
 
+    private void renderTabs() {
+        tabBar.removeAllViews();
+        for (int i = 0; i < TABS.length; i++) {
+            final int t = i;
+            boolean on = i == tab;
+            TextView b = tv(TABS[i], 16, on ? 0xFFFFFFFF : DIM);
+            b.setGravity(Gravity.CENTER);
+            b.setPadding(dp(18), dp(10), dp(18), dp(10));
+            if (on) { GradientDrawable g = new GradientDrawable(); g.setColor(ACC); g.setCornerRadius(dp(20)); b.setBackground(g); }
+            b.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { tab = t; rebuild(); } });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+            lp.rightMargin = dp(8);
+            tabBar.addView(b, lp);
+        }
+    }
+
+    private void rebuild() {
+        renderTabs();
+        content.removeAllViews();
+        if (tab == 0) tabGeneral();
+        else if (tab == 1) tabBrillo();
+        else if (tab == 2) tabApps();
+        else if (tab == 3) { section("Permisos"); content.addView(permsCard()); }
+        else tabSistema();
+    }
+
+    private void tabGeneral() {
         section("Interfaz");
         LinearLayout ic = card();
         ic.addView(segRow("Tipo de interfaz", "La nativa es la más liviana", "engine",
@@ -111,19 +143,16 @@ public class SettingsActivity extends Activity {
 
         section("Apariencia");
         LinearLayout ap = card();
-        String modeKey = "mode";   // global: nativa y web
-        ap.addView(segRow("Modo", null, modeKey,
+        ap.addView(segRow("Modo", null, "mode",
                 new String[]{"Oscuro", "Claro", "Automático"}, new String[]{"dark", "light", "auto"}, "dark"));
-        if ("auto".equals(prefs.getString(modeKey, "dark"))) ap.addView(hoursRow());
+        if ("auto".equals(prefs.getString("mode", "dark"))) ap.addView(hoursRow());
         ap.addView(segRow("Reloj", null, "web.clock", new String[]{"12 h (AM/PM)", "24 h"}, new String[]{"12", "24"}, "12"));
         ap.addView(segRow("Fondo (Cockpit / Inicio)", null, "wall",
                 new String[]{"Ondas", "Noche", "Atardecer", "Mi RAV4"}, new String[]{"ondas", "noche", "atardecer", "rav4"}, "ondas"));
-        if (web()) {
-            ap.addView(segRow("Color de acento", null, "accent",
-                    new String[]{"Tema", "Azul", "Verde", "Naranja", "Rosa"}, new String[]{"theme", "blue", "green", "orange", "pink"}, "theme"));
-            ap.addView(segRow("Efectos", "\"Altos\" agrega desenfoque; más lento", "web.fx",
-                    new String[]{"Altos", "Suaves", "No"}, new String[]{"high", "low", "off"}, "low"));
-        }
+        ap.addView(segRow("Color de acento", null, "accent",
+                new String[]{"Tema", "Azul", "Verde", "Naranja", "Rosa"}, new String[]{"theme", "blue", "green", "orange", "pink"}, "theme"));
+        if (web()) ap.addView(segRow("Efectos (web)", "\"Altos\" agrega desenfoque; más lento", "web.fx",
+                new String[]{"Altos", "Suaves", "No"}, new String[]{"high", "low", "off"}, "low"));
         content.addView(ap);
 
         section("Velocímetro y animaciones");
@@ -133,32 +162,44 @@ public class SettingsActivity extends Activity {
         va.addView(segRow("Animaciones", "Carretera, estela de la aguja, barrido al encender", "native.anim",
                 new String[]{"Sí", "No"}, new String[]{"on", "off"}, "on"));
         content.addView(va);
+    }
 
-        section("Brillo automático");
+    private void tabBrillo() {
+        section("Brillo ahora");
+        LinearLayout now = card();
+        now.addView(brightnessNowRow());
+        content.addView(now);
+
+        section("Brillo automático por horario");
         LinearLayout bc = card();
         bc.addView(segRow("Ajustar el brillo según la hora", "El launcher sube o baja el brillo solo", "autobright",
                 new String[]{"Sí", "No"}, new String[]{"on", "off"}, "off"));
+        if ("on".equals(prefs.getString("autobright", "off"))) {
+            bc.addView(segRow("Transición entre tramos", "Suave: cambia de a poco en ~30 s", "autobright.fade",
+                    new String[]{"Suave", "Inmediata"}, new String[]{"on", "off"}, "on"));
+            bc.addView(presetsRow());
+        }
         content.addView(bc);
         if ("on".equals(prefs.getString("autobright", "off"))) content.addView(bandsEditor());
+    }
 
+    private void tabApps() {
         section("Cajón de apps");
         LinearLayout dc = card();
         dc.addView(segRow("Tamaño de los íconos", null, "drawer.size",
                 new String[]{"Pequeño", "Mediano", "Grande"}, new String[]{"s", "m", "l"}, "m"));
-        dc.addView(segRow("Opacidad del fondo", null, "drawer.alpha",
-                new String[]{"70 %", "85 %", "100 %"}, new String[]{"70", "85", "100"}, "100"));
+        dc.addView(sliderRow("Opacidad del fondo", "drawer.alpha", 1, 100, 100, "%"));
         dc.addView(segRow("Difuminar el fondo", "Se calcula una vez al abrir (no da lag)", "drawer.blur",
                 new String[]{"Sí", "No"}, new String[]{"on", "off"}, "off"));
         dc.addView(segRow("Orden de las apps", "Personalizado: usa ▲▼ en la lista de abajo", "drawer.sort",
                 new String[]{"Por nombre", "Personalizado"}, new String[]{"name", "custom"}, "name"));
         content.addView(dc);
 
-        section("Apps (toca el ícono para cambiarlo)");
+        section("Apps: mostrar, ocultar y cambiar ícono");
         content.addView(appsCard());
+    }
 
-        section("Permisos");
-        content.addView(permsCard());
-
+    private void tabSistema() {
         section("Sistema");
         LinearLayout sc = card();
         sc.addView(linkRow("Buscar actualización", new View.OnClickListener() {
@@ -174,6 +215,124 @@ public class SettingsActivity extends Activity {
         TextView ver = tv("RAV4 Launcher " + Updater.currentVersion(this) + " · Android " + Build.VERSION.RELEASE, 12, DIM);
         ver.setPadding(dp(4), dp(10), 0, 0);
         content.addView(ver);
+    }
+
+    // ---------- brillo: ahora, perfiles ----------
+    private boolean canWrite() { return Build.VERSION.SDK_INT < 23 || android.provider.Settings.System.canWrite(this); }
+
+    private void setScreenBrightness(int pct) {
+        if (!canWrite()) { permRequest("settings"); return; }
+        int v = Math.max(46, Math.min(255, Math.round(Math.max(18, pct) * 2.55f)));
+        try {
+            android.provider.Settings.System.putInt(getContentResolver(), android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE, 0);
+            android.provider.Settings.System.putInt(getContentResolver(), android.provider.Settings.System.SCREEN_BRIGHTNESS, v);
+        } catch (Exception e) { }
+    }
+
+    private LinearLayout brightnessNowRow() {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setPadding(dp(14), dp(12), dp(14), dp(12));
+        int cur = 50;
+        try { cur = Math.round(android.provider.Settings.System.getInt(getContentResolver(), android.provider.Settings.System.SCREEN_BRIGHTNESS) / 2.55f); } catch (Exception e) { }
+        final TextView lab = tv("Brillo de la pantalla: " + cur + " %", 16, TXT);
+        col.addView(lab);
+        SeekBar sb = new SeekBar(this);
+        sb.setMax(100); sb.setProgress(cur);
+        tint(sb);
+        sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            public void onProgressChanged(SeekBar s, int pr, boolean u) { if (u) { int v = Math.max(18, pr); lab.setText("Brillo de la pantalla: " + v + " %"); setScreenBrightness(v); } }
+            public void onStartTrackingTouch(SeekBar s) { touchingWidget = true; }
+            public void onStopTrackingTouch(SeekBar s) { }
+        });
+        col.addView(sb, new LinearLayout.LayoutParams(-1, dp(44)));
+        TextView n = tv("Nunca baja de 18 % (por debajo la pantalla de la radio se apaga).", 12, DIM);
+        col.addView(n);
+        if ("on".equals(prefs.getString("autobright", "off"))) {
+            TextView apply = tv("Aplicar ahora el brillo del horario", 15, 0xFFFFFFFF);
+            apply.setGravity(Gravity.CENTER);
+            apply.setPadding(0, dp(11), 0, dp(11));
+            GradientDrawable g = new GradientDrawable(); g.setColor(ACC); g.setCornerRadius(dp(14));
+            apply.setBackground(g);
+            LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(-1, -2);
+            al.topMargin = dp(10);
+            apply.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    int hr = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY);
+                    int pct = brightAt(bandList(), hr);
+                    setScreenBrightness(pct);
+                    android.widget.Toast.makeText(SettingsActivity.this, "Brillo del horario aplicado: " + pct + " %", android.widget.Toast.LENGTH_SHORT).show();
+                    rebuild();
+                }
+            });
+            col.addView(apply, al);
+        }
+        return col;
+    }
+
+    private LinearLayout presetsRow() {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(14), dp(4), dp(14), dp(12));
+        LinearLayout tx = new LinearLayout(this);
+        tx.setOrientation(LinearLayout.VERTICAL);
+        tx.addView(tv("Perfiles rápidos", 16, TXT));
+        tx.addView(tv("Reemplazan los tramos; luego puedes ajustarlos", 12, DIM));
+        row.addView(tx, new LinearLayout.LayoutParams(0, -2, 1f));
+        String[][] pr = {{"Día brillante", "6:100,18:70,21:45"}, {"Equilibrado", "7:90,19:55,22:25"}, {"Nocturno", "7:70,18:40,21:20"}};
+        for (final String[] x : pr) {
+            TextView b = smallBtn(x[0]);
+            b.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) { prefs.edit().putString("autobright.bands", x[1]).apply(); touch(); rebuild(); }
+            });
+            row.addView(b);
+        }
+        return row;
+    }
+
+    /** Fila con deslizador numérico (ej. opacidad 1–100 %). */
+    private LinearLayout sliderRow(String label, final String key, final int min, int max, int def, final String unit) {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setPadding(dp(14), dp(12), dp(14), dp(8));
+        int cur = def;
+        try { cur = Integer.parseInt(prefs.getString(key, String.valueOf(def))); } catch (Exception e) { }
+        final TextView lab = tv(label + ": " + cur + " " + unit, 16, TXT);
+        col.addView(lab);
+        SeekBar sb = new SeekBar(this);
+        sb.setMax(max); sb.setProgress(cur);
+        tint(sb);
+        final String flabel = label;
+        sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            public void onProgressChanged(SeekBar s, int pr, boolean u) { lab.setText(flabel + ": " + Math.max(min, pr) + " " + unit); }
+            public void onStartTrackingTouch(SeekBar s) { touchingWidget = true; }
+            public void onStopTrackingTouch(SeekBar s) { prefs.edit().putString(key, String.valueOf(Math.max(min, s.getProgress()))).apply(); touch(); }
+        });
+        col.addView(sb, new LinearLayout.LayoutParams(-1, dp(44)));
+        return col;
+    }
+
+    private void tint(SeekBar sb) {
+        sb.getProgressDrawable().setColorFilter(ACC, android.graphics.PorterDuff.Mode.SRC_IN);
+        sb.getThumb().setColorFilter(ACC, android.graphics.PorterDuff.Mode.SRC_IN);
+    }
+
+    // ---------- deslizar a los lados para cambiar de pestaña ----------
+    private boolean touchingWidget = false;
+    private float swipeX, swipeY;
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent e) {
+        if (e.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) { swipeX = e.getX(); swipeY = e.getY(); touchingWidget = false; }
+        boolean r = super.dispatchTouchEvent(e);
+        if (e.getActionMasked() == android.view.MotionEvent.ACTION_UP && !touchingWidget) {
+            float dx = e.getX() - swipeX, dy = e.getY() - swipeY;
+            if (Math.abs(dx) > dp(140) && Math.abs(dx) > 2.2f * Math.abs(dy)) {
+                int nt = tab + (dx < 0 ? 1 : -1);
+                if (nt >= 0 && nt < TABS.length) { tab = nt; rebuild(); }
+            }
+        }
+        return r;
     }
 
     private void open(String action) { try { startActivity(new Intent(action)); } catch (Exception e) { } }
@@ -389,7 +548,7 @@ public class SettingsActivity extends Activity {
                     lvl.setText("Brillo " + v + " %");
                     band[1] = v;
                 }
-                public void onStartTrackingTouch(SeekBar s) { }
+                public void onStartTrackingTouch(SeekBar s) { touchingWidget = true; }
                 public void onStopTrackingTouch(SeekBar s) { saveBands(bands); rebuild(); }
             });
             br.addView(sb, new LinearLayout.LayoutParams(-1, -2));
@@ -517,6 +676,7 @@ public class SettingsActivity extends Activity {
             switch (e.getActionMasked()) {
                 case android.view.MotionEvent.ACTION_DOWN:
                     getParent().requestDisallowInterceptTouchEvent(true);   // que el scroll no se lleve el gesto
+                    touchingWidget = true;
                     downX = x; downY = y; moved = false;
                     drag = hit(x, y);
                     if (drag >= 0) postDelayed(longPress, 650);
@@ -663,6 +823,9 @@ public class SettingsActivity extends Activity {
             TextView name = tv(String.valueOf(r.loadLabel(pm)), 15, isHidden ? DIM : TXT);
             name.setSingleLine(true); name.setEllipsize(android.text.TextUtils.TruncateAt.END);
             row.addView(name, new LinearLayout.LayoutParams(0, -2, 1f));
+            TextView chg = smallBtn("Cambiar ícono");
+            chg.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { pickIconFor(k); } });
+            row.addView(chg);
             if (customPath != null) {
                 TextView rs = smallBtn("↺ Original");
                 rs.setOnClickListener(new View.OnClickListener() {

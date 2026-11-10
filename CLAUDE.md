@@ -150,6 +150,11 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
   (envuelve medianoche). `HomeActivity.applyAutoBrightness` lo aplica al cambiar de tramo (un ajuste manual dentro
   del mismo tramo se respeta); nunca baja del 18 %. Editor **táctil grande** (`SettingsActivity.BandGraph`, 300 dp):
   arrastrar un punto (↕ brillo, ↔ hora), tocar un espacio vacío agrega un tramo, mantener presionado lo borra.
+- **Ajustes RAV4 en pestañas**: General · Brillo · Apps · Permisos · Sistema (tocar o deslizar ←/→). Corre en su propia
+  tarea (`taskAffinity` aparte): sin eso, abrirlo desde el cajón solo traía el launcher al frente y "no abría".
+- Brillo: deslizador de brillo actual, perfiles rápidos (Día brillante / Equilibrado / Nocturno), "Aplicar ahora" y
+  transición suave entre tramos (`autobright.fade`, ~30 s). Cajón: opacidad del fondo 1–100 % (`drawer.alpha`).
+  Cambiar ícono: botón "Cambiar ícono" en cada app (pref `icon.<clave>` = PNG 192 px en `files/icons`).
 - **Configuración global**: tema, modo y acento usan las mismas claves (`theme`, `mode`, `accent`) en la interfaz
   nativa y en la web (`WebHome.globalKey`); las horas del modo automático (`web.darkFrom/To`) valen para ambas.
   Auto · CAN en nativo se muestra como Cockpit. Nada de configuraciones separadas por interfaz.
