@@ -78,11 +78,10 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 - Los mismos 5 temas rehechos con efectos: aurora animada (Glass/Inicio), cielo que cambia con la
   hora con sol/luna/nubes/estrellas (Dusk), carretera neón cuya velocidad sigue a la del auto +
   velocímetro SVG con aguja (Cockpit), CRT + log en vivo + comando tecleándose (Terminal).
-- **Sin panel lateral**: toda la configuración vive en la ventana aparte **"Ajustes RAV4"** (`SettingsActivity` +
-  `assets/web/settings.html/js`), con ícono propio en la lista de apps y botón ⚙ en el dock (también la abre el
-  engranaje de la interfaz nativa). Al volver, el launcher compara `stamp` y solo se rearma si algo cambió.
-  Así el launcher queda liviano (decisión del usuario). Gestos: **← abre las apps**; en Inicio ←/→ cambian de página.
-  No hay gesto hacia abajo (estorbaba).
+- **Sin panel lateral**: toda la configuración vive en la ventana aparte **"Ajustes RAV4"** (`SettingsActivity`,
+  **100% nativa, sin WebView**), con ícono propio en la lista de apps y botón ⚙ en el dock. Al volver, el launcher
+  compara `stamp` y solo se rearma si algo cambió. Gestos (nativa y web): **← abre las apps**; en Inicio ←/→ cambian
+  de página. **No hay gesto hacia abajo ni centro de control** (se quitó del nativo para igualar al HTML).
 - 6 temas: Terminal, Glass, Dusk, Cockpit, Inicio y **Auto · CAN** (vidrio líquido estilo iOS con íconos
   propios: puertas animadas, tacómetro, señales y registro en vivo del bus CAN para probar qué llega).
 - **Todo configurable** desde el Panel: modo Oscuro/Claro/Automático con **horas configurables**
@@ -139,9 +138,8 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto del auto).
 
 ### Gestos (interfaz nativa)
-- Deslizar → / ← : abre/cierra el cajón de apps (en tema Inicio cambia de página).
-- Deslizar ↓ : abre el centro de control.
-- Deslizar ↑ : lo cierra.
+- Deslizar ← : abre el cajón de apps (en tema Inicio ←/→ cambian de página).
+- **No hay centro de control** (gesto hacia abajo eliminado, igual que en el HTML). Config en "Ajustes RAV4".
 
 ### Reglas de UX acordadas con el usuario
 - Brillo: **nunca por debajo del 18 %** (`MIN_BRIGHTNESS=46/255`). Por debajo la pantalla se apaga.

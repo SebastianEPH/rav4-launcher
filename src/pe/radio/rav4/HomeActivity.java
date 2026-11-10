@@ -201,23 +201,17 @@ public class HomeActivity extends Activity {
 
     private static boolean isOpen(View v) { return v != null && v.getVisibility() == View.VISIBLE; }
 
-    /** Gestos: → abre apps, ← las cierra, ↓ abre el centro de control, ↑ lo cierra. */
+    /** Gestos (igual al HTML): ← abre las apps; en Inicio ←/→ cambian de página. No hay gesto hacia abajo. */
     private final Views.GestureFrame.Listener gestures = new Views.GestureFrame.Listener() {
         public boolean wants(int dir) {
-            if (isOpen(settings)) return false;
-            if (isOpen(cc)) return dir == Views.UP;
             if (isOpen(drawer)) return dir == (drawerFromLeft ? Views.LEFT : Views.RIGHT);
-            if (P.home) return dir == Views.RIGHT || dir == Views.LEFT || dir == Views.DOWN;
-            return dir == Views.RIGHT || dir == Views.LEFT || dir == Views.DOWN;
+            return dir == Views.RIGHT || dir == Views.LEFT;
         }
         public void swipe(int dir) {
             if (isOpen(drawer)) closeDrawer();
             else if (P.home && dir == Views.LEFT) showPage(homePage + 1);
             else if (P.home && dir == Views.RIGHT) showPage(homePage - 1);
-            else if (dir == Views.RIGHT) openDrawer(true);
-            else if (dir == Views.LEFT) openDrawer(false);
-            else if (dir == Views.DOWN) openCC(true);
-            else if (dir == Views.UP) closeCC();
+            else openDrawer(dir != Views.LEFT);
         }
     };
 
@@ -256,9 +250,6 @@ public class HomeActivity extends Activity {
         drawer = buildDrawer();
         drawer.setVisibility(View.GONE);
         root.addView(drawer);
-        cc = buildCC();
-        cc.setVisibility(View.GONE);
-        root.addView(cc);
         settings = null;   // los ajustes viven en SettingsActivity
         setContentView(root);
         getWindow().setBackgroundDrawable(null);   // la foto de arranque ya no hace falta: evita dibujarla en cada cuadro
@@ -1622,6 +1613,7 @@ public class HomeActivity extends Activity {
     }
 
     private void openCC(boolean animate) {
+        if (cc == null) return;
         updateCC();
         cc.setVisibility(View.VISIBLE);
         if (animate) {
@@ -1638,6 +1630,7 @@ public class HomeActivity extends Activity {
     }
 
     private void updateCC() {
+        if (cc == null) return;
         if (cc == null || ccNet == null) return;
         // interruptores
         WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
