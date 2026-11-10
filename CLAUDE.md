@@ -138,7 +138,8 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
    y tarjetas Viaje / Batería (`Views.Bar`) / GPS / Música. Reemplazó al Cockpit viejo de tarjetas.
    Los 4 espacios de tarjetas se eligen en **Ajustes Launcher → Tema actual** (`cockpit.slot1..4`, `HomeActivity.cockSlot`):
    Viaje, Batería, GPS, Música, Rumbo + calle (Geocoder), Altitud y pendiente (`Views.Line`), 0–100 y fuerza G
-   (`accel.best`), Accesos (ZLINK/CarPlay/mapas: solo los abre, no se pueden incrustar en una tarjeta), Controles, Reloj grande.
+   (`accel.best`), Accesos (ZLINK/CarPlay/mapas: solo los abre, no se pueden incrustar en una tarjeta), Controles, Reloj grande, Conectividad (red WiFi + señal, Bluetooth + equipo conectado; tocar abre los ajustes).
+   Las mismas tarjetas se eligen en todos los temas (`<tema>.slotN`, `HomeActivity.addSlot`).
    Animaciones: barrido de aguja también en Glass/Dusk, números que ruedan (`anim.roll`), barra de voltaje viva,
    entrada de tarjetas (`anim.cards`, tarjetas marcadas con tag `R_CARD`).
 5. **Inicio** — cuadrícula de íconos grandes con páginas (estilo pantalla de inicio iOS/CarPlay).

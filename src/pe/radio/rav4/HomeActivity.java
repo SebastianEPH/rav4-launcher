@@ -236,7 +236,7 @@ public class HomeActivity extends Activity {
             dock = null; drawer = null; cc = null; settings = null; homeGrid = null;
             volLabel = brLabel = null; gauge = null; spark = null; clock = date = prompt = chips = sysPanel = gnssMini = null;
             tDist = tTime = tAvg = tMax = null; cockGauge = null; cockRoad = null; cockCompass = null; cockBattBar = null; tripBig = tripSub = cockBattV = cockBattState = cockSats = cockGpsSub = null; cockGauge = null; cockRoad = null; cockCompass = null; cockBattBar = null; tripBig = tripSub = cockBattV = cockBattState = cockSats = cockGpsSub = null;
-            cmpBig = null; cmpDir = cmpStreet = altTxt = altSub = accTxt = accSub = ctlVol = ctlBr = null; altLine = null; bigClocks.clear();
+            netWifi = netWifiSub = netBt = netBtSub = null; cmpBig = null; cmpDir = cmpStreet = altTxt = altSub = accTxt = accSub = ctlVol = ctlBr = null; altLine = null; bigClocks.clear();
             if (web == null) web = new WebHome(this);
             setContentView(web.view());
             immersive();
@@ -633,6 +633,20 @@ public class HomeActivity extends Activity {
             LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, -2); bl.topMargin = dp(8);
             g.addView(b, bl);
             c.addView(g, new LinearLayout.LayoutParams(-1, 0, 1f));
+        } else if ("net".equals(type)) {
+            c.addView(cockLabel("CONECTIVIDAD"));
+            netWifi = txt("—", 17, cTxt()); netWifi.setTypeface(P.fontBold); netWifi.setSingleLine(true);
+            netWifi.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            c.addView(netWifi);
+            netWifiSub = txt("", 12, cDim()); c.addView(netWifiSub);
+            netBt = txt("—", 17, cTxt()); netBt.setTypeface(P.fontBold); netBt.setSingleLine(true);
+            netBt.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, -2); bl.topMargin = dp(10);
+            c.addView(netBt, bl);
+            netBtSub = txt("", 12, cDim()); c.addView(netBtSub);
+            netWifi.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { openSys(android.provider.Settings.ACTION_WIFI_SETTINGS); } });
+            netBt.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { openSys(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS); } });
+            watchBtDevices();
         } else if ("clock".equals(type)) {
             c.setGravity(Gravity.CENTER);
             TextView big = txt("", 40, cTxt()); big.setTypeface(P.fontBold); big.setGravity(Gravity.CENTER);
@@ -652,6 +666,57 @@ public class HomeActivity extends Activity {
             c.addView(cockCompass, cl);
         }
         return c;
+    }
+
+    private TextView netWifi, netWifiSub, netBt, netBtSub;
+    private volatile String btDevices = "";
+
+    private void openSys(String action) {
+        try { startActivity(new Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception e) { }
+    }
+
+    /** Pide al sistema qué equipos Bluetooth están conectados (audio y llamadas). */
+    private void watchBtDevices() {
+        try {
+            final BluetoothAdapter bt = BluetoothAdapter.getDefaultAdapter();
+            if (bt == null || !bt.isEnabled()) { btDevices = ""; return; }
+            final java.util.Set<String> names = new java.util.LinkedHashSet<String>();
+            for (final int prof : new int[]{android.bluetooth.BluetoothProfile.A2DP, android.bluetooth.BluetoothProfile.HEADSET}) {
+                bt.getProfileProxy(this, new android.bluetooth.BluetoothProfile.ServiceListener() {
+                    public void onServiceConnected(int p, android.bluetooth.BluetoothProfile proxy) {
+                        try { for (android.bluetooth.BluetoothDevice d : proxy.getConnectedDevices()) names.add(d.getName()); } catch (Exception e) { }
+                        StringBuilder b = new StringBuilder();
+                        for (String n : names) { if (b.length() > 0) b.append(", "); b.append(n); }
+                        btDevices = b.toString();
+                        try { bt.closeProfileProxy(p, proxy); } catch (Exception e) { }
+                    }
+                    public void onServiceDisconnected(int p) { }
+                }, prof);
+            }
+        } catch (Exception e) { }
+    }
+
+    private void feedNet() {
+        if (netWifi == null) return;
+        try {
+            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+            WifiInfo wi = wm.getConnectionInfo();
+            if (!wm.isWifiEnabled()) { netWifi.setText("WiFi apagado"); netWifiSub.setText("Toca para activarlo"); }
+            else if (wi != null && wi.getIpAddress() != 0) {
+                String ssid = wi.getSSID() == null ? "" : wi.getSSID().replace("\"", "");
+                if (ssid.length() == 0 || ssid.contains("unknown")) ssid = "Conectado (nombre oculto: falta permiso de ubicación)";
+                int lvl = WifiManager.calculateSignalLevel(wi.getRssi(), 5);
+                netWifi.setText("WiFi · " + ssid);
+                netWifiSub.setText("Señal " + "▂▄▆█".substring(0, Math.max(1, Math.min(4, lvl))) + "  " + wi.getRssi() + " dBm · " + wi.getLinkSpeed() + " Mbps");
+            } else { netWifi.setText("WiFi · sin conexión"); netWifiSub.setText("Toca para elegir una red"); }
+        } catch (Exception e) { netWifi.setText("WiFi · sin dato"); }
+        boolean on = btOn();
+        if (!on) { netBt.setText("Bluetooth apagado"); netBtSub.setText("Toca para activarlo"); }
+        else {
+            netBt.setText("Bluetooth · " + (btDevices.length() > 0 ? btDevices : "encendido"));
+            netBtSub.setText(btDevices.length() > 0 ? "Conectado" : "Sin equipos conectados");
+        }
+        if ((SystemClock.elapsedRealtime() / 1000) % 10 == 0) watchBtDevices();
     }
 
     private final List<TextView> bigClocks = new ArrayList<TextView>();
@@ -2734,6 +2799,7 @@ public class HomeActivity extends Activity {
                     + String.format(Locale.US, "\nFuerza %.2f G · pico %.2f G", gNow, gPeak) + "\nArranca desde 0 · mantén presionado para borrar");
         }
         feedControls();
+        feedNet();
         if (!bigClocks.isEmpty() && clock != null) {
             bigClocks.get(0).setText(clock.getText());
             if (date != null) bigClocks.get(1).setText(date.getText());

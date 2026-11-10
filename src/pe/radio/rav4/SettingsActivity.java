@@ -174,8 +174,8 @@ public class SettingsActivity extends Activity {
 
     // ---- pestaña "Tema actual": opciones propias del tema elegido ----
     static final String[] CARD_LABELS = {"Viaje", "Batería", "GPS", "Música", "Rumbo + calle", "Altitud y pendiente",
-            "0–100 y fuerza G", "Accesos (CarPlay, mapas)", "Controles (volumen, brillo)", "Reloj grande"};
-    static final String[] CARD_VALUES = {"trip", "batt", "gps", "music", "compass", "alt", "accel", "shortcuts", "controls", "clock"};
+            "0–100 y fuerza G", "Accesos (CarPlay, mapas)", "Controles (volumen, brillo)", "Reloj grande", "Conectividad (WiFi, Bluetooth)"};
+    static final String[] CARD_VALUES = {"trip", "batt", "gps", "music", "compass", "alt", "accel", "shortcuts", "controls", "clock", "net"};
 
     private void tabTema() {
         String th = prefs.getString("theme", "cockpit");
