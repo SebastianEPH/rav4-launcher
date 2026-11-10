@@ -95,6 +95,9 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
   en un hilo aparte cada 500 ms). Nada de leer sensores/archivos en cada consulta (CPU cada 15 s, perfil CAN cada 10 s).
   En CSS: sin `filter: blur` en fondos (la aurora usa degradados radiales) y `backdrop-filter` solo con Efectos "Altos";
   por defecto los efectos son "Suaves".
+- **Permisos**: Android no permite "permiso total". Panel → Permisos (y ⚙ Ajustes → "Permisos (darlos todos)")
+  muestra ubicación, almacenamiento, modificar ajustes, instalar apps y launcher predeterminado; "Conceder todos"
+  abre la pantalla de cada uno que falte y continúa solo al volver (`HomeActivity.startPermWizard`).
 - Íconos de apps **solos por defecto** (sin placa oscura detrás); "Con fondo" es opcional (pref `icons`).
 - **Compatibilidad**: el WebView de la radio puede ser Chrome ~74 → nada de `?.`, `??`, `:is()`,
   `inset`, `clamp()/min()`, `aspect-ratio`, ni `gap` en flex (en grid sí).

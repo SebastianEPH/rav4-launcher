@@ -134,7 +134,7 @@ public class HomeActivity extends Activity {
     }
 
     @Override
-    protected void onResume() { super.onResume(); immersive(); rebuildDock(); if (web != null) web.js("RAV4.resume()"); }
+    protected void onResume() { super.onResume(); immersive(); rebuildDock(); if (web != null) web.js("RAV4.resume()"); continueWizard(); }
 
     @Override
     public void onWindowFocusChanged(boolean f) { super.onWindowFocusChanged(f); if (f) immersive(); }
@@ -147,7 +147,7 @@ public class HomeActivity extends Activity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int c, String[] p, int[] r) { startGps(); }
+    public void onRequestPermissionsResult(int c, String[] p, int[] r) { startGps(); continueWizard(); }
 
     @Override
     public void onBackPressed() { closeOverlays(); }
@@ -1767,6 +1767,9 @@ public class HomeActivity extends Activity {
                 startActivity(new Intent("android.settings.SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             }
         }));
+        left.addView(action("Permisos (darlos todos)", new View.OnClickListener() {
+            public void onClick(View v) { startPermWizard(); }
+        }));
         left.addView(action("Reiniciar viaje", new View.OnClickListener() { public void onClick(View v) { resetTrip(); } }));
         left.addView(action("Buscar actualización", new View.OnClickListener() {
             public void onClick(View v) { new Updater(HomeActivity.this, alertStyle()).check(); }
@@ -2109,6 +2112,74 @@ public class HomeActivity extends Activity {
         float hrs = movingMs / 3600000f;
         tAvg.setText(hrs > 0.003f ? String.format(Locale.US, "%.0f", (distM / 1000f) / hrs) : "--");
         tMax.setText(String.format(Locale.US, "%.0f", maxKmh));
+    }
+
+    // ======================= permisos =======================
+    // Android no deja que una app se dé todos los permisos sola: los especiales se activan en su propia pantalla.
+    // El asistente pide cada uno que falte, en orden, y sigue solo cuando el usuario vuelve al launcher.
+    static final String[][] PERMS = {
+            {"location", "Ubicación (GPS)", "Velocidad, viaje y rumbo"},
+            {"storage", "Almacenamiento", "Grabar el bus CAN en el USB"},
+            {"settings", "Modificar ajustes del sistema", "Brillo y su mínimo seguro"},
+            {"install", "Instalar apps", "Actualizarse desde GitHub"},
+            {"home", "Launcher predeterminado", "Que el botón Inicio abra este launcher"}};
+    private boolean permWizard = false;
+
+    boolean permGranted(String id) {
+        try {
+            if ("location".equals(id)) return Build.VERSION.SDK_INT < 23 || checkSelfPermission("android.permission.ACCESS_FINE_LOCATION") == PackageManager.PERMISSION_GRANTED;
+            if ("storage".equals(id)) return webHasStorage();
+            if ("settings".equals(id)) return Build.VERSION.SDK_INT < 23 || android.provider.Settings.System.canWrite(this);
+            if ("install".equals(id)) return Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls();
+            if ("home".equals(id)) {
+                ResolveInfo r = getPackageManager().resolveActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), PackageManager.MATCH_DEFAULT_ONLY);
+                return r != null && r.activityInfo != null && getPackageName().equals(r.activityInfo.packageName);
+            }
+        } catch (Exception e) { }
+        return false;
+    }
+
+    void permRequest(String id) {
+        try {
+            Uri me = Uri.parse("package:" + getPackageName());
+            if ("location".equals(id) || "storage".equals(id)) {
+                List<String> l = new ArrayList<String>();
+                if (!permGranted("location")) l.add("android.permission.ACCESS_FINE_LOCATION");
+                if (!permGranted("storage")) { l.add("android.permission.WRITE_EXTERNAL_STORAGE"); l.add("android.permission.READ_EXTERNAL_STORAGE"); }
+                if (Build.VERSION.SDK_INT >= 23 && !l.isEmpty()) requestPermissions(l.toArray(new String[0]), 3);
+            } else if ("settings".equals(id)) startActivity(new Intent("android.settings.action.MANAGE_WRITE_SETTINGS", me).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            else if ("install".equals(id)) startActivity(new Intent("android.settings.MANAGE_UNKNOWN_APP_SOURCES", me).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            else if ("home".equals(id)) startActivity(new Intent("android.settings.HOME_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (Exception e) { appInfo(getPackageName()); }
+    }
+
+    void startPermWizard() { permWizard = true; continueWizard(); }
+
+    private void continueWizard() {
+        if (!permWizard) return;
+        h.postDelayed(new Runnable() {
+            public void run() {
+                if (!permWizard) return;
+                for (String[] p : PERMS) if (!permGranted(p[0])) {
+                    android.widget.Toast.makeText(HomeActivity.this, "Permiso: " + p[1] + " — " + p[2], android.widget.Toast.LENGTH_LONG).show();
+                    permRequest(p[0]);
+                    return;
+                }
+                permWizard = false;
+                android.widget.Toast.makeText(HomeActivity.this, "✅ Todos los permisos concedidos", android.widget.Toast.LENGTH_LONG).show();
+                if (web != null) web.js("RAV4.resume()");
+            }
+        }, 700);
+    }
+
+    org.json.JSONArray webPerms() throws org.json.JSONException {
+        org.json.JSONArray a = new org.json.JSONArray();
+        for (String[] p : PERMS) {
+            org.json.JSONObject o = new org.json.JSONObject();
+            o.put("id", p[0]); o.put("name", p[1]); o.put("desc", p[2]); o.put("ok", permGranted(p[0]));
+            a.put(o);
+        }
+        return a;
     }
 
     // ======================= puente para la interfaz web (WebHome) =======================

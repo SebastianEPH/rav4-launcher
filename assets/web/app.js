@@ -669,6 +669,7 @@
       var k = seg.getAttribute('data-pref');
       $$('button', seg).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === prefs[k]); });
     });
+    renderPerms();
     $('#version').textContent = 'RAV4 Launcher ' + R.version() + (SIM ? ' · simulación en navegador' : '');
   }
 
@@ -784,6 +785,8 @@
     if (t.closest('#showHidden')) { showHiddenApps = !showHiddenApps; renderDrawer(); return; }
     if ((el = t.closest('[data-theme-pick]'))) { setPref('theme', el.getAttribute('data-theme-pick')); return; }
     if ((el = t.closest('.seg button'))) { setPref(el.parentNode.getAttribute('data-pref'), el.getAttribute('data-v')); return; }
+    if (t.closest('#grantAll')) { R.grant('all'); return; }
+    if ((el = t.closest('[data-grant]'))) { R.grant(el.getAttribute('data-grant')); return; }
     if (t.closest('#recBtn')) { if (C.recording) stopRec(); else startRec(); return; }
     if (t.closest('#recBadge')) { $('#recGuide').classList.remove('mini'); return; }
     if (t.closest('#rgMin')) { $('#recGuide').classList.toggle('mini'); return; }
@@ -809,6 +812,20 @@
     if (t.id === 'brDown') stepBr(-10);
     if (t.id === 'brUp') stepBr(10);
   });
+
+  // ================= permisos =================
+  function renderPerms() {
+    var list = [];
+    try { list = JSON.parse(R.perms ? R.perms() : '[]'); } catch (e) { }
+    var missing = list.filter(function (p) { return !p.ok; }).length;
+    $('#perms').innerHTML = list.map(function (p) {
+      return '<div class="perm' + (p.ok ? ' ok' : '') + '"><span class="pi">' + (p.ok ? '✓' : '!') + '</span><div><b>' + esc(p.name) + '</b><small>' + esc(p.desc) + '</small></div>' +
+        (p.ok ? '<em>Concedido</em>' : '<button data-grant="' + p.id + '">Dar</button>') + '</div>';
+    }).join('');
+    var g = $('#grantAll');
+    g.textContent = missing ? 'Conceder los ' + missing + ' que faltan' : 'Todos los permisos concedidos ✓';
+    g.disabled = !missing;
+  }
 
   // ================= grabación del bus CAN: indicador + prueba guiada =================
   var STEPS = [
@@ -894,13 +911,14 @@
   // ================= API para Android (WebHome.java) =================
   window.RAV4 = {
     back: function () { if (!closeSheets() && prefs.theme === 'home') showHomePage(0); },
-    resume: function () { closeSheets(); loadApps(); poll(); },
+    resume: function () { var p = $('#panel').classList.contains('open'); if (!p) closeSheets(); else renderPerms(); loadApps(); poll(); },
     appsChanged: loadApps
   };
 
   // ================= simulador (solo navegador) =================
   function makeSim() {
     var kmh = params.kmh ? +params.kmh : 0, target = 45, dist = 3.2, max = 0, moving = 14, vol = 18, br = 62, wifi = true, bt = true, bearing = 60, batt = 13.8;
+    var simPerm = false;
     var store = {}, simDoor = -1, simLog = [], simLastT = 0, simRec = !!params.rec, simRecN = 0, simRecT = Date.now() - 42000;
     function pad2(n) { return (n < 10 ? '0' : '') + n; }
     try { store = JSON.parse(localStorage.getItem('rav4sim') || '{}'); } catch (e) { }
@@ -941,6 +959,12 @@
       resetTrip: function () { dist = 0; max = 0; moving = 0; }, checkUpdate: function () { toast('Simulado: buscar actualización'); },
       useNative: function () { toast('Simulado: volver a la interfaz nativa'); },
       version: function () { return 'web-preview'; }, permission: function () { },
+      perms: function () { return JSON.stringify([{ id: 'location', name: 'Ubicación (GPS)', desc: 'Velocidad, viaje y rumbo', ok: true },
+        { id: 'storage', name: 'Almacenamiento', desc: 'Grabar el bus CAN en el USB', ok: simPerm },
+        { id: 'settings', name: 'Modificar ajustes del sistema', desc: 'Brillo y su mínimo seguro', ok: true },
+        { id: 'install', name: 'Instalar apps', desc: 'Actualizarse desde GitHub', ok: simPerm },
+        { id: 'home', name: 'Launcher predeterminado', desc: 'Que el botón Inicio abra este launcher', ok: true }]); },
+      grant: function () { simPerm = true; toast('Simulado: se abre la pantalla del permiso'); setTimeout(renderPerms, 500); },
       canMark: function (t) { var d = new Date(); simLog.push(pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()) + '|marca|' + t); simRecN++; },
       canRecord: function (on) { simRec = on; simRecN = 0; simRecT = Date.now(); return on ? 'USB: /storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt' : '/storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt'; },
       can: function () {
