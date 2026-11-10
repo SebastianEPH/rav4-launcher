@@ -287,6 +287,7 @@ public class HomeActivity extends Activity {
             prefs.edit().putStringSet("hidden", hs).putBoolean("init", true).apply();
         }
         hidden = new HashSet<String>(prefs.getStringSet("hidden", new HashSet<String>()));
+        hidden.remove(getPackageName() + "/" + SettingsActivity.class.getName());   // Ajustes RAV4 nunca se oculta
         pinned = new HashSet<String>(prefs.getStringSet("pinned", new HashSet<String>()));
     }
 
@@ -997,6 +998,8 @@ public class HomeActivity extends Activity {
         }
         for (String pkg : DOCK_FIXED) for (ResolveInfo r : all) if (r.activityInfo.packageName.equals(pkg)) items.put(key(r), r);
         for (ResolveInfo r : all) if (pinned.contains(key(r))) items.put(key(r), r);
+        // Ajustes RAV4 siempre en el dock, en todos los temas
+        for (ResolveInfo r : all) if (r.activityInfo.name.equals(SettingsActivity.class.getName())) items.put(key(r), r);
         // si quedó vacío, usar las primeras apps visibles (igual que el dock del web)
         if (items.isEmpty()) for (ResolveInfo r : sorted(all)) { if (!hidden.contains(key(r))) items.put(key(r), r); if (items.size() >= 5) break; }
 
