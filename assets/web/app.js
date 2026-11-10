@@ -43,6 +43,15 @@
   function hhmm(d) { return prefs.clock === '24' ? pad(d.getHours()) + ':' + pad(d.getMinutes()) : (d.getHours() % 12 || 12) + ':' + pad(d.getMinutes()); }
   function ampm(d) { return prefs.clock === '24' ? '' : (d.getHours() < 12 ? 'AM' : 'PM'); }
   var current = null;            // tema montado
+  // Al arrancar, las animaciones van apagadas (son lo que pone lenta la radio); se reactivan al asentarse.
+  var booting = true;
+  function effFx() { return booting ? 'off' : prefs.fx; }
+  function enableFx() {
+    if (!booting) return;
+    booting = false;
+    applyLook();
+    initParticles();
+  }
   if (params.shot) document.documentElement.classList.add('shot');
 
   // ---------- utilidades ----------
@@ -450,7 +459,7 @@
     if (!THEMES[prefs.theme]) prefs.theme = 'cockpit';
     body.setAttribute('data-theme', prefs.theme);
     body.setAttribute('data-mode', resolvedMode());
-    body.setAttribute('data-fx', prefs.fx);
+    body.setAttribute('data-fx', effFx());
     body.setAttribute('data-modepref', prefs.mode);
     body.setAttribute('data-icons', prefs.icons);
     var ac = ACCENTS[prefs.accent];
@@ -549,7 +558,7 @@
       var x = w - (hist.length - 1 - i) * w / (n - 1), y = h - hist[i] / max * (h - 4) - 2;
       if (i) c.lineTo(x, y); else c.moveTo(x, y);
     }
-    c.strokeStyle = color; c.lineWidth = 2; c.shadowColor = color; c.shadowBlur = prefs.fx === 'high' ? 10 : 0; c.stroke();
+    c.strokeStyle = color; c.lineWidth = 2; c.shadowColor = color; c.shadowBlur = effFx() === 'high' ? 10 : 0; c.stroke();
     c.lineTo(w, h); c.lineTo(w - (hist.length - 1) * w / (n - 1), h); c.closePath();
     c.shadowBlur = 0; c.globalAlpha = .12; c.fillStyle = color; c.fill(); c.globalAlpha = 1;
   }
@@ -571,7 +580,7 @@
 
   // Si la radio no llega a ~35 fps con efectos altos, baja a "suaves" una sola vez y avisa.
   function measureFps(t) {
-    if (prefs.fx !== 'high' || R.pref('fxChecked', '') === '1' || SIM) return;
+    if (booting || prefs.fx !== 'high' || R.pref('fxChecked', '') === '1' || SIM) return;
     if (!fpsStart) { fpsStart = t; frames = 0; return; }
     frames++;
     if (t - fpsStart > 4000) {
@@ -585,7 +594,7 @@
   var P = [], cv = $('#particles'), cx = cv.getContext('2d'), pAcc = 0;
   function initParticles() {
     P = [];
-    if (prefs.fx !== 'high') return;
+    if (effFx() !== 'high') return;
     var n = prefs.theme === 'terminal' ? 0 : prefs.theme === 'cockpit' ? 34 : 22;
     for (var i = 0; i < n; i++) P.push(newP(true));
   }
@@ -743,7 +752,7 @@
   document.addEventListener('pointerdown', function (e) {
     g = { x: e.clientX, y: e.clientY, t: Date.now(), edge: e.clientX < innerWidth * 0.12, target: e.target };
     if (g.edge && !$('.sheet.open')) $('#stage').classList.add('dragging-edge');
-    if (prefs.fx !== 'off') ripple(e);
+    if (effFx() !== 'off') ripple(e);
     startLongPress(e);
   }, true);
   document.addEventListener('pointermove', function (e) {
@@ -1024,6 +1033,9 @@
   mountTheme();
   requestAnimationFrame(function () { if (R.ready) R.ready(); });
   setTimeout(function () { loadApps(); poll(); setInterval(poll, 500); requestAnimationFrame(frame); }, 0);
+  // reactivar animaciones cuando ya cargó (2.5 s) o al primer toque, lo que ocurra antes
+  setTimeout(enableFx, 2500);
+  document.addEventListener('pointerdown', function () { setTimeout(enableFx, 400); }, { once: true });
   if (params.rec) { step = +params.step || 1; showStep(); }
   if (params.drawer) openSheet('drawer');
 })();

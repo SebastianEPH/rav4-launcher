@@ -108,6 +108,9 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
   Los íconos se sirven por `https://rav4.local/icon/<clave>?v=<lastUpdateTime>` (shouldInterceptRequest, caché en
   `cache/icons`), en paralelo. El Panel se arma recién al abrirlo (barra de carga) y los permisos al final.
   El servicio CAN se conecta solo cuando la página lo pide. El Panel muestra los tiempos de arranque medidos.
+- **Arranque sin animaciones**: `app.js` fuerza `effFx()="off"` mientras `booting` es true (las animaciones son lo
+  que pone lenta la radio al iniciar). Se reactiva el `fx` guardado a los 2.5 s o al primer toque (lo que ocurra
+  antes), con `applyLook()` + `initParticles()`.
 - **Permisos**: Android no permite "permiso total". Ajustes RAV4 → Permisos
   pide **todos** los útiles (lista `SettingsActivity.PERMS` con su "para qué"): ubicación, almacenamiento, micrófono,
   cámara, teléfono/contactos, ajustes del sistema, instalar apps, notificaciones (`MediaListener`), mostrar encima,
