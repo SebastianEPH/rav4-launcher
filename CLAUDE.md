@@ -111,6 +111,8 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 - **Arranque sin animaciones**: `app.js` fuerza `effFx()="off"` mientras `booting` es true (las animaciones son lo
   que pone lenta la radio al iniciar). Se reactiva el `fx` guardado a los 2.5 s o al primer toque (lo que ocurra
   antes), con `applyLook()` + `initParticles()`.
+- **Congelar al tocar**: `pointerdown` añade `body.freeze` (pausa las animaciones de fondo vía CSS y salta el dibujo
+  de partículas); `pointerup`/`pointercancel` lo quitan 650 ms después sin actividad. Así el cajón de apps abre fluido.
 - **Permisos**: Android no permite "permiso total". Ajustes RAV4 → Permisos
   pide **todos** los útiles (lista `SettingsActivity.PERMS` con su "para qué"): ubicación, almacenamiento, micrófono,
   cámara, teléfono/contactos, ajustes del sistema, instalar apps, notificaciones (`MediaListener`), mostrar encima,

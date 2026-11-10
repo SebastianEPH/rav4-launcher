@@ -46,6 +46,10 @@
   // Al arrancar, las animaciones van apagadas (son lo que pone lenta la radio); se reactivan al asentarse.
   var booting = true;
   function effFx() { return booting ? 'off' : prefs.fx; }
+  // Congela animaciones mientras tocas (el cajón abre fluido); se reanudan al soltar sin actividad.
+  var freezeT;
+  function freeze() { body.classList.add('freeze'); clearTimeout(freezeT); }
+  function unfreezeSoon() { clearTimeout(freezeT); freezeT = setTimeout(function () { body.classList.remove('freeze'); }, 650); }
   function enableFx() {
     if (!booting) return;
     booting = false;
@@ -604,6 +608,7 @@
     return { x: Math.random() * W, y: any ? Math.random() * H : H + 20, r: 1 + Math.random() * 3.5, v: 6 + Math.random() * 16, a: .1 + Math.random() * .35, ph: Math.random() * 6.28 };
   }
   function drawParticles(dt) {
+    if (body.classList.contains('freeze')) return;
     if (!P.length) { if (cv.width) { cv.width = 0; } return; }
     pAcc += dt;
     if (pAcc < 1 / 30) return;   // 30 fps alcanzan para el fondo y ahorran CPU
@@ -752,6 +757,7 @@
   document.addEventListener('pointerdown', function (e) {
     g = { x: e.clientX, y: e.clientY, t: Date.now(), edge: e.clientX < innerWidth * 0.12, target: e.target };
     if (g.edge && !$('.sheet.open')) $('#stage').classList.add('dragging-edge');
+    freeze();
     if (effFx() !== 'off') ripple(e);
     startLongPress(e);
   }, true);
@@ -760,6 +766,7 @@
   }, true);
   document.addEventListener('pointerup', function (e) {
     $('#stage').classList.remove('dragging-edge');
+    unfreezeSoon();
     cancelLongPress();
     if (!g || dragging) { g = null; return; }
     var dx = e.clientX - g.x, dy = e.clientY - g.y, start = g;
@@ -771,7 +778,7 @@
     if (prefs.theme === 'home' && !start.edge && start.target.closest && start.target.closest('#pages')) { showHomePage(homePage + (dx < 0 ? 1 : -1)); return; }
     if (dx < 0) openSheet('drawer');
   }, true);
-  document.addEventListener('pointercancel', function () { g = null; cancelLongPress(); $('#stage').classList.remove('dragging-edge'); }, true);
+  document.addEventListener('pointercancel', function () { g = null; cancelLongPress(); $('#stage').classList.remove('dragging-edge'); unfreezeSoon(); }, true);
   document.addEventListener('click', function (e) { if (suppressClick || longFired) { e.stopPropagation(); e.preventDefault(); longFired = false; } }, true);
 
   var lpT = null, longFired = false;
