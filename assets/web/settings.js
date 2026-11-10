@@ -72,7 +72,7 @@
     var list = bandList();
     $('#bands').innerHTML = list.map(function (b, i) {
       return '<div class="band" data-i="' + i + '"><div class="hr"><button data-bh="-1">−</button><em>' +
-        (b.h < 10 ? '0' + b.h : b.h) + ':00</em><button data-bh="1">+</button></div>' +
+        hourTxt(b.h) + '</em><button data-bh="1">+</button></div>' +
         '<div class="br"><div class="lvl">Brillo <b>' + b.p + ' %</b></div><input type="range" min="18" max="100" value="' + b.p + '"></div>' +
         '<button class="del" data-del="' + i + '"' + (list.length <= 1 ? ' style="visibility:hidden"' : '') + '>✕</button></div>';
     }).join('');
