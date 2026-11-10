@@ -1020,38 +1020,49 @@ public class HomeActivity extends Activity {
     // ======================= TEMA GLASS (estilo iOS / CarPlay) =======================
     /** Glass: inspirado en iPhone / CarPlay (fondo propio de manchas de color, barra lateral y widgets de vidrio). */
     private View buildGlass() {
-        LinearLayout row = new LinearLayout(this);
+        LinearLayout outer = new LinearLayout(this);
+        outer.setOrientation(LinearLayout.VERTICAL);
 
-        // barra lateral pegada al borde, como CarPlay: hora, apps, botón de todas las apps
-        LinearLayout side = new LinearLayout(this);
-        side.setOrientation(LinearLayout.VERTICAL);
-        side.setGravity(Gravity.CENTER_HORIZONTAL);
-        side.setBackgroundColor(P.dark ? 0x8C000000 : 0x8CFFFFFF);
-        side.setPadding(0, dp(16), 0, dp(14));
-        clock = txt("", 17, P.text);
+        // barra de menú superior (como la de la Mac): nombre a la izquierda, estado y hora a la derecha
+        LinearLayout menu = new LinearLayout(this);
+        menu.setGravity(Gravity.CENTER_VERTICAL);
+        menu.setPadding(dp(18), 0, dp(18), 0);
+        menu.setBackgroundColor(P.dark ? 0x59000000 : 0x8CFFFFFF);
+        TextView brand = txt("RAV4", 15, P.text);
+        brand.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        menu.addView(brand);
+        for (String m : new String[]{"Inicio", "Viaje", "GPS"}) { TextView t = txt(m, 14, P.text); t.setPadding(dp(18), 0, 0, 0); menu.addView(t); }
+        menu.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
+        chips = txt("", 13, P.text);
+        chips.setSingleLine(true);
+        menu.addView(chips);
+        clock = txt("", 14, P.text);
         clock.setTypeface(P.fontBold);
-        clock.setGravity(Gravity.CENTER);
-        clock.setSingleLine(true);
-        side.addView(clock, new LinearLayout.LayoutParams(-1, -2));
-        chips = txt("", 11, P.dim);
-        chips.setGravity(Gravity.CENTER);
-        side.addView(chips);
-        dock = new LinearLayout(this);
-        dock.setOrientation(LinearLayout.VERTICAL);
-        dock.setGravity(Gravity.CENTER_HORIZONTAL);
-        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(-1, 0, 1f);
-        dlp.topMargin = dp(8);
-        side.addView(dock, dlp);
-        TextView grid = txt("▦", 26, P.text);
-        grid.setGravity(Gravity.CENTER);
-        grid.setBackground(box(P.dark ? 0x33FFFFFF : 0x22000000, 0, 16));
-        grid.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { openDrawer(true); } });
-        side.addView(grid, new LinearLayout.LayoutParams(dp(60), dp(60)));
-        row.addView(side, new LinearLayout.LayoutParams(dp(108), -1));
+        clock.setPadding(dp(18), 0, 0, 0);
+        menu.addView(clock);
+        outer.addView(menu, new LinearLayout.LayoutParams(-1, dp(34)));
 
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setClipChildren(false);
+        outer.addView(row, new LinearLayout.LayoutParams(-1, 0, 1f));
+
+        // Dock flotante tipo macOS (a la izquierda, lado del conductor)
+        Views.MacDock side = new Views.MacDock(this);
+        side.setGravity(Gravity.CENTER_HORIZONTAL);
+        GradientDrawable db = new GradientDrawable();
+        db.setColor(P.dark ? 0x661E1E22 : 0x73FFFFFF);
+        db.setStroke(dp(1), P.dark ? 0x33FFFFFF : 0x80FFFFFF);
+        db.setCornerRadius(dp(24));
+        side.setBackground(db);
+        side.setPadding(dp(8), dp(10), dp(8), dp(10));
+        dock = side;
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(dp(84), -2);
+        sl.leftMargin = dp(10);
+        row.addView(side, sl);
         // widgets estilo "Dashboard" de CarPlay: uno grande a la izquierda y dos a la derecha
         LinearLayout area = new LinearLayout(this);
-        area.setPadding(dp(18), dp(18), dp(18), dp(18));
+        area.setPadding(dp(16), dp(14), dp(18), dp(18));
         row.addView(area, new LinearLayout.LayoutParams(0, -1, 1f));
 
         LinearLayout sp = gCard();
@@ -1098,7 +1109,7 @@ public class HomeActivity extends Activity {
         gl.topMargin = dp(8);
         gc.addView(gnssMini, gl);
         addSlot(bottom, "glass.slot3", gc, weight(1f, 0));
-        return row;
+        return outer;
     }
 
     /** Cabecera de widget estilo iOS: ícono en un cuadrito de color + título. */
@@ -1227,8 +1238,28 @@ public class HomeActivity extends Activity {
                 dock.addView(t, lp);
                 continue;
             }
+            if (P.glass) {
+                View t = tile(r, 56, false);
+                t.setTag("icon");
+                dock.addView(t, new LinearLayout.LayoutParams(-1, dp(66)));
+                continue;
+            }
             View t = tile(r, P.glass ? 60 : 54, !P.glass);
             dock.addView(t, P.glass ? new LinearLayout.LayoutParams(-1, 0, 1f) : new LinearLayout.LayoutParams(0, -1, 1f));
+        }
+        if (P.glass && !P.dusk && !P.cockpit && !P.home) {
+            // separador y "Launchpad" (todas las apps), como al final del Dock de la Mac
+            View sep = new View(this);
+            sep.setBackgroundColor(P.dark ? 0x40FFFFFF : 0x33000000);
+            LinearLayout.LayoutParams spl = new LinearLayout.LayoutParams(dp(44), dp(1));
+            spl.topMargin = spl.bottomMargin = dp(8);
+            spl.gravity = Gravity.CENTER_HORIZONTAL;
+            dock.addView(sep, spl);
+            TextView lp = txt("▦", 30, P.text);
+            lp.setGravity(Gravity.CENTER);
+            lp.setTag("icon");
+            lp.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { openDrawer(true); } });
+            dock.addView(lp, new LinearLayout.LayoutParams(-1, dp(62)));
         }
     }
 

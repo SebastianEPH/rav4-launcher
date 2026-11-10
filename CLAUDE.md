@@ -129,7 +129,9 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 
 ### Temas (⚙ Ajustes del launcher → Tema, o centro de control → Tema)
 1. **Terminal** — estilo consola: monoespaciado, telemetría, gráficos, datos técnicos.
-2. **Glass** — tarjetas translúcidas y barra lateral (estilo iOS/CarPlay).
+2. **Glass** — estilo Mac/iPhone: barra de menú arriba (hora y estado), **Dock flotante tipo macOS** a la izquierda
+   (`Views.MacDock`, lupa al pasar el dedo, separador + Launchpad ▦), fondo propio de manchas de color (`Views.IosWall`)
+   y widgets de vidrio con ícono de color en el título.
 3. **Dusk** — fondo degradado, hora grande, tarjetas abajo (estilo Android Auto).
 4. **Cockpit** — rehecho para quedar igual al de la interfaz web: carretera neón animada de fondo (`Views.CockpitRoad`),
    velocímetro con aguja, estela de velocidad y arco con degradado (`Views.CockpitGauge`), brújula (`Views.Compass`),

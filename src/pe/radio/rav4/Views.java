@@ -573,6 +573,32 @@ public class Views {
     }
 
     /** Fondo de pantalla dibujado (original): "ondas", "noche", "atardecer" o "rav4". */
+    /** Dock vertical estilo macOS: al pasar el dedo los íconos cercanos se agrandan (efecto lupa). */
+    public static class MacDock extends android.widget.LinearLayout {
+        public MacDock(Context c) { super(c); setOrientation(VERTICAL); setClipChildren(false); setClipToPadding(false); }
+        private void magnify(float y) {
+            float reach = 110 * getResources().getDisplayMetrics().density;
+            for (int i = 0; i < getChildCount(); i++) {
+                View v = getChildAt(i);
+                if (!"icon".equals(v.getTag())) continue;
+                float cy = v.getTop() + v.getHeight() / 2f, d = Math.abs(y - cy);
+                float s = 1f + 0.55f * Math.max(0f, 1f - d / reach);
+                v.setPivotX(0); v.setPivotY(v.getHeight() / 2f);
+                v.setScaleX(s); v.setScaleY(s);
+            }
+        }
+        private void relax() {
+            for (int i = 0; i < getChildCount(); i++) getChildAt(i).animate().scaleX(1f).scaleY(1f).setDuration(220).start();
+        }
+        @Override public void onWindowFocusChanged(boolean f) { super.onWindowFocusChanged(f); if (!f) relax(); }
+        @Override public boolean dispatchTouchEvent(android.view.MotionEvent e) {
+            int a = e.getActionMasked();
+            if (anim && (a == android.view.MotionEvent.ACTION_DOWN || a == android.view.MotionEvent.ACTION_MOVE)) magnify(e.getY());
+            if (a == android.view.MotionEvent.ACTION_UP || a == android.view.MotionEvent.ACTION_CANCEL) relax();
+            return super.dispatchTouchEvent(e);
+        }
+    }
+
     /** Fondo propio inspirado en los fondos de iPhone/CarPlay: manchas de color grandes y difusas (no es una imagen de Apple). */
     public static class IosWall extends View {
         private static android.graphics.Bitmap cache; private static boolean cacheDark;
