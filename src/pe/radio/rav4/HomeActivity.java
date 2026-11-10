@@ -82,6 +82,12 @@ public class HomeActivity extends Activity {
     private Views.Spark spark;
     private TextView clock, date, prompt, chips, sysPanel, gnssMini;
     private TextView tDist, tTime, tAvg, tMax;
+    // Cockpit (igual al de la interfaz web)
+    private Views.CockpitGauge cockGauge;
+    private Views.CockpitRoad cockRoad;
+    private Views.Compass cockCompass;
+    private Views.Bar cockBattBar;
+    private TextView tripBig, tripSub, cockBattV, cockBattState, cockSats, cockGpsSub;
     private LinearLayout dock;
     private View drawer, settings;
 
@@ -223,7 +229,7 @@ public class HomeActivity extends Activity {
         if (useWeb()) {
             dock = null; drawer = null; cc = null; settings = null; homeGrid = null;
             volLabel = brLabel = null; gauge = null; spark = null; clock = date = prompt = chips = sysPanel = gnssMini = null;
-            tDist = tTime = tAvg = tMax = null;
+            tDist = tTime = tAvg = tMax = null; cockGauge = null; cockRoad = null; cockCompass = null; cockBattBar = null; tripBig = tripSub = cockBattV = cockBattState = cockSats = cockGpsSub = null; cockGauge = null; cockRoad = null; cockCompass = null; cockBattBar = null; tripBig = tripSub = cockBattV = cockBattState = cockSats = cockGpsSub = null;
             if (web == null) web = new WebHome(this);
             setContentView(web.view());
             immersive();
@@ -257,8 +263,8 @@ public class HomeActivity extends Activity {
         setContentView(root);
         getWindow().setBackgroundDrawable(null);   // la foto de arranque ya no hace falta: evita dibujarla en cada cuadro
         rebuildDock();
-        if (last != null) { updateTrip(); if (gauge != null) gauge.setSpeed(curKmh); }
-        else if (gauge != null) gauge.setSub(P.glass ? "Buscando GPS…" : "gps: searching...");
+        if (last != null) { updateTrip(); feedGauge(curKmh); }
+        else feedGaugeSub(P.glass ? "Buscando GPS…" : "gps: searching...");
         immersive();
     }
 
@@ -414,86 +420,117 @@ public class HomeActivity extends Activity {
 
     // ======================= TEMA COCKPIT (tarjetas tipo panel) =======================
     private View buildCockpit() {
+        // fondo de carretera neón a pantalla completa
+        FrameLayout wrap = new FrameLayout(this);
+        cockRoad = new Views.CockpitRoad(this);
+        wrap.addView(cockRoad, new FrameLayout.LayoutParams(-1, -1));
+
         LinearLayout row = new LinearLayout(this);
         row.setPadding(dp(12), dp(12), dp(12), dp(12));
-        row.addView(sidebar(true), new LinearLayout.LayoutParams(dp(96), -1));
+        wrap.addView(row, new FrameLayout.LayoutParams(-1, -1));
 
-        // columna izquierda: velocidad + controles
-        LinearLayout left = new LinearLayout(this);
-        left.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams ll = new LinearLayout.LayoutParams(0, -1, 0.95f);
-        ll.leftMargin = dp(12);
-        row.addView(left, ll);
-        LinearLayout sp = cTile("Velocidad", P.accent);
-        gauge = new Views.Gauge(this);
-        sp.addView(gauge, new LinearLayout.LayoutParams(-1, 0, 1f));
-        left.addView(sp, vWeight(1.5f, true));
-        LinearLayout ctl = cTile("Volumen · Brillo", P.dim);
-        ctl.addView(quickControls(), new LinearLayout.LayoutParams(-1, 0, 1f));
-        left.addView(ctl, vWeight(1f, false));
+        row.addView(sidebar(true), new LinearLayout.LayoutParams(dp(92), -1));
 
-        // zona derecha: 2 columnas + música abajo
+        // izquierda: velocímetro grande
+        LinearLayout gaugeCard = cockCard();
+        LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(0, -1, 1.55f);
+        gl.leftMargin = dp(12);
+        cockGauge = new Views.CockpitGauge(this);
+        try { cockGauge.setMax(Math.min(220, Integer.parseInt(prefs.getString("web.t.cockpit.scale", "180")))); } catch (Exception e) { }
+        gaugeCard.addView(cockGauge, new LinearLayout.LayoutParams(-1, -1));
+        row.addView(gaugeCard, gl);
+
+        // derecha: 3 filas (viaje+brújula, batería+gps, música)
         LinearLayout right = new LinearLayout(this);
         right.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(0, -1, 1.9f);
+        LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(0, -1, 1f);
         rl.leftMargin = dp(12);
         row.addView(right, rl);
 
-        LinearLayout r1 = new LinearLayout(this);
-        right.addView(r1, vWeight(1.15f, true));
-        // fecha (tarjeta azul)
-        LinearLayout dateT = new LinearLayout(this);
-        dateT.setOrientation(LinearLayout.VERTICAL);
-        dateT.setGravity(Gravity.CENTER);
-        GradientDrawable blue = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0xFF2F80ED, 0xFF6FB1FC});
-        blue.setCornerRadius(dp(P.radius));
-        dateT.setBackground(blue);
-        TextView dn = txt("", 18, 0xFFFFFFFF); dn.setTag("dayname"); dateT.addView(dn);
-        TextView dd = txt("", 54, 0xFFFFFFFF); dd.setTag("daynum"); dd.setTypeface(Typeface_light()); dateT.addView(dd);
-        TextView dm = txt("", 14, 0xDDFFFFFF); dm.setTag("month"); dateT.addView(dm);
-        r1.addView(dateT, hWeight(1f, true));
-        // viaje actual
-        LinearLayout trip = cTile("Viaje actual", P.ok);
-        trip.addView(carImage(), new LinearLayout.LayoutParams(-1, 0, 1f));
-        trip.addView(tripRow(true));
-        r1.addView(trip, hWeight(1.3f, false));
+        // fila 1: viaje + brújula
+        LinearLayout tripCard = cockCard();
+        tripCard.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout tripTxt = new LinearLayout(this);
+        tripTxt.setOrientation(LinearLayout.VERTICAL);
+        tripTxt.addView(cockLabel("VIAJE"));
+        tripBig = txt("0.0 km", 30, 0xFFFFFFFF);
+        tripBig.setTypeface(P.fontBold);
+        tripTxt.addView(tripBig);
+        tripSub = txt("", 13, 0x99FFFFFF);
+        tripSub.setLineSpacing(0, 1.2f);
+        tripTxt.addView(tripSub);
+        tripCard.addView(tripTxt, new LinearLayout.LayoutParams(0, -1, 1f));
+        cockCompass = new Views.Compass(this);
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(dp(74), dp(74));
+        cl.gravity = Gravity.CENTER_VERTICAL;
+        tripCard.addView(cockCompass, cl);
+        right.addView(tripCard, vWeight(1f, true));
 
+        // fila 2: batería + GPS
         LinearLayout r2 = new LinearLayout(this);
-        right.addView(r2, vWeight(1f, true));
-        LinearLayout gpsT = cTile("GPS", P.warn);
-        gnssMini = txt("", 14, P.text);
-        gnssMini.setLineSpacing(0, 1.2f);
-        gpsT.addView(gnssMini);
-        r2.addView(gpsT, hWeight(1f, true));
-        LinearLayout car = cTile("Mi auto", P.warn);
-        LinearLayout g1 = new LinearLayout(this), g2 = new LinearLayout(this);
-        g1.addView(miniBtn("WiFi", new View.OnClickListener() { public void onClick(View v) { toggleWifi(); } }), hWeight(1f, true));
-        g1.addView(miniBtn("Bluetooth", new View.OnClickListener() { public void onClick(View v) { toggleBt(); } }), hWeight(1f, false));
-        g2.addView(miniBtn(P.dark ? "Modo claro" : "Modo oscuro", new View.OnClickListener() { public void onClick(View v) { toggleMode(); } }), hWeight(1f, true));
-        g2.addView(miniBtn("Silencio", new View.OnClickListener() { public void onClick(View v) { mute(); } }), hWeight(1f, false));
-        car.addView(g1, new LinearLayout.LayoutParams(-1, 0, 1f));
-        LinearLayout.LayoutParams g2l = new LinearLayout.LayoutParams(-1, 0, 1f);
-        g2l.topMargin = dp(8);
-        car.addView(g2, g2l);
-        r2.addView(car, hWeight(1.3f, false));
+        LinearLayout batt = cockCard();
+        batt.addView(cockLabel("BATERÍA"));
+        cockBattV = txt("—", 30, Views_cock_acc());
+        cockBattV.setTypeface(P.fontBold);
+        batt.addView(cockBattV);
+        cockBattBar = new Views.Bar(this);
+        LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, dp(8));
+        bl.topMargin = dp(8);
+        batt.addView(cockBattBar, bl);
+        cockBattState = txt("", 12, 0x99FFFFFF);
+        cockBattState.setPadding(0, dp(6), 0, 0);
+        batt.addView(cockBattState);
+        r2.addView(batt, hWeight(1f, true));
 
-        // música (controla lo que esté sonando: CarPlay, Android Auto, etc.)
-        LinearLayout music = new LinearLayout(this);
-        music.setOrientation(LinearLayout.VERTICAL);
-        GradientDrawable red = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[]{0xFF1C1C1E, 0xFF8E1B1B});
-        red.setCornerRadius(dp(P.radius));
-        music.setBackground(red);
-        music.setPadding(dp(18), dp(12), dp(18), dp(12));
-        TextView mt = txt("Reproduciendo", 18, 0xFFFFFFFF); mt.setTypeface(P.fontBold); music.addView(mt);
-        music.addView(txt("Controla la app de audio activa", 13, 0xB3FFFFFF));
+        LinearLayout gps = cockCard();
+        gps.addView(cockLabel("GPS"));
+        cockSats = txt("—", 30, 0xFFFFFFFF);
+        cockSats.setTypeface(P.fontBold);
+        gps.addView(cockSats);
+        cockGpsSub = txt("", 13, 0x99FFFFFF);
+        cockGpsSub.setLineSpacing(0, 1.2f);
+        gps.addView(cockGpsSub);
+        r2.addView(gps, hWeight(1f, false));
+        right.addView(r2, vWeight(1f, true));
+
+        // fila 3: música (controla lo que esté sonando)
+        LinearLayout music = cockCard();
+        music.addView(cockLabel("MÚSICA"));
         LinearLayout mc = new LinearLayout(this);
-        mc.setGravity(Gravity.CENTER_VERTICAL);
+        mc.setGravity(Gravity.CENTER);
         mc.addView(mediaBtn("⏮", android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS));
         mc.addView(mediaBtn("⏯", android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE));
         mc.addView(mediaBtn("⏭", android.view.KeyEvent.KEYCODE_MEDIA_NEXT));
         music.addView(mc, new LinearLayout.LayoutParams(-1, 0, 1f));
-        right.addView(music, vWeight(0.85f, false));
-        return row;
+        right.addView(music, vWeight(1f, false));
+        return wrap;
+    }
+
+    private int Views_cock_acc() { return 0xFF00E5FF; }
+
+    /** Tarjeta del Cockpit: fondo oscuro translúcido, bordes redondeados (igual al web). */
+    private LinearLayout cockCard() {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(0xD10E1016);
+        g.setCornerRadius(dp(20));
+        g.setStroke(1, 0x2900E5FF);
+        c.setBackground(g);
+        c.setPadding(dp(16), dp(14), dp(16), dp(14));
+        return c;
+    }
+
+    private TextView cockLabel(String s) {
+        TextView t = txt(s, 12, 0x99FFFFFF);
+        t.setTypeface(P.fontBold);
+        t.setAllCaps(true);
+        t.setLetterSpacing(0.1f);
+        t.setSingleLine(true);
+        LinearLayout.LayoutParams l = new LinearLayout.LayoutParams(-1, -2);
+        l.bottomMargin = dp(6);
+        t.setLayoutParams(l);
+        return t;
     }
 
     private LinearLayout cTile(String title, int color) {
@@ -1982,8 +2019,9 @@ public class HomeActivity extends Activity {
             enforceMinBrightness();
             if ((SystemClock.elapsedRealtime() / 1000) % 3 == 0)
                 try { sendBroadcast(new Intent("com.nwd.action.ACTION_QUERY_CAN_BATTERY_VOLTAGE")); } catch (Exception e) { }
-            if (gpsOn && !fr) { curKmh = 0; if (gauge != null) { gauge.setSpeed(0); if (lastFix > 0) gauge.setSub(P.glass ? "Sin señal GPS" : "gps: signal lost"); } }
+            if (gpsOn && !fr) { curKmh = 0; feedGauge(0); if (lastFix > 0) feedGaugeSub(P.glass ? "Sin señal GPS" : "gps: signal lost"); }
             Views.Spark.push(curKmh);
+            feedCockpitLive();
             if (isOpen(cc)) updateCC();
             updateQuick();
             if (spark != null) spark.invalidate();
@@ -2154,11 +2192,10 @@ public class HomeActivity extends Activity {
         lastFix = now;
         curKmh = kmh;
         if (kmh > maxKmh) maxKmh = kmh;
-        if (gauge != null) {
-            gauge.setSpeed(kmh);
-            gauge.setSub(P.glass ? String.format(Locale.US, "%s · ±%.0f m", heading(l), l.getAccuracy())
-                    : String.format(Locale.US, "hdg %s · ±%.0fm", heading(l), l.getAccuracy()));
-        }
+        feedGauge(kmh);
+        feedGaugeSub(P.glass ? String.format(Locale.US, "%s · ±%.0f m", heading(l), l.getAccuracy())
+                : String.format(Locale.US, "hdg %s · ±%.0fm", heading(l), l.getAccuracy()));
+        if (cockCompass != null && l.hasBearing()) cockCompass.setBearing(l.getBearing());
         updateTrip();
     }
 
@@ -2177,6 +2214,41 @@ public class HomeActivity extends Activity {
         float hrs = movingMs / 3600000f;
         tAvg.setText(hrs > 0.003f ? String.format(Locale.US, "%.0f", (distM / 1000f) / hrs) : "--");
         tMax.setText(String.format(Locale.US, "%.0f", maxKmh));
+        feedCockpitTrip();
+    }
+
+    // ======================= Cockpit: alimentar velocímetro y tarjetas =======================
+    private void feedGauge(float kmh) {
+        if (gauge != null) gauge.setSpeed(kmh);
+        if (cockGauge != null) cockGauge.setSpeed(kmh);
+        if (cockRoad != null) cockRoad.setSpeed(kmh);
+    }
+
+    private void feedGaugeSub(String s) {
+        if (gauge != null) gauge.setSub(s);
+        if (cockGauge != null) cockGauge.setSub(s);
+    }
+
+    private void feedCockpitTrip() {
+        if (tripBig == null) return;
+        tripBig.setText(String.format(Locale.US, "%.1f km", distM / 1000f));
+        float hrs = movingMs / 3600000f;
+        String avg = hrs > 0.003f ? String.format(Locale.US, "%.0f", (distM / 1000f) / hrs) : "--";
+        tripSub.setText(dur(movingMs) + " · prom. " + avg + " · máx. " + Math.round(maxKmh) + " km/h");
+    }
+
+    /** Actualiza batería y GPS del Cockpit (se llama desde el tick). */
+    private void feedCockpitLive() {
+        if (cockBattV == null) return;
+        cockBattV.setText(batteryV >= 0 ? String.format(Locale.US, "%.1f V", batteryV) : "—");
+        cockBattState.setText(batteryV < 0 ? "Sin dato" : batteryV >= 13.3f ? "Cargando" : batteryV >= 12.4f ? "Bien" : batteryV >= 12.0f ? "Baja" : "Muy baja");
+        if (cockBattBar != null) cockBattBar.setFraction(batteryV < 0 ? 0 : (batteryV - 11.6f) / (14.4f - 11.6f));
+        cockSats.setText(satsUsed < 0 ? "—" : String.valueOf(satsUsed));
+        if (last != null) {
+            cockGpsSub.setText("sats " + (satsUsed < 0 ? "—" : satsUsed + "/" + satsSeen)
+                    + "\n" + String.format(Locale.US, "%.0f m · %s", last.getAltitude(), heading(last)));
+            if (cockCompass != null && last.hasBearing()) cockCompass.setBearing(last.getBearing());
+        } else cockGpsSub.setText("Buscando señal…");
     }
 
     // ======================= puente para la interfaz web (WebHome) =======================

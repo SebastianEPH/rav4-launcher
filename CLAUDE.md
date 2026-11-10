@@ -131,7 +131,9 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 1. **Terminal** — estilo consola: monoespaciado, telemetría, gráficos, datos técnicos.
 2. **Glass** — tarjetas translúcidas y barra lateral (estilo iOS/CarPlay).
 3. **Dusk** — fondo degradado, hora grande, tarjetas abajo (estilo Android Auto).
-4. **Cockpit** — panel de tarjetas: velocidad, viaje, auto, música (estilo CarPlay dashboard).
+4. **Cockpit** — rehecho para quedar igual al de la interfaz web: carretera neón animada de fondo (`Views.CockpitRoad`),
+   velocímetro con aguja, estela de velocidad y arco con degradado (`Views.CockpitGauge`), brújula (`Views.Compass`),
+   y tarjetas Viaje / Batería (`Views.Bar`) / GPS / Música. Reemplazó al Cockpit viejo de tarjetas.
 5. **Inicio** — cuadrícula de íconos grandes con páginas (estilo pantalla de inicio iOS/CarPlay).
 
 Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto del auto).

@@ -179,6 +179,266 @@ public class Views {
         }
     }
 
+    // ===== Tema Cockpit (igual al de la interfaz web): colores cian/rosa =====
+    static final int COCK_ACC = 0xFF00E5FF, COCK_ACC2 = 0xFFFF2D95, COCK_DIM = 0x99FFFFFF;
+
+    /** Carretera neón en perspectiva; la cuadrícula corre más rápido cuanto mayor es la velocidad. */
+    public static class CockpitRoad extends View {
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private float shown = 0, target = 0, offset = 0;
+        private long last = 0;
+
+        public CockpitRoad(Context c) { super(c); }
+
+        public void setSpeed(float kmh) { target = Math.max(0, kmh); if (last == 0) postInvalidateOnAnimation(); }
+
+        @Override
+        protected void onDraw(Canvas c) {
+            long now = android.os.SystemClock.uptimeMillis();
+            float dt = last == 0 ? 0.016f : Math.min(0.05f, (now - last) / 1000f);
+            last = now;
+            shown += (target - shown) * Math.min(1f, dt * 3f);
+
+            float w = getWidth(), h = getHeight();
+            float horizon = h * 0.52f;
+            // fondo
+            p.setShader(new LinearGradient(0, 0, 0, h, new int[]{0xFF020306, 0xFF05060C, 0xFF0A0420}, null, Shader.TileMode.CLAMP));
+            p.setStyle(Paint.Style.FILL);
+            c.drawRect(0, 0, w, h, p);
+            p.setShader(null);
+            // resplandor del horizonte
+            p.setShader(new android.graphics.RadialGradient(w / 2f, horizon, w * 0.6f,
+                    new int[]{0x5500E5FF, 0x00000000}, null, Shader.TileMode.CLAMP));
+            c.drawRect(0, horizon - h * 0.25f, w, horizon + h * 0.1f, p);
+            p.setShader(null);
+
+            float cxp = w / 2f;
+            c.save();
+            c.clipRect(0, horizon, w, h);
+            // líneas verticales que convergen al punto de fuga
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(2);
+            for (int i = -7; i <= 7; i++) {
+                float bx = cxp + i * (w / 5f);
+                p.setColor(0x3300E5FF);
+                c.drawLine(cxp, horizon, bx, h, p);
+            }
+            // líneas horizontales con perspectiva, desplazándose hacia el conductor
+            offset += (0.15f + shown / 90f) * dt;
+            if (offset > 1f) offset -= 1f;
+            for (int i = 0; i < 12; i++) {
+                float t = (i + offset) / 12f;
+                float yy = horizon + (h - horizon) * t * t;   // más juntas cerca del horizonte
+                int alpha = (int) (0x66 * t);
+                p.setColor((alpha << 24) | 0x00FF2D95);
+                c.drawLine(0, yy, w, yy, p);
+            }
+            c.restore();
+            // línea del horizonte brillante
+            p.setStrokeWidth(3);
+            p.setColor(COCK_ACC2);
+            c.drawLine(0, horizon, w, horizon, p);
+
+            if (Math.abs(target - shown) > 0.3f || shown > 0.3f) postInvalidateOnAnimation();
+        }
+    }
+
+    /** Brújula: rosa de los vientos que gira según el rumbo. */
+    public static class Compass extends View {
+        private float bearing = -1, shown = 0;
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        public Compass(Context c) { super(c); }
+
+        public void setBearing(float b) { bearing = b; postInvalidateOnAnimation(); }
+
+        @Override
+        protected void onDraw(Canvas c) {
+            float w = getWidth(), h = getHeight(), cx = w / 2f, cy = h / 2f, r = Math.min(w, h) / 2f - dp(2);
+            if (bearing >= 0) {
+                float d = bearing - shown;
+                while (d > 180) d -= 360; while (d < -180) d += 360;
+                shown += d * 0.2f;
+                if (Math.abs(d) > 0.5f) postInvalidateOnAnimation();
+            }
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(2);
+            p.setColor(0x33FFFFFF);
+            c.drawCircle(cx, cy, r, p);
+            c.save();
+            c.rotate(-shown, cx, cy);
+            p.setStyle(Paint.Style.FILL);
+            p.setTextAlign(Paint.Align.CENTER);
+            String[] d = {"N", "E", "S", "O"};
+            int[] col = {COCK_ACC2, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
+            for (int i = 0; i < 4; i++) {
+                double a = Math.toRadians(i * 90 - 90);
+                float tx = cx + (float) Math.cos(a) * (r - dp(9)), ty = cy + (float) Math.sin(a) * (r - dp(9));
+                p.setColor(col[i]);
+                p.setTextSize(dp(10));
+                c.drawText(d[i], tx, ty + dp(3.5f), p);
+            }
+            c.restore();
+            // aguja fija arriba
+            p.setColor(COCK_ACC);
+            Path tri = new Path();
+            tri.moveTo(cx, cy - r + dp(1)); tri.lineTo(cx - dp(5), cy - r + dp(10)); tri.lineTo(cx + dp(5), cy - r + dp(10)); tri.close();
+            c.drawPath(tri, p);
+        }
+
+        private float dp(float v) { return v * getResources().getDisplayMetrics().density; }
+    }
+
+    /** Barra de nivel (0..1) con pista redondeada y relleno en degradado. */
+    public static class Bar extends View {
+        private float frac = 0;
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        public Bar(Context c) { super(c); }
+
+        public void setFraction(float f) { frac = Math.max(0, Math.min(1, f)); invalidate(); }
+
+        @Override
+        protected void onDraw(Canvas c) {
+            float w = getWidth(), h = getHeight(), r = h / 2f;
+            p.setShader(null);
+            p.setColor(0x1AFFFFFF);
+            c.drawRoundRect(0, 0, w, h, r, r, p);
+            if (frac > 0.01f) {
+                float fw = Math.max(h, w * frac);
+                p.setShader(new LinearGradient(0, 0, fw, 0, COCK_ACC, COCK_ACC2, Shader.TileMode.CLAMP));
+                c.drawRoundRect(0, 0, fw, h, r, r, p);
+                p.setShader(null);
+            }
+        }
+    }
+
+    /** Velocímetro del Cockpit: arco con degradado, marcas, números, aguja con halo y estela de velocidad. */
+    public static class CockpitGauge extends View {
+        private float target = 0, shown = 0, max = 180;
+        private String sub = "";
+        private final float[] trail = new float[6];
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF r = new RectF();
+        private static final float START = 135, SWEEP = 270;
+
+        public CockpitGauge(Context c) { super(c); }
+
+        public void setMax(float m) { max = m; invalidate(); }
+        public void setSpeed(float kmh) { target = Math.max(0, Math.min(max, kmh)); postInvalidateOnAnimation(); }
+        public void setSub(String s) { sub = s; invalidate(); }
+
+        @Override
+        protected void onDraw(Canvas c) {
+            shown += (target - shown) * 0.18f;
+            boolean moving = Math.abs(target - shown) > 0.15f;
+            if (!moving) shown = target;
+            System.arraycopy(trail, 1, trail, 0, trail.length - 1);
+            trail[trail.length - 1] = shown;
+
+            float w = getWidth(), h = getHeight();
+            float rad = Math.min(w * 0.46f, h * 0.46f);
+            float cx = w / 2f, cy = h * 0.54f;
+            float frac = shown / max;
+            r.set(cx - rad, cy - rad, cx + rad, cy + rad);
+
+            // arco de fondo
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            p.setStrokeWidth(rad * 0.1f);
+            p.setShader(null);
+            p.setColor(0x14FFFFFF);
+            c.drawArc(r, START, SWEEP, false, p);
+
+            // marcas
+            p.setStrokeCap(Paint.Cap.BUTT);
+            for (int v = 0; v <= max; v += 10) {
+                boolean major = v % 20 == 0;
+                double a = Math.toRadians(START + SWEEP * v / max);
+                float r1 = rad * 0.88f, r2 = rad * (major ? 0.76f : 0.82f);
+                p.setStrokeWidth(major ? 3 : 2);
+                p.setColor(major ? 0xD8FFFFFF : 0x66FFFFFF);
+                c.drawLine(cx + (float) Math.cos(a) * r1, cy + (float) Math.sin(a) * r1,
+                        cx + (float) Math.cos(a) * r2, cy + (float) Math.sin(a) * r2, p);
+            }
+            // números
+            p.setStyle(Paint.Style.FILL);
+            p.setTextAlign(Paint.Align.CENTER);
+            p.setColor(0xB3FFFFFF);
+            p.setTextSize(rad * 0.1f);
+            for (int v = 0; v <= max; v += 20) {
+                double a = Math.toRadians(START + SWEEP * v / max);
+                float rr = rad * 0.62f;
+                c.drawText(String.valueOf(v), cx + (float) Math.cos(a) * rr, cy + (float) Math.sin(a) * rr + rad * 0.035f, p);
+            }
+
+            // arco de valor con degradado cian→violeta→rosa
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            if (frac > 0.003f) {
+                p.setShader(new android.graphics.SweepGradient(cx, cy,
+                        new int[]{COCK_ACC, 0xFF7C4DFF, COCK_ACC2, COCK_ACC2}, new float[]{0, 0.4f, 0.75f, 1f}));
+                // halo (estela de velocidad): más grueso y brillante cuanto más rápido
+                float glow = 0.3f + 0.7f * frac;
+                p.setStrokeWidth(rad * 0.1f + rad * 0.12f * glow);
+                p.setAlpha((int) (70 * glow));
+                c.drawArc(r, START, SWEEP * frac, false, p);
+                p.setAlpha(255);
+                p.setStrokeWidth(rad * 0.1f);
+                c.drawArc(r, START, SWEEP * frac, false, p);
+                p.setShader(null);
+            }
+
+            // aguja con estela (posiciones anteriores, desvaneciéndose) = sensación de velocidad
+            for (int i = 0; i < trail.length - 1; i++) {
+                float a = START + SWEEP * (trail[i] / max);
+                int al = (int) (90 * (i + 1f) / trail.length);
+                drawNeedle(c, cx, cy, rad, a, (0x00FFFFFF & COCK_ACC2) | (al << 24), rad * 0.025f);
+            }
+            drawNeedle(c, cx, cy, rad, START + SWEEP * frac, COCK_ACC2, rad * 0.035f);
+            // cubo central
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(0xFF0B0D14);
+            c.drawCircle(cx, cy, rad * 0.08f, p);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(3);
+            p.setColor(COCK_ACC);
+            c.drawCircle(cx, cy, rad * 0.08f, p);
+
+            // lectura central
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(0xFFFFFFFF);
+            p.setFakeBoldText(true);
+            p.setTextSize(rad * 0.52f);
+            c.drawText(String.valueOf(Math.round(shown)), cx, cy + rad * 0.72f, p);
+            p.setFakeBoldText(false);
+            p.setColor(COCK_DIM);
+            p.setTextSize(rad * 0.1f);
+            c.drawText("KM/H", cx, cy + rad * 0.9f, p);
+            if (sub.length() > 0) {
+                p.setTextSize(rad * 0.085f);
+                c.drawText(sub, cx, cy + rad * 1.12f, p);
+            }
+
+            if (moving) postInvalidateOnAnimation();
+        }
+
+        private void drawNeedle(Canvas c, float cx, float cy, float rad, float angle, int color, float baseW) {
+            double a = Math.toRadians(angle);
+            float tipX = cx + (float) Math.cos(a) * rad * 0.82f, tipY = cy + (float) Math.sin(a) * rad * 0.82f;
+            double perp = a + Math.PI / 2;
+            float bx = (float) Math.cos(perp) * baseW, by = (float) Math.sin(perp) * baseW;
+            Path n = new Path();
+            n.moveTo(cx + bx, cy + by);
+            n.lineTo(tipX, tipY);
+            n.lineTo(cx - bx, cy - by);
+            n.close();
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(color);
+            c.drawPath(n, p);
+        }
+    }
+
     /** Fondo de pantalla dibujado (original): "ondas", "noche", "atardecer" o "rav4". */
     public static class Wallpaper extends View {
         private final String style;
