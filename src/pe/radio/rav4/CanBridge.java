@@ -19,8 +19,6 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.LinkedList;
@@ -244,9 +242,14 @@ public class CanBridge {
     }
 
     // ======================= grabación en .txt =======================
-    private Writer out;
-    private File outFile;
+    // Se graba en dos lugares a la vez: el pendrive y la memoria interna (/sdcard/RAV4Launcher) como respaldo.
+    // flush() no basta en un pendrive: sin fsync los datos quedan en caché y el archivo aparece con 0 bytes
+    // si se apaga el auto o se saca el USB. Por eso se sincroniza cada 2 s y al detener.
+    private FileOutputStream usbOut, intOut;
+    private File usbFile, intFile;
+    private volatile String recInfo = "";
     private volatile int outLines = 0;
+    private long lastSync = 0;
 
     /** Carpeta RAV4Launcher en el pendrive (mismas rutas que usa Radio Diagnóstico); null si no hay USB. */
     public static File usbDir() {
@@ -264,43 +267,85 @@ public class CanBridge {
         return null;
     }
 
-    /** Empieza a grabar todo lo que llega del bus. Devuelve la ruta del archivo o un mensaje de error. */
+    private boolean recording() { return usbOut != null || intOut != null; }
+
+    /** Empieza a grabar todo lo que llega del bus. Devuelve dónde se graba o "ERROR: …". */
     public synchronized String startRecording(String header) {
-        if (out != null) return outFile.getAbsolutePath();
+        if (recording()) return recInfo;
+        String name = "can_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".txt";
+        String head = "# RAV4 Launcher — registro del bus CAN\n# " + header + "\n# Estado del servicio: " + status
+                + "\n# Formato: hora  tipo  datos (hex completo). 'estado' = resumen decodificado cada 5 s.\n"
+                + "# Tipos: auto=datos del auto (tipo 2), puertas (3), radar (4), aire (1), crudo=caja CAN sin procesar,\n"
+                + "#        carinfo=objeto CarInfo serializado, broadcast=aviso del sistema con sus extras.\n\n";
+        String usbErr = null;
         File dir = usbDir();
-        boolean usb = dir != null;
-        if (!usb) { dir = new File(android.os.Environment.getExternalStorageDirectory(), "RAV4Launcher"); dir.mkdirs(); }
-        outFile = new File(dir, "can_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".txt");
+        if (dir == null) usbErr = "no se detectó el pendrive";
+        else try {
+            usbFile = new File(dir, name);
+            usbOut = new FileOutputStream(usbFile);
+            usbOut.write(head.getBytes("UTF-8"));
+            usbOut.flush();
+            usbOut.getFD().sync();
+        } catch (Exception e) { usbErr = e.getMessage(); closeQuiet(usbOut); usbOut = null; }
         try {
-            out = new OutputStreamWriter(new FileOutputStream(outFile), "UTF-8");
-            outLines = 0;
-            out.write("# RAV4 Launcher — registro del bus CAN\n# " + header + "\n# Estado del servicio: " + status
-                    + "\n# Formato: hora  tipo  datos (hex completo). 'estado' = resumen decodificado cada 5 s.\n"
-                    + "# Tipos: auto=datos del auto (tipo 2), puertas (3), radar (4), aire (1), crudo=caja CAN sin procesar,\n"
-                    + "#        carinfo=objeto CarInfo serializado, broadcast=aviso del sistema con sus extras.\n\n");
-            out.flush();
-            h.post(snapshot);
-            return (usb ? "USB: " : "Memoria interna (no se detectó el USB): ") + outFile.getAbsolutePath();
-        } catch (Exception e) {
-            out = null;
-            return "ERROR: no se pudo crear el archivo (" + e.getMessage() + "). ¿Diste permiso de almacenamiento?";
-        }
+            File idir = new File(android.os.Environment.getExternalStorageDirectory(), "RAV4Launcher");
+            idir.mkdirs();
+            intFile = new File(idir, name);
+            intOut = new FileOutputStream(intFile);
+            intOut.write(head.getBytes("UTF-8"));
+            intOut.flush();
+        } catch (Exception e) { closeQuiet(intOut); intOut = null; }
+        if (!recording()) return "ERROR: no se pudo crear el archivo (" + usbErr + "). ¿Diste permiso de almacenamiento?";
+        outLines = 0;
+        recInfo = usbOut != null ? "USB: " + usbFile.getAbsolutePath()
+                : "Memoria interna (" + usbErr + "): " + intFile.getAbsolutePath();
+        if (usbErr != null) add("error", "USB: " + usbErr + " → se graba solo en la memoria interna");
+        h.post(snapshot);
+        return recInfo;
     }
 
     public synchronized String stopRecording() {
-        if (out == null) return "";
+        if (!recording()) return "";
         h.removeCallbacks(snapshot);
         write("# fin de la grabación · " + outLines + " líneas");
-        try { out.close(); } catch (Exception e) { }
-        out = null;
-        return outFile.getAbsolutePath();
+        syncQuiet(usbOut); syncQuiet(intOut);
+        closeQuiet(usbOut); closeQuiet(intOut);
+        boolean usbOk = usbOut != null;
+        usbOut = null; intOut = null;
+        if (usbOk) return "USB: " + usbFile.getAbsolutePath();
+        // el USB falló durante la grabación: intentar copiar el respaldo interno al pendrive
+        File dir = usbDir();
+        if (dir != null && intFile != null) try {
+            File dst = new File(dir, intFile.getName());
+            java.io.FileInputStream in = new java.io.FileInputStream(intFile);
+            FileOutputStream o = new FileOutputStream(dst);
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) o.write(buf, 0, n);
+            in.close(); o.flush(); o.getFD().sync(); o.close();
+            return "USB (copiado al detener): " + dst.getAbsolutePath();
+        } catch (Exception e) { }
+        return "Memoria interna: " + (intFile != null ? intFile.getAbsolutePath() : "?");
     }
 
     private synchronized void write(String line) {
-        if (out == null) return;
-        try { out.write(line); out.write('\n'); out.flush(); outLines++; }
-        catch (Exception e) { out = null; status = "Se interrumpió la grabación (¿se quitó el USB?)"; }
+        if (!recording()) return;
+        byte[] b;
+        try { b = (line + "\n").getBytes("UTF-8"); } catch (Exception e) { return; }
+        if (usbOut != null) try { usbOut.write(b); }
+        catch (Exception e) {
+            closeQuiet(usbOut); usbOut = null;
+            status = "Falló la escritura en el USB (" + e.getMessage() + "); sigue grabando en la memoria interna";
+        }
+        if (intOut != null) try { intOut.write(b); } catch (Exception e) { closeQuiet(intOut); intOut = null; }
+        outLines++;
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastSync > 2000) { lastSync = now; syncQuiet(usbOut); syncQuiet(intOut); }
     }
+
+    private static void syncQuiet(FileOutputStream f) { if (f != null) try { f.flush(); f.getFD().sync(); } catch (Exception e) { } }
+
+    private static void closeQuiet(java.io.Closeable c) { if (c != null) try { c.close(); } catch (Exception e) { } }
 
     private final Runnable snapshot = new Runnable() {
         public void run() {
@@ -308,7 +353,7 @@ public class CanBridge {
                     + " puertas=" + java.util.Arrays.toString(doors) + " seguros=" + java.util.Arrays.toString(locks)
                     + " luces=" + java.util.Arrays.toString(lights) + " freno=" + handbrake + " cinturon=" + beltDriver + "/" + beltPassenger
                     + " comb=" + fuel + " marcha=" + gear + " radar=" + java.util.Arrays.toString(radar) + " paquetes=" + packets);
-            if (out != null) h.postDelayed(this, 5000);
+            if (recording()) h.postDelayed(this, 5000);
         }
     };
 
@@ -335,7 +380,7 @@ public class CanBridge {
         o.put("locks", arr(locks));
         o.put("lights", arr(lights));
         o.put("radar", arr(radar));
-        o.put("recording", out != null ? outFile.getAbsolutePath() : "");
+        o.put("recording", recording() ? recInfo : "");
         o.put("recLines", outLines);
         JSONArray l = new JSONArray();
         synchronized (log) { for (String s : log) l.put(s); }
