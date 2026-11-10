@@ -119,7 +119,8 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
   acceso de uso, sin optimización de batería, no molestar y launcher predeterminado. Sin accesibilidad ni admin
   del dispositivo (control total, sin uso aquí). "Conceder todos" pide cada uno una vez por recorrido,
   abre la pantalla de cada uno que falte y continúa solo al volver (`SettingsActivity.startPermWizard`).
-- Íconos de apps **siempre solos** (sin placa oscura detrás). Sin opción: el usuario la pidió quitar.
+- Íconos de apps **siempre solos**, el ícono real de cada app sin placa ni contorno, en web y en nativo
+  (`HomeActivity.icon()` devuelve el drawable tal cual). Dock del Cockpit **centrado verticalmente**.
 - **Compatibilidad**: el WebView de la radio puede ser Chrome ~74 → nada de `?.`, `??`, `:is()`,
   `inset`, `clamp()/min()`, `aspect-ratio`, ni `gap` en flex (en grid sí).
 - Probar en el Mac: abrir `assets/web/index.html` en Chrome (usa un simulador). Parámetros:

@@ -451,7 +451,7 @@ public class HomeActivity extends Activity {
         leftDock.setGravity(Gravity.CENTER_HORIZONTAL);
         dock = new LinearLayout(this);
         dock.setOrientation(LinearLayout.VERTICAL);
-        dock.setGravity(Gravity.CENTER_HORIZONTAL);
+        dock.setGravity(Gravity.CENTER);
         leftDock.addView(dock, new LinearLayout.LayoutParams(-1, 0, 1f));
         TextView gear = txt("⚙", 26, 0xFFFFFFFF);
         gear.setGravity(Gravity.CENTER);
@@ -1199,8 +1199,7 @@ public class HomeActivity extends Activity {
     }
 
     private Drawable icon(ResolveInfo r, int sizeDp) {
-        Drawable d = r.loadIcon(getPackageManager());
-        return P.glass ? Theme.squircle(getResources(), d, dp(sizeDp), P.iconBg) : d;
+        return r.loadIcon(getPackageManager());   // ícono real de la app, sin placa (decisión del usuario)
     }
 
     private View tile(final ResolveInfo r, int iconDp, boolean label) {
