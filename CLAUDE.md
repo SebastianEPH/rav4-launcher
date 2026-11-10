@@ -174,8 +174,25 @@ El repo es **público**: nunca subir claves, tokens ni la `debug.keystore`.
 - **Commitear y hacer push por cada cambio**, con mensaje en español.
 - **No agregar a Claude como coautor**: nada de `Co-Authored-By` ni firmas de Claude en commits o PRs.
 
-No hay emulador ni ADB a la radio, así que **cada versión se prueba instalándola en la radio real**.
-Nunca afirmar que algo "funciona" sin que el usuario lo haya confirmado en la radio.
+## Verificar la UI nativa en emulador (antes de enviar)
+Hay emulador local (Android 29, misma API de la radio). Para **ver** un cambio nativo sin la radio:
+```bash
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17; SDK=/opt/homebrew/share/android-commandlinetools
+export ANDROID_SDK_ROOT=$SDK; export PATH=$JAVA_HOME/bin:$SDK/platform-tools:$PATH
+# AVD "rav4" ya creado a 1280x160dpi horizontal. Arrancar sin ventana:
+"$SDK/emulator/emulator" -avd rav4 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect &
+adb wait-for-device; adb root
+# fijar tema/interfaz escribiendo las prefs y abrir:
+adb push rav4.xml /data/data/pe.radio.rav4/shared_prefs/rav4.xml   # <string name="theme">cockpit</string>, engine=native
+adb install -r -g RAV4Launcher.apk; adb shell am start -n pe.radio.rav4/.HomeActivity
+adb shell am broadcast -a com.nwd.action.ACTION_CAN_BATTERY_VOLTAGE --ei extra_voltage_value 138   # simular 13.8 V
+adb exec-out screencap -p > /tmp/x.png
+```
+**Revisar la captura antes de dar algo por bueno.** El emulador no reemplaza la prueba final en la radio
+(firmware NWD, CAN real), pero sí evita enviar layouts chuecos.
+
+No hay ADB a la radio en producción, así que **la versión final se prueba instalándola en la radio real**.
+Nunca afirmar que algo "funciona" en la radio sin que el usuario lo haya confirmado.
 
 ## App hermana: Radio Diagnóstico
 En `../radio-diagnostico/`. App para exportar al USB el informe de la radio + las APK del sistema

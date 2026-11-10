@@ -337,8 +337,8 @@ public class Views {
             trail[trail.length - 1] = shown;
 
             float w = getWidth(), h = getHeight();
-            float rad = Math.min(w * 0.46f, h * 0.46f);
-            float cx = w / 2f, cy = h * 0.54f;
+            float rad = Math.min(w * 0.44f, h * 0.42f);
+            float cx = w / 2f, cy = h * 0.5f;
             float frac = shown / max;
             r.set(cx - rad, cy - rad, cx + rad, cy + rad);
 
@@ -410,14 +410,14 @@ public class Views {
             p.setColor(0xFFFFFFFF);
             p.setFakeBoldText(true);
             p.setTextSize(rad * 0.52f);
-            c.drawText(String.valueOf(Math.round(shown)), cx, cy + rad * 0.72f, p);
+            c.drawText(String.valueOf(Math.round(shown)), cx, cy + rad * 0.68f, p);
             p.setFakeBoldText(false);
             p.setColor(COCK_DIM);
             p.setTextSize(rad * 0.1f);
-            c.drawText("KM/H", cx, cy + rad * 0.9f, p);
+            c.drawText("KM/H", cx, cy + rad * 0.86f, p);
             if (sub.length() > 0) {
                 p.setTextSize(rad * 0.085f);
-                c.drawText(sub, cx, cy + rad * 1.12f, p);
+                c.drawText(sub, cx, cy + rad * 1.04f, p);
             }
 
             if (moving) postInvalidateOnAnimation();
