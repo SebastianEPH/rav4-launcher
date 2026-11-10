@@ -164,6 +164,8 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 - **Acelerar estacionado** (todos los temas): mantener el dedo en el velocímetro con 0 km/h sube la aguja como un motor
   (brillo + carretera) y al soltar baja (`HomeActivity.revOnTouch`/`revTick`). En marcha no hace nada (aviso). Las demás
   tarjetas funcionan siempre.
+- **Intensidad de tarjetas** (Ajustes → General → Apariencia): `card.alphaDark` / `card.alphaLight` (10–100 %, int). Se
+  aplica en `Theme.fromPrefs` escalando el alfa de `P.panel` (`Theme.scaleAlpha`) y en `HomeActivity.cCard()` → todos los temas.
 - **Respaldo y restauración** (Ajustes → Sistema, `Backup.java`): .json con todas las prefs tipadas + `files/icons` +
   `files/bg.jpg` en base64; en `files/respaldos` y en `RAV4Launcher/respaldos` del USB. Restaurar guarda antes un respaldo
   automático. Probado en emulador (guardar → cambiar tema → restaurar).

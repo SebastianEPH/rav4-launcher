@@ -897,7 +897,7 @@ public class HomeActivity extends Activity {
     // Colores del Cockpit según el modo (Oscuro / Claro / Automático)
     private int cTxt() { return P.dark ? 0xFFFFFFFF : 0xFF0B0C10; }
     private int cDim() { return P.dark ? 0x99FFFFFF : 0x99000000; }
-    private int cCard() { return P.dark ? 0xD10E1016 : 0xE6FFFFFF; }
+    private int cCard() { return Theme.scaleAlpha(P.dark ? 0xD10E1016 : 0xE6FFFFFF, P.cardAlpha); }
 
     private LinearLayout cockCard() {
         LinearLayout c = new LinearLayout(this);

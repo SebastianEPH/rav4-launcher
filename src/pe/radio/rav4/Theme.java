@@ -25,6 +25,7 @@ public class Theme {
         public int bg, bg2, panel, border, text, dim, accent, ok, warn, err, track, iconBg;
         public Typeface font, fontBold;
         public int radius; // dp
+        public float cardAlpha = 1f;   // 0.1..1: intensidad del fondo de las tarjetas
     }
 
     /** Paleta activa (la usan las vistas). */
@@ -48,7 +49,18 @@ public class Theme {
         } else dark = DARK.equals(mode);
         String th = p.getString("theme", TERMINAL);
         if ("auto".equals(th)) th = COCKPIT;   // Auto · CAN solo existe en web
-        return build(th, dark);
+        Pal pal = build(th, dark);
+        // intensidad de las tarjetas (Ajustes → General → Apariencia), una para oscuro y otra para claro
+        int pct = 100;
+        try { pct = p.getInt(dark ? "card.alphaDark" : "card.alphaLight", 100); } catch (Exception e) { }
+        pal.cardAlpha = Math.max(10, Math.min(100, pct)) / 100f;
+        pal.panel = scaleAlpha(pal.panel, pal.cardAlpha);
+        return pal;
+    }
+
+    public static int scaleAlpha(int color, float f) {
+        int a = Math.round(((color >>> 24) & 0xFF) * f);
+        return (a << 24) | (color & 0xFFFFFF);
     }
 
     public static Pal build(String theme, boolean dark) {

@@ -163,6 +163,8 @@ public class SettingsActivity extends Activity {
                 new String[]{"Oscuro", "Claro", "Automático"}, new String[]{"dark", "light", "auto"}, "dark"));
         if ("auto".equals(prefs.getString("mode", "dark"))) ap.addView(hoursRow());
         ap.addView(segRow("Reloj", null, "web.clock", new String[]{"12 h (AM/PM)", "24 h"}, new String[]{"12", "24"}, "12"));
+        ap.addView(sliderIntRow("Intensidad de tarjetas · modo oscuro", "card.alphaDark", 10, 100, 100));
+        ap.addView(sliderIntRow("Intensidad de tarjetas · modo claro", "card.alphaLight", 10, 100, 100));
         ap.addView(segRow("Color de acento", null, "accent",
                 new String[]{"Tema", "Azul", "Verde", "Naranja", "Rosa"}, new String[]{"theme", "blue", "green", "orange", "pink"}, "theme"));
         if (web()) ap.addView(segRow("Efectos (web)", "\"Altos\" agrega desenfoque; más lento", "web.fx",
@@ -424,7 +426,7 @@ public class SettingsActivity extends Activity {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(14), dp(12), dp(14), dp(12));
         final TextView l = tv(label + " · " + prefs.getInt(key, def) + " %", 16, TXT);
-        row.addView(l, new LinearLayout.LayoutParams(dp(300), -2));
+        row.addView(l, new LinearLayout.LayoutParams(dp(400), -2));
         SeekBar sb = new SeekBar(this);
         sb.setMax(max - min);
         sb.setProgress(prefs.getInt(key, def) - min);
