@@ -140,6 +140,9 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
    Viaje, Batería, GPS, Música, Rumbo + calle (Geocoder), Altitud y pendiente (`Views.Line`), 0–100 y fuerza G
    (`accel.best`), Accesos (ZLINK/CarPlay/mapas: solo los abre, no se pueden incrustar en una tarjeta), Controles, Reloj grande, Conectividad (red WiFi + señal, Bluetooth + equipo conectado; tocar abre los ajustes).
    Las mismas tarjetas se eligen en todos los temas (`<tema>.slotN`, `HomeActivity.addSlot`).
+   **Arranque**: `playStartup()` corre al primer foco de la ventana (cuando ya se ve, no detrás del splash): barrido de
+   aguja (curva de 1.9 s, `sweepCurve`), entrada de tarjetas y números desde cero. La tarjeta del velocímetro NO lleva
+   entrada (si no, el barrido ocurre con la tarjeta invisible).
    Animaciones: barrido de aguja también en Glass/Dusk, números que ruedan (`anim.roll`), barra de voltaje viva,
    entrada de tarjetas (`anim.cards`, tarjetas marcadas con tag `R_CARD`).
 5. **Inicio** — cuadrícula de íconos grandes con páginas (estilo pantalla de inicio iOS/CarPlay).

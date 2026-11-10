@@ -188,7 +188,30 @@ public class HomeActivity extends Activity {
     }
 
     @Override
-    public void onWindowFocusChanged(boolean f) { super.onWindowFocusChanged(f); if (f) immersive(); }
+    public void onWindowFocusChanged(boolean f) {
+        super.onWindowFocusChanged(f);
+        if (f) immersive();
+        // animaciones de arranque: cuando la pantalla YA se ve (antes corrían detrás del splash y no se notaban)
+        if (f && !startupPlayed) {
+            startupPlayed = true;
+            h.postDelayed(new Runnable() { public void run() { playStartup(); } }, 250);
+        }
+    }
+
+    private boolean startupPlayed = false;
+
+    /** Al iniciar el launcher corren todas: barrido de agujas, entrada de tarjetas y números desde cero. */
+    private void playStartup() {
+        if (!Views.anim || useWeb() || root == null) return;
+        if (cockGauge != null) cockGauge.sweep();
+        // en los demás temas el velocímetro está en una tarjeta que entra animada: barrer cuando ya se ve
+        h.postDelayed(new Runnable() { public void run() { if (gauge != null) gauge.sweep(); } }, 600);
+        if (themeView != null) enterCards(themeView);
+        for (TextView t : new TextView[]{tripBig, cockBattV, altTxt}) if (t != null) t.setTag(0f);
+        feedCockpitTrip();
+        feedCockpitLive();
+    }
+    private View themeView;
 
     private void immersive() {
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN
@@ -276,11 +299,11 @@ public class HomeActivity extends Activity {
             bgs.setAlpha(prefs.getInt("spec.bgAlpha", 35) / 100f);
             root.addView(bgs, new FrameLayout.LayoutParams(-1, -1));
         }
-        View themeView = P.sound ? buildSound() : P.home ? buildHome() : P.cockpit ? buildCockpit() : P.dusk ? buildDusk() : P.glass ? buildGlass() : buildTerminal();
+        themeView = P.sound ? buildSound() : P.home ? buildHome() : P.cockpit ? buildCockpit() : P.dusk ? buildDusk() : P.glass ? buildGlass() : buildTerminal();
         root.addView(themeView);
         enterCards(themeView);
         if (!specs.isEmpty()) startViz();
-        if (gauge != null && !gaugeSwept) { gaugeSwept = true; gauge.sweep(); }
+        if (gauge != null && startupPlayed) gauge.sweep();
         root.addView(hints());
         drawer = buildDrawer();
         drawer.setVisibility(View.GONE);
@@ -511,13 +534,14 @@ public class HomeActivity extends Activity {
 
         // velocímetro grande
         LinearLayout gaugeCard = cockCard();
+        gaugeCard.setTag(R_CARD, null);   // el velocímetro no "entra": queda visible para que se vea el barrido de la aguja
         gaugeCard.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(0, -1, 1.55f);
         gl.leftMargin = dp(12);
         cockGauge = new Views.CockpitGauge(this);
         String gs = prefs.getString("cockpit.size", "m");
         cockGauge.setScale("s".equals(gs) ? 0.74f : "l".equals(gs) ? 1f : 0.88f);
-        if (!bootAnimDone) { bootAnimDone = true; cockGauge.sweep(); }
+        if (startupPlayed) cockGauge.sweep();   // al cambiar de tema; el arranque lo hace playStartup()
         try { cockGauge.setMax(Math.min(220, Integer.parseInt(prefs.getString("web.t.cockpit.scale", "180")))); } catch (Exception e) { }
         gaugeCard.addView(cockGauge, new LinearLayout.LayoutParams(-1, -1));
         row.addView(gaugeCard, gl);

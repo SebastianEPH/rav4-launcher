@@ -72,15 +72,21 @@ public class Views {
         /** Barrido de aguja al encender (como el Cockpit). */
         public void sweep() {
             if (!anim) return;
-            pending = target; sweeping = true; target = max; invalidate();
-            postDelayed(new Runnable() { public void run() { sweeping = false; target = pending; invalidate(); } }, 750);
+            pending = target; sweeping = true; sweepT0 = android.os.SystemClock.uptimeMillis(); invalidate();
         }
+        private long sweepT0 = 0;
 
         @Override
         protected void onDraw(Canvas c) {
             Theme.Pal P = Theme.P;
-            shown += (target - shown) * 0.18f;
-            if (Math.abs(target - shown) > 0.2f) postInvalidateOnAnimation(); else shown = target;
+            if (sweeping) {
+                long t = android.os.SystemClock.uptimeMillis() - sweepT0;
+                shown = CockpitGauge.sweepCurve(t, max, pending);
+                if (t >= 1900) { sweeping = false; target = pending; shown = pending; } else postInvalidateOnAnimation();
+            } else {
+                shown += (target - shown) * 0.18f;
+                if (Math.abs(target - shown) > 0.2f) postInvalidateOnAnimation(); else shown = target;
+            }
 
             float w = getWidth(), h = getHeight();
             float rad = Math.min(w * 0.42f, h * 0.44f);
@@ -447,9 +453,16 @@ public class Views {
             if (!anim) return;
             pending = target;
             sweeping = true;
-            target = max;
+            sweepT0 = android.os.SystemClock.uptimeMillis();
             postInvalidateOnAnimation();
-            postDelayed(new Runnable() { public void run() { sweeping = false; target = pending; postInvalidateOnAnimation(); } }, 750);
+        }
+        private long sweepT0 = 0;
+        /** curva del barrido: sube con suavidad (900 ms), se sostiene (200 ms) y baja (800 ms). */
+        static float sweepCurve(long t, float max, float end) {
+            if (t < 900) { float f = t / 900f; return max * (1 - (1 - f) * (1 - f) * (1 - f)); }
+            if (t < 1100) return max;
+            float f = Math.min(1, (t - 1100) / 800f);
+            return max + (end - max) * (f * f * (3 - 2 * f));
         }
         private boolean sweeping = false;
         private float pending = 0;
@@ -463,9 +476,17 @@ public class Views {
 
         @Override
         protected void onDraw(Canvas c) {
-            shown += (target - shown) * 0.18f;
-            boolean moving = Math.abs(target - shown) > 0.15f;
-            if (!moving) shown = target;
+            boolean moving;
+            if (sweeping) {
+                long t = android.os.SystemClock.uptimeMillis() - sweepT0;
+                shown = sweepCurve(t, max, pending);
+                if (t >= 1900) { sweeping = false; target = pending; shown = pending; }
+                moving = true;
+            } else {
+                shown += (target - shown) * 0.18f;
+                moving = Math.abs(target - shown) > 0.15f;
+                if (!moving) shown = target;
+            }
             System.arraycopy(trail, 1, trail, 0, trail.length - 1);
             trail[trail.length - 1] = shown;
 
