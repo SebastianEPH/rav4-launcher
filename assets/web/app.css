@@ -596,3 +596,10 @@ body[data-icons="plain"] .dock-app:not(.apps-btn) img { width: 4.3rem; height: 4
 .perm button { padding: .5rem 1.1rem; border-radius: 1rem; background: var(--acc); color: #fff; font-weight: 600; }
 .grant-all { width: 100%; margin-top: .8rem; padding: .95rem; border-radius: 1.1rem; background: var(--acc); color: #fff; font-weight: 600; font-size: 1.02rem; }
 .grant-all:disabled { background: rgba(48,209,88,.2); color: #30d158; }
+
+/* panel: barra de carga mientras se arma */
+.sheet .loadbar { position: absolute; top: 0; left: 0; right: 0; height: .25rem; overflow: hidden; opacity: 0; transition: opacity .2s; }
+.sheet .loadbar i { position: absolute; top: 0; width: 35%; height: 100%; background: var(--acc); animation: loadbar 1s ease-in-out infinite; }
+.sheet.loading .loadbar { opacity: 1; }
+.sheet.loading .sheet-body { opacity: .35; }
+@keyframes loadbar { from { left: -35%; } to { left: 100%; } }

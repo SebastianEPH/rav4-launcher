@@ -464,7 +464,6 @@
     $('#view').innerHTML = current.html();
     if (current.mount) current.mount();
     renderDock();
-    renderPanelState();
     tick();
     initParticles();
   }
@@ -628,7 +627,15 @@
     el.classList.add('open');
     $('#scrim').classList.add('on');
     if (id === 'drawer') renderDrawer();
-    if (id === 'panel') renderPanelState();
+    if (id === 'panel') {
+      // el panel se arma recién al abrirlo: primero la animación y la barra de carga, después el contenido
+      el.classList.add('loading');
+      setTimeout(function () {
+        renderPanelState();
+        el.classList.remove('loading');
+        setTimeout(renderPerms, 150);   // revisar permisos le pregunta varias cosas al sistema: al final
+      }, 60);
+    }
   }
   function closeSheets(silent) {
     var was = $$('.sheet.open').length > 0;
@@ -669,8 +676,11 @@
       var k = seg.getAttribute('data-pref');
       $$('button', seg).forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === prefs[k]); });
     });
-    renderPerms();
-    $('#version').textContent = 'RAV4 Launcher ' + R.version() + (SIM ? ' · simulación en navegador' : '');
+    var b = {};
+    try { b = JSON.parse(R.boot ? R.boot() : '{}'); } catch (e) { }
+    var sec = function (ms) { return ms >= 0 ? (ms / 1000).toFixed(1) + ' s' : '—'; };
+    $('#version').textContent = 'RAV4 Launcher ' + R.version() + (SIM ? ' · simulación en navegador' : '') +
+      ' · Arranque: sistema→launcher ' + sec(b.proc) + ', pantalla ' + sec(b.page) + ', apps ' + sec(b.apps);
   }
 
   // sliders de volumen y brillo
@@ -717,7 +727,7 @@
   function setPref(k, v) {
     prefs[k] = v; R.setPref(k, v);
     if (k === 'theme') { mountTheme(); closeSheetsSoon(); }
-    else if (k.indexOf('t.') === 0) mountTheme();
+    else if (k.indexOf('t.') === 0) { mountTheme(); renderPanelState(); }
     else { applyLook(); initParticles(); renderPanelState(); if (k === 'fx' && current.apps) current.apps(); }
   }
   function closeSheetsSoon() { setTimeout(function () { closeSheets(); }, 250); }
@@ -911,7 +921,7 @@
   // ================= API para Android (WebHome.java) =================
   window.RAV4 = {
     back: function () { if (!closeSheets() && prefs.theme === 'home') showHomePage(0); },
-    resume: function () { var p = $('#panel').classList.contains('open'); if (!p) closeSheets(); else renderPerms(); loadApps(); poll(); },
+    resume: function () { var p = $('#panel').classList.contains('open'); if (!p) closeSheets(); else renderPerms(); poll(); },
     appsChanged: loadApps
   };
 
@@ -958,7 +968,7 @@
       setPref: function (k, v) { store[k] = v; try { localStorage.setItem('rav4sim', JSON.stringify(store)); } catch (e) { } },
       resetTrip: function () { dist = 0; max = 0; moving = 0; }, checkUpdate: function () { toast('Simulado: buscar actualización'); },
       useNative: function () { toast('Simulado: volver a la interfaz nativa'); },
-      version: function () { return 'web-preview'; }, permission: function () { },
+      version: function () { return 'web-preview'; }, boot: function () { return '{"proc":-1,"page":120,"apps":300}'; }, permission: function () { },
       perms: function () {
         return JSON.stringify([['location', 'Ubicación (GPS)', 'Velocidad, viaje y rumbo'], ['storage', 'Almacenamiento', 'Grabar el bus CAN en el USB'],
           ['mic', 'Micrófono', 'Comandos de voz'], ['camera', 'Cámara', 'Cámara de retroceso / dashcam'], ['phone', 'Teléfono y contactos', 'Llamar desde el launcher'],
@@ -1001,13 +1011,10 @@
   window.addEventListener('resize', function () { scale(); if (current && current.apps) current.apps(); });
   bindSlider('#volSlider', 'vol');
   bindSlider('#brSlider', 'br');
-  try { apps = JSON.parse(R.apps()) || []; } catch (e) { apps = []; }
-  apps.sort(function (a, b) { return a.label.localeCompare(b.label, 'es'); });
-  poll();
+  // Primero la pantalla; lo demás (apps, datos) llega después y se completa solo.
   mountTheme();
-  setInterval(poll, 500);
-  requestAnimationFrame(frame);
-  if (R.ready) R.ready();
+  requestAnimationFrame(function () { if (R.ready) R.ready(); });
+  setTimeout(function () { loadApps(); poll(); setInterval(poll, 500); requestAnimationFrame(frame); }, 0);
   if (params.rec) { step = +params.step || 1; showStep(); }
   if (params.panel) openSheet('panel');
   if (params.drawer) openSheet('drawer');

@@ -103,6 +103,11 @@ public class HomeActivity extends Activity {
         }
     };
 
+    /** Se instaló o quitó una app: solo entonces se rehace la lista (antes se releía en cada vuelta a Inicio). */
+    private final android.content.BroadcastReceiver packagesRx = new android.content.BroadcastReceiver() {
+        public void onReceive(Context c, Intent i) { if (web != null) web.appsChanged(); }
+    };
+
     private final android.content.BroadcastReceiver voltageRx = new android.content.BroadcastReceiver() {
         public void onReceive(Context c, Intent i) {
             int raw = i.getIntExtra("extra_voltage_value", -1);
@@ -125,12 +130,23 @@ public class HomeActivity extends Activity {
         prefs = getSharedPreferences("rav4", MODE_PRIVATE);
         loadSets();
         applyTheme();
-        if (Build.VERSION.SDK_INT >= 23)
-            requestPermissions(new String[]{"android.permission.ACCESS_FINE_LOCATION"}, 1);
-        startGps();
-        try { registerReceiver(voltageRx, new android.content.IntentFilter("com.nwd.action.ACTION_CAN_BATTERY_VOLTAGE")); } catch (Exception e) { }
-        try { registerReceiver(uninstallRx, new android.content.IntentFilter("com.nwd.action.ACTION_SILENT_UNINSTALL_APK_RESULT")); } catch (Exception e) { }
-        tick.run();
+        // Lo demás después del primer cuadro: que la pantalla aparezca primero.
+        h.post(new Runnable() {
+            public void run() {
+                if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission("android.permission.ACCESS_FINE_LOCATION") != PackageManager.PERMISSION_GRANTED)
+                    requestPermissions(new String[]{"android.permission.ACCESS_FINE_LOCATION"}, 1);
+                startGps();
+                try { registerReceiver(voltageRx, new android.content.IntentFilter("com.nwd.action.ACTION_CAN_BATTERY_VOLTAGE")); } catch (Exception e) { }
+                try { registerReceiver(uninstallRx, new android.content.IntentFilter("com.nwd.action.ACTION_SILENT_UNINSTALL_APK_RESULT")); } catch (Exception e) { }
+                android.content.IntentFilter pf = new android.content.IntentFilter();
+                pf.addAction(Intent.ACTION_PACKAGE_ADDED);
+                pf.addAction(Intent.ACTION_PACKAGE_REMOVED);
+                pf.addAction(Intent.ACTION_PACKAGE_CHANGED);
+                pf.addDataScheme("package");
+                try { registerReceiver(packagesRx, pf); } catch (Exception e) { }
+                tick.run();
+            }
+        });
     }
 
     @Override

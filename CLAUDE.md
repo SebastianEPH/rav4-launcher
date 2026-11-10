@@ -95,6 +95,12 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
   en un hilo aparte cada 500 ms). Nada de leer sensores/archivos en cada consulta (CPU cada 15 s, perfil CAN cada 10 s).
   En CSS: sin `filter: blur` en fondos (la aurora usa degradados radiales) y `backdrop-filter` solo con Efectos "Altos";
   por defecto los efectos son "Suaves".
+- **Arranque rápido**: `WebHome` pone un reloj nativo encima del WebView al instante y lo quita con fundido cuando
+  la página llama `Radio.ready()` (primer cuadro). La lista de apps se arma en segundo plano (solo nombres) y se
+  rehace solo al instalar/quitar apps (broadcast de paquetes) o al fijar/ocultar, no en cada vuelta a Inicio.
+  Los íconos se sirven por `https://rav4.local/icon/<clave>?v=<lastUpdateTime>` (shouldInterceptRequest, caché en
+  `cache/icons`), en paralelo. El Panel se arma recién al abrirlo (barra de carga) y los permisos al final.
+  El servicio CAN se conecta solo cuando la página lo pide. El Panel muestra los tiempos de arranque medidos.
 - **Permisos**: Android no permite "permiso total". Panel → Permisos (y ⚙ Ajustes → "Permisos (darlos todos)")
   pide **todos** los útiles (lista `HomeActivity.PERMS` con su "para qué"): ubicación, almacenamiento, micrófono,
   cámara, teléfono/contactos, ajustes del sistema, instalar apps, notificaciones (`MediaListener`), mostrar encima,
