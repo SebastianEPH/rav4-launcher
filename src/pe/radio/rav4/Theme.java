@@ -111,11 +111,11 @@ public class Theme {
             p.fontBold = Typeface.create("sans-serif-medium", Typeface.NORMAL);
             p.radius = 28;
             if (dark) {
-                p.bg = 0xFF0B1426; p.bg2 = 0xFF2B1747; p.panel = 0x2EFFFFFF; p.border = 0x26FFFFFF;
+                p.bg = 0xFF0B1426; p.bg2 = 0xFF2B1747; p.panel = 0x73141418; p.border = 0x1FFFFFFF;
                 p.text = 0xFFFFFFFF; p.dim = 0xA6FFFFFF; p.accent = 0xFF0A84FF;
                 p.ok = 0xFF30D158; p.warn = 0xFFFF9F0A; p.err = 0xFFFF453A; p.track = 0x33FFFFFF; p.iconBg = 0xFF2C2C2E;
             } else {
-                p.bg = 0xFFCFE0F5; p.bg2 = 0xFFF2DCEB; p.panel = 0xB8FFFFFF; p.border = 0x80FFFFFF;
+                p.bg = 0xFFCFE0F5; p.bg2 = 0xFFF2DCEB; p.panel = 0xA6FFFFFF; p.border = 0x99FFFFFF;
                 p.text = 0xFF000000; p.dim = 0x993C3C43; p.accent = 0xFF007AFF;
                 p.ok = 0xFF34C759; p.warn = 0xFFFF9500; p.err = 0xFFFF3B30; p.track = 0x1F000000; p.iconBg = 0xFFFFFFFF;
             }

@@ -573,6 +573,38 @@ public class Views {
     }
 
     /** Fondo de pantalla dibujado (original): "ondas", "noche", "atardecer" o "rav4". */
+    /** Fondo propio inspirado en los fondos de iPhone/CarPlay: manchas de color grandes y difusas (no es una imagen de Apple). */
+    public static class IosWall extends View {
+        private static android.graphics.Bitmap cache; private static boolean cacheDark;
+        public IosWall(Context c) { super(c); }
+        @Override protected void onDraw(Canvas c) {
+            int w = getWidth(), h = getHeight();
+            if (w == 0) return;
+            boolean dark = Theme.P.dark;
+            if (cache == null || cacheDark != dark) {
+                int bw = 160, bh = Math.max(1, 160 * h / w);
+                android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(bw, bh, android.graphics.Bitmap.Config.ARGB_8888);
+                Canvas k = new Canvas(b);
+                k.drawColor(dark ? 0xFF05060F : 0xFFF3F1FA);
+                Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+                int[][] blobs = dark
+                        ? new int[][]{{0xFF1E3AFF, 20, 20, 90}, {0xFF8A2BE2, 120, 15, 80}, {0xFFFF4F7B, 140, 95, 70}, {0xFF00B3A4, 30, 100, 75}, {0xFFFF9F0A, 85, 70, 40}}
+                        : new int[][]{{0xFF8FB4FF, 20, 20, 90}, {0xFFD7B4FF, 120, 15, 80}, {0xFFFFB3C7, 140, 95, 70}, {0xFF9FE8DC, 30, 100, 75}, {0xFFFFD99A, 85, 70, 40}};
+                for (int[] bl : blobs) {
+                    float x = bl[1] * bw / 160f, y = bl[2] * bh / 100f, r = bl[3] * bw / 160f;
+                    p.setShader(new android.graphics.RadialGradient(x, y, r, bl[0], bl[0] & 0x00FFFFFF, Shader.TileMode.CLAMP));
+                    k.drawCircle(x, y, r, p);
+                }
+                p.setShader(null);
+                p.setColor(dark ? 0x40000000 : 0x26FFFFFF);
+                k.drawRect(0, 0, bw, bh, p);
+                cache = b; cacheDark = dark;
+            }
+            Paint fp = new Paint(Paint.FILTER_BITMAP_FLAG);
+            c.drawBitmap(cache, null, new RectF(0, 0, w, h), fp);
+        }
+    }
+
     public static class Wallpaper extends View {
         private final String style;
         private final android.graphics.Bitmap photo;

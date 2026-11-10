@@ -251,6 +251,7 @@ public class HomeActivity extends Activity {
                 ? new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{P.bg, P.bg2, P.bg3})
                 : new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{P.bg, P.bg2});
         root.setBackground(wall);
+        if (P.glass && !P.dusk && !P.cockpit && !P.home) root.addView(new Views.IosWall(this));
         if (P.cockpit || P.home) {
             android.graphics.Bitmap photo = null;
             if ("rav4".equals(prefs.getString("wall", "ondas")))
@@ -1017,19 +1018,21 @@ public class HomeActivity extends Activity {
     }
 
     // ======================= TEMA GLASS (estilo iOS / CarPlay) =======================
+    /** Glass: inspirado en iPhone / CarPlay (fondo propio de manchas de color, barra lateral y widgets de vidrio). */
     private View buildGlass() {
         LinearLayout row = new LinearLayout(this);
-        row.setPadding(dp(14), dp(14), dp(14), dp(14));
 
-        // barra lateral tipo CarPlay
+        // barra lateral pegada al borde, como CarPlay: hora, apps, botón de todas las apps
         LinearLayout side = new LinearLayout(this);
         side.setOrientation(LinearLayout.VERTICAL);
         side.setGravity(Gravity.CENTER_HORIZONTAL);
-        side.setBackground(box(P.panel, P.border, P.radius));
-        side.setPadding(0, dp(14), 0, dp(14));
-        clock = txt("", 22, P.text);
+        side.setBackgroundColor(P.dark ? 0x8C000000 : 0x8CFFFFFF);
+        side.setPadding(0, dp(16), 0, dp(14));
+        clock = txt("", 17, P.text);
         clock.setTypeface(P.fontBold);
-        side.addView(clock);
+        clock.setGravity(Gravity.CENTER);
+        clock.setSingleLine(true);
+        side.addView(clock, new LinearLayout.LayoutParams(-1, -2));
         chips = txt("", 11, P.dim);
         chips.setGravity(Gravity.CENTER);
         side.addView(chips);
@@ -1037,32 +1040,34 @@ public class HomeActivity extends Activity {
         dock.setOrientation(LinearLayout.VERTICAL);
         dock.setGravity(Gravity.CENTER_HORIZONTAL);
         LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(-1, 0, 1f);
-        dlp.topMargin = dp(10);
+        dlp.topMargin = dp(8);
         side.addView(dock, dlp);
-        row.addView(side, new LinearLayout.LayoutParams(dp(124), -1));
+        TextView grid = txt("▦", 26, P.text);
+        grid.setGravity(Gravity.CENTER);
+        grid.setBackground(box(P.dark ? 0x33FFFFFF : 0x22000000, 0, 16));
+        grid.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { openDrawer(true); } });
+        side.addView(grid, new LinearLayout.LayoutParams(dp(60), dp(60)));
+        row.addView(side, new LinearLayout.LayoutParams(dp(108), -1));
 
-        // widgets
-        LinearLayout grid = new LinearLayout(this);
-        LinearLayout.LayoutParams gp = new LinearLayout.LayoutParams(0, -1, 1f);
-        gp.leftMargin = dp(14);
-        row.addView(grid, gp);
+        // widgets estilo "Dashboard" de CarPlay: uno grande a la izquierda y dos a la derecha
+        LinearLayout area = new LinearLayout(this);
+        area.setPadding(dp(18), dp(18), dp(18), dp(18));
+        row.addView(area, new LinearLayout.LayoutParams(0, -1, 1f));
 
-        // velocidad
         LinearLayout sp = gCard();
-        sp.addView(gTitle("Velocidad"));
+        sp.addView(gHead("⦿", "Velocidad", 0xFF0A84FF));
         gauge = new Views.Gauge(this);
         sp.addView(gauge, new LinearLayout.LayoutParams(-1, 0, 1f));
-        grid.addView(sp, weight(1f, dp(14)));
+        area.addView(sp, weight(1f, dp(16)));
 
         LinearLayout right = new LinearLayout(this);
         right.setOrientation(LinearLayout.VERTICAL);
-        grid.addView(right, new LinearLayout.LayoutParams(0, -1, 1.35f));
+        area.addView(right, new LinearLayout.LayoutParams(0, -1, 1.3f));
 
-        // auto
         LinearLayout car = gCard();
         LinearLayout head = new LinearLayout(this);
         head.setGravity(Gravity.CENTER_VERTICAL);
-        head.addView(gTitle("Mi RAV4"), new LinearLayout.LayoutParams(0, -2, 1f));
+        head.addView(gHead("◆", "Mi RAV4", 0xFF30D158), new LinearLayout.LayoutParams(0, -2, 1f));
         TextView reset = txt("Reiniciar", 14, P.accent);
         reset.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { resetTrip(); } });
         head.addView(reset);
@@ -1070,29 +1075,45 @@ public class HomeActivity extends Activity {
         car.addView(carImage(), new LinearLayout.LayoutParams(-1, 0, 1f));
         car.addView(tripRow(true));
         LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(-1, 0, 1.45f);
-        cl.bottomMargin = dp(14);
+        cl.bottomMargin = dp(16);
         addSlot(right, "glass.slot1", car, cl);
 
-        // fila inferior: fecha + gps
         LinearLayout bottom = new LinearLayout(this);
-        right.addView(bottom, new LinearLayout.LayoutParams(-1, 0, 0.8f));
+        right.addView(bottom, new LinearLayout.LayoutParams(-1, 0, 0.85f));
         LinearLayout dc = gCard();
         dc.setGravity(Gravity.CENTER_VERTICAL);
-        date = txt("", 16, P.err);
+        date = txt("", 15, P.err);
         date.setTypeface(P.fontBold);
         dc.addView(date);
-        TextView bigTime = txt("", 44, P.text);
+        TextView bigTime = txt("", 46, P.text);
         bigTime.setTypeface(Typeface_light());
         bigTime.setTag("bigclock");
         dc.addView(bigTime);
-        addSlot(bottom, "glass.slot2", dc, weight(1f, dp(14)));
+        addSlot(bottom, "glass.slot2", dc, weight(1f, dp(16)));
         LinearLayout gc = gCard();
-        gc.addView(gTitle("GPS"));
+        gc.addView(gHead("➤", "GPS", 0xFFFF9F0A));
         gnssMini = txt("", 15, P.text);
-        gnssMini.setLineSpacing(0, 1.2f);
-        gc.addView(gnssMini);
+        gnssMini.setLineSpacing(0, 1.25f);
+        LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(-1, -2);
+        gl.topMargin = dp(8);
+        gc.addView(gnssMini, gl);
         addSlot(bottom, "glass.slot3", gc, weight(1f, 0));
         return row;
+    }
+
+    /** Cabecera de widget estilo iOS: ícono en un cuadrito de color + título. */
+    private View gHead(String glyph, String title, int color) {
+        LinearLayout h = new LinearLayout(this);
+        h.setGravity(Gravity.CENTER_VERTICAL);
+        TextView ic = txt(glyph, 13, 0xFFFFFFFF);
+        ic.setGravity(Gravity.CENTER);
+        ic.setBackground(box(color, 0, 8));
+        h.addView(ic, new LinearLayout.LayoutParams(dp(26), dp(26)));
+        TextView t = txt(title, 16, P.text);
+        t.setTypeface(P.fontBold);
+        t.setPadding(dp(10), 0, 0, 0);
+        h.addView(t);
+        return h;
     }
 
     private android.graphics.Typeface Typeface_light() {
@@ -1103,6 +1124,7 @@ public class HomeActivity extends Activity {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
         c.setBackground(box(P.panel, P.border, P.radius));
+        c.setTag(R_CARD, "card");
         c.setPadding(dp(20), dp(16), dp(20), dp(16));
         c.setClipToPadding(true);
         return c;
@@ -1684,8 +1706,6 @@ public class HomeActivity extends Activity {
     /** Indicadores discretos de los gestos. */
     private View hints() {
         FrameLayout f = new FrameLayout(this);
-        TextView top = txt("︾", 14, (P.dim & 0x00FFFFFF) | 0x66000000);
-        f.addView(top, new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
         TextView left = txt("›", 30, (P.dim & 0x00FFFFFF) | 0x66000000);
         left.setPadding(dp(2), 0, 0, 0);
         f.addView(left, new FrameLayout.LayoutParams(-2, -2, Gravity.START | Gravity.CENTER_VERTICAL));
