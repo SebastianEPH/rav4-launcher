@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>RAV4 Launcher</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-theme="cockpit" data-fx="high" data-mode="dark">
+
+<div id="stage">
+  <!-- fondos animados por tema -->
+  <div id="bg">
+    <div class="aurora"><i></i><i></i><i></i><i></i></div>
+    <div class="sky">
+      <div class="stars"></div>
+      <div class="orb" id="orb"></div>
+      <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+    </div>
+    <div class="road"><div class="grid"></div><div class="horizon"></div></div>
+    <div class="crt"></div>
+    <canvas id="particles"></canvas>
+  </div>
+
+  <header id="status">
+    <div class="st-time"><b data-k="time">--:--</b><small class="ampm" data-k="ampm"></small><span data-k="dateShort"></span></div>
+    <div class="st-mid" id="stMid"></div>
+    <div class="st-icons">
+      <button class="recbadge" id="recBadge"><i></i>REC <b id="recTime">0:00</b><em id="recLn">0 líneas</em></button>
+      <span class="ico" data-on="gps" title="GPS"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg><em data-k="sats">—</em></span>
+      <span class="ico" data-on="bt" title="Bluetooth"><svg viewBox="0 0 24 24"><path d="M17.7 7.7 12 2h-1v7.6L6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l4.6-4.6V22h1l5.7-5.7-4.3-4.3 4.3-4.3zM13 5.8l1.9 1.9L13 9.6V5.8zm1.9 10.5L13 18.2v-3.8l1.9 1.9z"/></svg></span>
+      <span class="ico" data-on="wifi" title="WiFi"><svg viewBox="0 0 24 24"><path d="M12 21 0 8.6A17 17 0 0 1 24 8.6L12 21z"/></svg></span>
+      <span class="ico batt" data-on="batt" title="Batería del auto"><svg viewBox="0 0 24 24"><path d="M4 8h14a1 1 0 0 1 1 1v1h1.5v4H19v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/></svg><em data-k="battV">—</em></span>
+    </div>
+  </header>
+
+  <aside id="dock"></aside>
+  <main id="view"></main>
+  <div id="edgeHint"></div>
+</div>
+
+<!-- cajón de apps (derecha) -->
+<section id="drawer" class="sheet right">
+  <div class="sheet-head">
+    <h2>Apps <small id="appCount"></small></h2>
+    <button class="chip" id="showHidden">Ver ocultas</button>
+    <button class="close" data-close>✕</button>
+  </div>
+  <div class="sheet-body"><div class="app-grid" id="appGrid"></div></div>
+  <p class="tip">Mantén presionada una app para fijarla en el dock, ocultarla o desinstalarla.</p>
+</section>
+
+<div id="scrim"></div>
+<div id="toast"></div>
+<div id="recFrame"></div>
+
+<!-- prueba guiada mientras se graba el bus CAN -->
+<section id="recGuide" class="recg">
+  <div class="recg-top"><span class="dot"></span><b>Grabando bus CAN</b><span id="rgTime">0:00</span><span id="rgSync" class="sync"></span>
+    <button id="rgMin" class="mini-btn" aria-label="Minimizar">–</button></div>
+  <div class="recg-body">
+    <p class="step-n" id="rgN">Paso 1 de 17</p>
+    <h3 id="rgStep">Espera 10 segundos sin tocar nada</h3>
+    <p class="step-h" id="rgHint"></p>
+    <div class="recg-bar"><i id="rgBar"></i></div>
+    <div class="recg-actions">
+      <button class="ghost" id="rgSkip">Saltar</button>
+      <button class="primary" id="rgDone">Hecho ✓</button>
+    </div>
+    <button class="stop" id="rgStop">■ Terminar y guardar</button>
+  </div>
+</section>
+
+<!-- resultado al detener -->
+<section id="recDone" class="recdone">
+  <div class="rd-card">
+    <div class="rd-icon"><div class="spin"></div><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>
+    <h3 id="rdTitle">Asegurando los datos en el USB…</h3>
+    <p id="rdText"></p>
+    <button class="primary" id="rdOk">Entendido</button>
+  </div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>
