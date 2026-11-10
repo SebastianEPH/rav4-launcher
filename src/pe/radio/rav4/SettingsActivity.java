@@ -114,7 +114,7 @@ public class SettingsActivity extends Activity {
 
     // ======================= construcción de la pantalla =======================
     // Pestañas (se cambian tocándolas o deslizando a los lados)
-    private static final String[] TABS = {"General", "Brillo", "Apps", "Permisos", "Sistema"};
+    private static final String[] TABS = {"General", "Tema actual", "Brillo", "Apps", "Permisos", "Sistema"};
     private static int tab = 0;
     private LinearLayout tabBar;
 
@@ -139,9 +139,10 @@ public class SettingsActivity extends Activity {
         renderTabs();
         content.removeAllViews();
         if (tab == 0) tabGeneral();
-        else if (tab == 1) tabBrillo();
-        else if (tab == 2) tabApps();
-        else if (tab == 3) { section("Permisos"); content.addView(permsCard()); }
+        else if (tab == 1) tabTema();
+        else if (tab == 2) tabBrillo();
+        else if (tab == 3) tabApps();
+        else if (tab == 4) { section("Permisos"); content.addView(permsCard()); }
         else tabSistema();
     }
 
@@ -169,13 +170,104 @@ public class SettingsActivity extends Activity {
                 new String[]{"Altos", "Suaves", "No"}, new String[]{"high", "low", "off"}, "low"));
         content.addView(ap);
 
-        section("Velocímetro y animaciones");
-        LinearLayout va = card();
-        va.addView(segRow("Tamaño del velocímetro (Cockpit)", null, "cockpit.size",
-                new String[]{"Pequeño", "Mediano", "Grande"}, new String[]{"s", "m", "l"}, "m"));
-        va.addView(segRow("Animaciones", "Carretera, estela de la aguja, barrido al encender", "native.anim",
+    }
+
+    // ---- pestaña "Tema actual": opciones propias del tema elegido ----
+    static final String[] CARD_LABELS = {"Viaje", "Batería", "GPS", "Música", "Rumbo + calle", "Altitud y pendiente",
+            "0–100 y fuerza G", "Accesos (CarPlay, mapas)", "Controles (volumen, brillo)", "Reloj grande"};
+    static final String[] CARD_VALUES = {"trip", "batt", "gps", "music", "compass", "alt", "accel", "shortcuts", "controls", "clock"};
+
+    private void tabTema() {
+        String th = prefs.getString("theme", "cockpit");
+        boolean cock = "cockpit".equals(th) || "auto".equals(th);
+        String name = "terminal".equals(th) ? "Terminal" : "glass".equals(th) ? "Glass" : "dusk".equals(th) ? "Dusk"
+                : "home".equals(th) ? "Inicio" : "Cockpit";
+        section("Tema " + name);
+        if (cock) {
+            LinearLayout g = card();
+            g.addView(segRow("Tamaño del velocímetro", null, "cockpit.size",
+                    new String[]{"Pequeño", "Mediano", "Grande"}, new String[]{"s", "m", "l"}, "m"));
+            g.addView(segRow("Velocidad máxima del velocímetro", null, "web.t.cockpit.scale",
+                    new String[]{"160", "180", "200", "220"}, new String[]{"160", "180", "200", "220"}, "180"));
+            g.addView(segRow("Fondo", null, "wall",
+                    new String[]{"Ondas", "Noche", "Atardecer", "Mi RAV4"}, new String[]{"ondas", "noche", "atardecer", "rav4"}, "ondas"));
+            content.addView(g);
+            section("Tarjetas (qué se muestra en cada espacio)");
+            LinearLayout t = card();
+            t.addView(slotPicker("Arriba (ancha)", "cockpit.slot1", "trip"));
+            t.addView(slotPicker("Medio · izquierda", "cockpit.slot2", "batt"));
+            t.addView(slotPicker("Medio · derecha", "cockpit.slot3", "gps"));
+            t.addView(slotPicker("Abajo (ancha)", "cockpit.slot4", "music"));
+            content.addView(t);
+        } else {
+            LinearLayout g = card();
+            g.addView(tv("Las tarjetas configurables están por ahora en el tema Cockpit. Pronto llegarán a este tema.", 14, DIM));
+            ((View) g.getChildAt(0)).setPadding(dp(14), dp(14), dp(14), dp(14));
+            if ("home".equals(th)) g.addView(segRow("Fondo", null, "wall",
+                    new String[]{"Ondas", "Noche", "Atardecer", "Mi RAV4"}, new String[]{"ondas", "noche", "atardecer", "rav4"}, "ondas"));
+            content.addView(g);
+        }
+        section("Animaciones");
+        LinearLayout a = card();
+        a.addView(segRow("Animaciones", "Carretera, estela de la aguja, barrido al encender", "native.anim",
                 new String[]{"Sí", "No"}, new String[]{"on", "off"}, "on"));
-        content.addView(va);
+        a.addView(boolRow("Entrada de tarjetas", "Aparecen deslizándose al volver a Inicio", "anim.cards"));
+        a.addView(boolRow("Números que ruedan", "Velocidad, voltaje y km cuentan en vez de saltar", "anim.roll"));
+        content.addView(a);
+    }
+
+    private LinearLayout boolRow(String label, String desc, final String key) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(14), dp(12), dp(14), dp(12));
+        LinearLayout txt = new LinearLayout(this);
+        txt.setOrientation(LinearLayout.VERTICAL);
+        txt.addView(tv(label, 16, TXT));
+        txt.addView(tv(desc, 12, DIM));
+        row.addView(txt, new LinearLayout.LayoutParams(0, -2, 1f));
+        final boolean on = prefs.getBoolean(key, true);
+        LinearLayout seg = new LinearLayout(this);
+        GradientDrawable bg = new GradientDrawable(); bg.setColor(SOFT); bg.setCornerRadius(dp(12));
+        seg.setBackground(bg); seg.setPadding(dp(3), dp(3), dp(3), dp(3));
+        for (int i = 0; i < 2; i++) {
+            final boolean v = i == 0;
+            TextView b = tv(v ? "Sí" : "No", 14, v == on ? 0xFFFFFFFF : TXT);
+            b.setPadding(dp(14), dp(9), dp(14), dp(9));
+            if (v == on) { GradientDrawable sg = new GradientDrawable(); sg.setColor(ACC); sg.setCornerRadius(dp(10)); b.setBackground(sg); }
+            b.setOnClickListener(new View.OnClickListener() { public void onClick(View x) { prefs.edit().putBoolean(key, v).apply(); touch(); rebuild(); } });
+            seg.addView(b);
+        }
+        row.addView(seg);
+        return row;
+    }
+
+    /** Selector de tarjeta: título y una cuadrícula de opciones (5 por fila). */
+    private LinearLayout slotPicker(String label, final String key, String def) {
+        LinearLayout w = new LinearLayout(this);
+        w.setOrientation(LinearLayout.VERTICAL);
+        w.setPadding(dp(14), dp(12), dp(14), dp(12));
+        w.addView(tv(label, 16, TXT));
+        android.widget.GridLayout g = new android.widget.GridLayout(this);
+        g.setColumnCount(5);
+        String cur = prefs.getString(key, def);
+        for (int i = 0; i < CARD_VALUES.length; i++) {
+            final String val = CARD_VALUES[i];
+            boolean on = val.equals(cur);
+            TextView b = tv(CARD_LABELS[i], 14, on ? 0xFFFFFFFF : TXT);
+            b.setGravity(Gravity.CENTER);
+            b.setSingleLine(true);
+            b.setPadding(dp(8), dp(12), dp(8), dp(12));
+            GradientDrawable sg = new GradientDrawable(); sg.setColor(on ? ACC : SOFT); sg.setCornerRadius(dp(10));
+            b.setBackground(sg);
+            b.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { prefs.edit().putString(key, val).apply(); touch(); rebuild(); } });
+            android.widget.GridLayout.LayoutParams lp = new android.widget.GridLayout.LayoutParams(
+                    android.widget.GridLayout.spec(i / 5), android.widget.GridLayout.spec(i % 5, 1f));
+            lp.width = 0;
+            lp.setMargins(dp(3), dp(6), dp(3), 0);
+            g.addView(b, lp);
+        }
+        w.addView(g, new LinearLayout.LayoutParams(-1, -2));
+        return w;
     }
 
     private void tabBrillo() {

@@ -236,6 +236,7 @@ public class HomeActivity extends Activity {
             dock = null; drawer = null; cc = null; settings = null; homeGrid = null;
             volLabel = brLabel = null; gauge = null; spark = null; clock = date = prompt = chips = sysPanel = gnssMini = null;
             tDist = tTime = tAvg = tMax = null; cockGauge = null; cockRoad = null; cockCompass = null; cockBattBar = null; tripBig = tripSub = cockBattV = cockBattState = cockSats = cockGpsSub = null; cockGauge = null; cockRoad = null; cockCompass = null; cockBattBar = null; tripBig = tripSub = cockBattV = cockBattState = cockSats = cockGpsSub = null;
+            cmpBig = null; cmpDir = cmpStreet = altTxt = altSub = accTxt = accSub = ctlVol = ctlBr = null; altLine = null; bigClocks.clear();
             if (web == null) web = new WebHome(this);
             setContentView(web.view());
             immersive();
@@ -257,7 +258,10 @@ public class HomeActivity extends Activity {
                         getResources().getIdentifier("rav4", "drawable", getPackageName()));
             root.addView(new Views.Wallpaper(this, prefs.getString("wall", "ondas"), photo));
         }
-        root.addView(P.home ? buildHome() : P.cockpit ? buildCockpit() : P.dusk ? buildDusk() : P.glass ? buildGlass() : buildTerminal());
+        View themeView = P.home ? buildHome() : P.cockpit ? buildCockpit() : P.dusk ? buildDusk() : P.glass ? buildGlass() : buildTerminal();
+        root.addView(themeView);
+        enterCards(themeView);
+        if (gauge != null && !gaugeSwept) { gaugeSwept = true; gauge.sweep(); }
         root.addView(hints());
         drawer = buildDrawer();
         drawer.setVisibility(View.GONE);
@@ -426,7 +430,7 @@ public class HomeActivity extends Activity {
 
     // ======================= TEMA COCKPIT (tarjetas tipo panel) =======================
     private TextView cockTopMid, cockTopBatt;
-    private static boolean bootAnimDone = false;
+    private static boolean bootAnimDone = false, gaugeSwept = false;
 
     private View buildCockpit() {
         final int ACC = 0xFF00E5FF;
@@ -506,75 +510,227 @@ public class HomeActivity extends Activity {
         rl.leftMargin = dp(12);
         row.addView(right, rl);
 
-        // viaje + brújula
-        LinearLayout tripCard = cockCard();
-        tripCard.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout tripTxt = new LinearLayout(this);
-        tripTxt.setOrientation(LinearLayout.VERTICAL);
-        tripTxt.addView(cockLabel("VIAJE"));
-        tripBig = txt("0.0 km", 30, cTxt());
-        tripBig.setTypeface(P.fontBold);
-        tripTxt.addView(tripBig);
-        tripSub = txt("", 13, cDim());
-        tripSub.setLineSpacing(0, 1.2f);
-        tripTxt.addView(tripSub);
-        tripCard.addView(tripTxt, new LinearLayout.LayoutParams(0, -1, 1f));
-        cockCompass = new Views.Compass(this);
-        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(dp(72), dp(72));
-        cl.gravity = Gravity.CENTER_VERTICAL;
-        tripCard.addView(cockCompass, cl);
-        right.addView(tripCard, vWeight(1f, true));
-
-        // batería + gps
+        // 4 espacios configurables (Ajustes Launcher → Tema actual)
+        right.addView(cockSlot(prefs.getString("cockpit.slot1", "trip")), vWeight(1f, true));
         LinearLayout r2 = new LinearLayout(this);
-        LinearLayout batt = cockCard();
-        batt.addView(cockLabel("BATERÍA"));
-        cockBattV = txt("—", 32, ACC);
-        cockBattV.setTypeface(P.fontBold);
-        batt.addView(cockBattV);
-        cockBattBar = new Views.Bar(this);
-        LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, dp(8));
-        bl.topMargin = dp(10);
-        batt.addView(cockBattBar, bl);
-        cockBattState = txt("", 12, cDim());
-        cockBattState.setPadding(0, dp(6), 0, 0);
-        batt.addView(cockBattState);
-        r2.addView(batt, hWeight(1f, true));
-
-        LinearLayout gps = cockCard();
-        gps.addView(cockLabel("GPS"));
-        cockSats = txt("—", 32, cTxt());
-        cockSats.setTypeface(P.fontBold);
-        gps.addView(cockSats);
-        cockGpsSub = txt("", 13, cDim());
-        cockGpsSub.setLineSpacing(0, 1.2f);
-        gps.addView(cockGpsSub);
-        r2.addView(gps, hWeight(1f, false));
+        r2.addView(cockSlot(prefs.getString("cockpit.slot2", "batt")), hWeight(1f, true));
+        r2.addView(cockSlot(prefs.getString("cockpit.slot3", "gps")), hWeight(1f, false));
         right.addView(r2, vWeight(1f, true));
-
-        // música
-        LinearLayout music = cockCard();
-        music.addView(cockLabel("MÚSICA"));
-        LinearLayout mc = new LinearLayout(this);
-        mc.setGravity(Gravity.CENTER);
-        TextView prevB = mediaBtn("⏮", android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS); prevB.setTextColor(cTxt());
-        mc.addView(prevB, new LinearLayout.LayoutParams(0, -2, 1f));
-        TextView play = txt("⏯", 30, 0xFFFFFFFF);
-        play.setGravity(Gravity.CENTER);
-        GradientDrawable pb = new GradientDrawable();
-        pb.setShape(GradientDrawable.OVAL);
-        pb.setColor(ACC);
-        play.setBackground(pb);
-        play.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { media(android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE); } });
-        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(dp(64), dp(64));
-        pl.leftMargin = pl.rightMargin = dp(20);
-        mc.addView(play, pl);
-        TextView nextB = mediaBtn("⏭", android.view.KeyEvent.KEYCODE_MEDIA_NEXT); nextB.setTextColor(cTxt());
-        mc.addView(nextB, new LinearLayout.LayoutParams(0, -2, 1f));
-        music.addView(mc, new LinearLayout.LayoutParams(-1, 0, 1f));
-        right.addView(music, vWeight(1f, false));
+        right.addView(cockSlot(prefs.getString("cockpit.slot4", "music")), vWeight(1f, false));
+        feedCockpitTrip();
+        feedCockpitLive();
         return wrap;
     }
+
+    // ---- tarjetas intercambiables del Cockpit ----
+    private Views.Compass cmpBig;
+    private TextView cmpDir, cmpStreet, altTxt, altSub, accTxt, accSub, ctlVol, ctlBr;
+    private Views.Line altLine;
+
+    private View cockSlot(String type) {
+        final int ACC = 0xFF00E5FF;
+        LinearLayout c = cockCard();
+        if ("batt".equals(type)) {
+            c.addView(cockLabel("BATERÍA"));
+            cockBattV = txt("—", 32, ACC); cockBattV.setTypeface(P.fontBold); c.addView(cockBattV);
+            cockBattBar = new Views.Bar(this);
+            LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, dp(8)); bl.topMargin = dp(10);
+            c.addView(cockBattBar, bl);
+            cockBattState = txt("", 12, cDim()); cockBattState.setPadding(0, dp(6), 0, 0); c.addView(cockBattState);
+        } else if ("gps".equals(type)) {
+            c.addView(cockLabel("GPS"));
+            cockSats = txt("—", 32, cTxt()); cockSats.setTypeface(P.fontBold); c.addView(cockSats);
+            cockGpsSub = txt("", 13, cDim()); cockGpsSub.setLineSpacing(0, 1.2f); c.addView(cockGpsSub);
+        } else if ("music".equals(type)) {
+            c.addView(cockLabel("MÚSICA"));
+            LinearLayout mc = new LinearLayout(this);
+            mc.setGravity(Gravity.CENTER);
+            TextView prevB = mediaBtn("⏮", android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS); prevB.setTextColor(cTxt());
+            mc.addView(prevB, new LinearLayout.LayoutParams(0, -2, 1f));
+            TextView play = txt("⏯", 30, 0xFFFFFFFF);
+            play.setGravity(Gravity.CENTER);
+            GradientDrawable pb = new GradientDrawable(); pb.setShape(GradientDrawable.OVAL); pb.setColor(ACC);
+            play.setBackground(pb);
+            play.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { media(android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE); } });
+            LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(dp(64), dp(64));
+            pl.leftMargin = pl.rightMargin = dp(20);
+            mc.addView(play, pl);
+            TextView nextB = mediaBtn("⏭", android.view.KeyEvent.KEYCODE_MEDIA_NEXT); nextB.setTextColor(cTxt());
+            mc.addView(nextB, new LinearLayout.LayoutParams(0, -2, 1f));
+            c.addView(mc, new LinearLayout.LayoutParams(-1, 0, 1f));
+        } else if ("compass".equals(type)) {
+            c.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout t = new LinearLayout(this); t.setOrientation(LinearLayout.VERTICAL);
+            t.addView(cockLabel("RUMBO"));
+            cmpDir = txt("—", 30, cTxt()); cmpDir.setTypeface(P.fontBold); t.addView(cmpDir);
+            cmpStreet = txt("", 13, cDim()); cmpStreet.setMaxLines(2); t.addView(cmpStreet);
+            c.addView(t, new LinearLayout.LayoutParams(0, -1, 1f));
+            cmpBig = new Views.Compass(this);
+            LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(dp(80), dp(80)); cl.gravity = Gravity.CENTER_VERTICAL;
+            c.addView(cmpBig, cl);
+        } else if ("alt".equals(type)) {
+            c.addView(cockLabel("ALTITUD"));
+            altTxt = txt("—", 28, cTxt()); altTxt.setTypeface(P.fontBold); c.addView(altTxt);
+            altSub = txt("", 12, cDim()); c.addView(altSub);
+            altLine = new Views.Line(this);
+            LinearLayout.LayoutParams ll = new LinearLayout.LayoutParams(-1, 0, 1f); ll.topMargin = dp(4);
+            c.addView(altLine, ll);
+        } else if ("accel".equals(type)) {
+            c.addView(cockLabel("0 – 100 KM/H"));
+            accTxt = txt("—", 30, ACC); accTxt.setTypeface(P.fontBold); c.addView(accTxt);
+            accSub = txt("", 12, cDim()); accSub.setLineSpacing(0, 1.2f); c.addView(accSub);
+            c.setOnLongClickListener(new View.OnLongClickListener() { public boolean onLongClick(View v) {
+                prefs.edit().remove("accel.best").apply(); accelBest = 0; gPeak = 0; feedCockpitLive(); return true; } });
+        } else if ("shortcuts".equals(type)) {
+            c.addView(cockLabel("ACCESOS"));
+            LinearLayout row = new LinearLayout(this);
+            row.setGravity(Gravity.CENTER);
+            int n = 0;
+            for (final ResolveInfo ri : shortcutApps()) {
+                if (n++ >= 4) break;
+                LinearLayout b = new LinearLayout(this);
+                b.setOrientation(LinearLayout.VERTICAL);
+                b.setGravity(Gravity.CENTER);
+                android.widget.ImageView iv = new android.widget.ImageView(this);
+                iv.setImageDrawable(appIcon(ri));
+                b.addView(iv, new LinearLayout.LayoutParams(dp(48), dp(48)));
+                TextView l = txt(shortName(ri), 11, cTxt()); l.setSingleLine(true); l.setGravity(Gravity.CENTER);
+                l.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                b.addView(l, new LinearLayout.LayoutParams(-1, -2));
+                b.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { start(ri); } });
+                row.addView(b, new LinearLayout.LayoutParams(0, -2, 1f));
+            }
+            if (n == 0) row.addView(txt("No encontré ZLINK, CarPlay ni mapas", 13, cDim()));
+            c.addView(row, new LinearLayout.LayoutParams(-1, 0, 1f));
+        } else if ("controls".equals(type)) {
+            c.addView(cockLabel("CONTROLES"));
+            LinearLayout g = new LinearLayout(this); g.setOrientation(LinearLayout.VERTICAL); g.setGravity(Gravity.CENTER);
+            LinearLayout a = new LinearLayout(this), b = new LinearLayout(this);
+            a.setGravity(Gravity.CENTER_VERTICAL); b.setGravity(Gravity.CENTER_VERTICAL);
+            ctlVol = txt("", 14, cTxt()); ctlBr = txt("", 14, cTxt());
+            a.addView(cBtn("🔉", new View.OnClickListener() { public void onClick(View v) { vol(-1); ctlLater(); } }));
+            a.addView(ctlVol, new LinearLayout.LayoutParams(0, -2, 1f)); ctlVol.setGravity(Gravity.CENTER);
+            a.addView(cBtn("🔊", new View.OnClickListener() { public void onClick(View v) { vol(1); ctlLater(); } }));
+            a.addView(cBtn("🔇", new View.OnClickListener() { public void onClick(View v) { mute(); ctlLater(); } }));
+            b.addView(cBtn("☀−", new View.OnClickListener() { public void onClick(View v) { bright(-1); ctlLater(); } }));
+            b.addView(ctlBr, new LinearLayout.LayoutParams(0, -2, 1f)); ctlBr.setGravity(Gravity.CENTER);
+            b.addView(cBtn("☀+", new View.OnClickListener() { public void onClick(View v) { bright(1); ctlLater(); } }));
+            b.addView(cBtn("⚙", new View.OnClickListener() { public void onClick(View v) { openLauncherSettings(); } }));
+            g.addView(a, new LinearLayout.LayoutParams(-1, -2));
+            LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, -2); bl.topMargin = dp(8);
+            g.addView(b, bl);
+            c.addView(g, new LinearLayout.LayoutParams(-1, 0, 1f));
+        } else if ("clock".equals(type)) {
+            c.setGravity(Gravity.CENTER);
+            TextView big = txt("", 40, cTxt()); big.setTypeface(P.fontBold); big.setGravity(Gravity.CENTER);
+            final TextView sub = txt("", 13, cDim()); sub.setGravity(Gravity.CENTER);
+            bigClocks.add(big); bigClocks.add(sub);
+            c.addView(big); c.addView(sub);
+        } else { // trip
+            c.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout tripTxt = new LinearLayout(this);
+            tripTxt.setOrientation(LinearLayout.VERTICAL);
+            tripTxt.addView(cockLabel("VIAJE"));
+            tripBig = txt("0.0 km", 30, cTxt()); tripBig.setTypeface(P.fontBold); tripTxt.addView(tripBig);
+            tripSub = txt("", 13, cDim()); tripSub.setLineSpacing(0, 1.2f); tripTxt.addView(tripSub);
+            c.addView(tripTxt, new LinearLayout.LayoutParams(0, -1, 1f));
+            cockCompass = new Views.Compass(this);
+            LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(dp(72), dp(72)); cl.gravity = Gravity.CENTER_VERTICAL;
+            c.addView(cockCompass, cl);
+        }
+        return c;
+    }
+
+    private final List<TextView> bigClocks = new ArrayList<TextView>();
+
+    private TextView cBtn(String t, View.OnClickListener l) {
+        TextView b = txt(t, 18, cTxt());
+        b.setGravity(Gravity.CENTER);
+        b.setBackground(box(P.dark ? 0x22FFFFFF : 0x14000000, 0, 14));
+        b.setOnClickListener(l);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(52), dp(46));
+        lp.leftMargin = dp(6);
+        b.setLayoutParams(lp);
+        return b;
+    }
+
+    private void ctlLater() { h.postDelayed(new Runnable() { public void run() { feedControls(); } }, 300); }
+
+    private void feedControls() {
+        if (ctlVol == null) return;
+        ctlVol.setText("Vol " + volNow());
+        try {
+            int b = android.provider.Settings.System.getInt(getContentResolver(), android.provider.Settings.System.SCREEN_BRIGHTNESS);
+            ctlBr.setText("Brillo " + Math.round(b * 100f / 255f) + "%");
+        } catch (Exception e) { ctlBr.setText("Brillo --"); }
+    }
+
+    /** CarPlay / Android Auto (ZLINK), proyección y mapas, para la tarjeta "Accesos". */
+    private List<ResolveInfo> shortcutApps() {
+        PackageManager pm = getPackageManager();
+        List<ResolveInfo> out = new ArrayList<ResolveInfo>(), maps = new ArrayList<ResolveInfo>();
+        for (ResolveInfo r : sorted(launchables())) {
+            String s = (r.activityInfo.packageName + " " + r.activityInfo.name + " " + r.loadLabel(pm)).toLowerCase(Locale.ROOT);
+            boolean proj = false;
+            for (String k : PROJECTION_KEYS) if (s.contains(k)) { proj = true; break; }
+            if (proj) out.add(r);
+            else if (s.contains("maps") || s.contains("waze") || s.contains("mapa") || s.contains("navi")) maps.add(r);
+        }
+        out.addAll(maps);
+        return out;
+    }
+
+    private String shortName(ResolveInfo r) {
+        String n = r.activityInfo.name.toLowerCase(Locale.ROOT);
+        if (n.contains("carplay")) return "CarPlay";
+        if (n.contains("hicar") || n.contains("androidauto") || n.contains("auto")) return "Android Auto";
+        return String.valueOf(r.loadLabel(getPackageManager()));
+    }
+
+    // aceleración (0-100) y altitud
+    private long accelT0 = 0; private float accelBest = 0, gNow = 0, gPeak = 0, lastAccKmh = 0; private long lastAccT = 0;
+    private float altLastDist = 0, altLastAlt = Float.NaN, grade = 0;
+    private Location geoAt; private String street = ""; private boolean geoBusy = false;
+
+    private void trackExtras(Location l, float kmh, long now) {
+        if (accelBest == 0) accelBest = prefs.getFloat("accel.best", 0);
+        if (kmh < 3) accelT0 = -1;
+        else if (accelT0 == -1) accelT0 = now;
+        if (accelT0 > 0 && kmh >= 100) {
+            float t = (now - accelT0) / 1000f;
+            if (accelBest == 0 || t < accelBest) { accelBest = t; prefs.edit().putFloat("accel.best", t).apply(); }
+            lastRun = t; accelT0 = 0;
+        }
+        if (lastAccT > 0 && now > lastAccT) {
+            float g = ((kmh - lastAccKmh) / 3.6f) / ((now - lastAccT) / 1000f) / 9.81f;
+            gNow = gNow * 0.6f + g * 0.4f;
+            if (Math.abs(gNow) > Math.abs(gPeak)) gPeak = gNow;
+        }
+        lastAccKmh = kmh; lastAccT = now;
+        if (l.hasAltitude()) {
+            float a = (float) l.getAltitude();
+            if (Float.isNaN(altLastAlt)) { altLastAlt = a; altLastDist = distM; }
+            else if (distM - altLastDist > 60) { grade = (a - altLastAlt) / (distM - altLastDist) * 100f; altLastAlt = a; altLastDist = distM; }
+            Views.Line.push(a);
+        }
+        if ((geoAt == null || geoAt.distanceTo(l) > 120) && !geoBusy && cmpStreet != null && android.location.Geocoder.isPresent()) {
+            geoBusy = true; geoAt = l;
+            final double la = l.getLatitude(), lo = l.getLongitude();
+            new Thread(new Runnable() { public void run() {
+                String s = "";
+                try {
+                    List<android.location.Address> a = new android.location.Geocoder(HomeActivity.this, new Locale("es")).getFromLocation(la, lo, 1);
+                    if (a != null && !a.isEmpty()) {
+                        android.location.Address ad = a.get(0);
+                        String st = ad.getThoroughfare(), dist = ad.getSubLocality() != null ? ad.getSubLocality() : ad.getLocality();
+                        s = (st != null ? st : "") + (dist != null ? (st != null ? "\n" : "") + dist : "");
+                    }
+                } catch (Exception e) { }
+                street = s; geoBusy = false;
+            } }).start();
+        }
+    }
+    private float lastRun = 0;
 
     private void media(int code) {
         android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
@@ -598,6 +754,7 @@ public class HomeActivity extends Activity {
         g.setStroke(1, 0x2900E5FF);
         c.setBackground(g);
         c.setPadding(dp(16), dp(14), dp(16), dp(14));
+        c.setTag(R_CARD, "card");
         return c;
     }
 
@@ -619,6 +776,7 @@ public class HomeActivity extends Activity {
         c.setBackground(box(P.panel, P.border, P.radius));
         c.setPadding(dp(14), dp(12), dp(14), dp(12));
         c.setClipToPadding(true);
+        c.setTag(R_CARD, "card");
         TextView t = txt(title, 13, color);
         t.setTypeface(P.fontBold);
         t.setSingleLine(true);
@@ -2364,6 +2522,7 @@ public class HomeActivity extends Activity {
         lastFix = now;
         curKmh = kmh;
         if (kmh > maxKmh) maxKmh = kmh;
+        trackExtras(l, kmh, now);
         feedGauge(kmh);
         feedGaugeSub(P.glass ? String.format(Locale.US, "%s · ±%.0f m", heading(l), l.getAccuracy())
                 : String.format(Locale.US, "hdg %s · ±%.0fm", heading(l), l.getAccuracy()));
@@ -2403,7 +2562,7 @@ public class HomeActivity extends Activity {
 
     private void feedCockpitTrip() {
         if (tripBig == null) return;
-        tripBig.setText(String.format(Locale.US, "%.1f km", distM / 1000f));
+        roll(tripBig, distM / 1000f, "%.1f km");
         float hrs = movingMs / 3600000f;
         String avg = hrs > 0.003f ? String.format(Locale.US, "%.0f", (distM / 1000f) / hrs) : "--";
         tripSub.setText(dur(movingMs) + " · prom. " + avg + " · máx. " + Math.round(maxKmh) + " km/h");
@@ -2413,10 +2572,13 @@ public class HomeActivity extends Activity {
     private void feedCockpitLive() {
         if (cockTopBatt != null) cockTopBatt.setText(batteryV >= 0 ? String.format(Locale.US, "%.1f V", batteryV) : "");
         if (cockTopMid != null) cockTopMid.setText(last != null ? "Rumbo " + heading(last) + String.format(Locale.US, " · %.0f m s. n. m.", last.getAltitude()) : (fresh() ? "" : "Buscando GPS…"));
-        if (cockBattV == null) return;
-        cockBattV.setText(batteryV >= 0 ? String.format(Locale.US, "%.1f V", batteryV) : "—");
+        feedExtras();
+        if (cockBattV != null) {
+        if (batteryV >= 0) roll(cockBattV, batteryV, "%.1f V"); else cockBattV.setText("—");
         cockBattState.setText(batteryV < 0 ? "Sin dato" : batteryV >= 13.3f ? "Cargando" : batteryV >= 12.4f ? "Bien" : batteryV >= 12.0f ? "Baja" : "Muy baja");
         if (cockBattBar != null) cockBattBar.setFraction(batteryV < 0 ? 0 : (batteryV - 11.6f) / (14.4f - 11.6f));
+        }
+        if (cockSats == null) return;
         cockSats.setText(satsUsed < 0 ? "—" : String.valueOf(satsUsed));
         if (last != null) {
             cockGpsSub.setText("sats " + (satsUsed < 0 ? "—" : satsUsed + "/" + satsSeen)
@@ -2424,6 +2586,67 @@ public class HomeActivity extends Activity {
             if (cockCompass != null && last.hasBearing()) cockCompass.setBearing(last.getBearing());
         } else cockGpsSub.setText("Buscando señal…");
     }
+
+    private void feedExtras() {
+        if (cmpDir != null) {
+            cmpDir.setText(last != null && last.hasBearing() ? heading(last) + String.format(Locale.US, " · %.0f°", last.getBearing()) : "—");
+            cmpStreet.setText(street.length() > 0 ? street : (last == null ? "Buscando GPS…" : android.location.Geocoder.isPresent() ? "Sin nombre de calle (requiere internet)" : "Esta radio no da nombres de calles"));
+            if (last != null && last.hasBearing()) cmpBig.setBearing(last.getBearing());
+        }
+        if (altTxt != null) {
+            if (last != null && last.hasAltitude()) roll(altTxt, (float) last.getAltitude(), "%.0f m"); else altTxt.setText("—");
+            altSub.setText(Math.abs(grade) < 0.5f ? "Plano" : String.format(Locale.US, "%s %.0f %% de pendiente", grade > 0 ? "▲ Subida" : "▼ Bajada", Math.abs(grade)));
+            altLine.invalidate();
+        }
+        if (accTxt != null) {
+            if (accelBest == 0) accelBest = prefs.getFloat("accel.best", 0);
+            float live = accelT0 > 0 ? (SystemClock.elapsedRealtime() - accelT0) / 1000f : 0;
+            accTxt.setText(live > 0 ? String.format(Locale.US, "%.1f s…", live) : lastRun > 0 ? String.format(Locale.US, "%.1f s", lastRun) : "Listo");
+            accSub.setText("Récord " + (accelBest > 0 ? String.format(Locale.US, "%.1f s", accelBest) : "—")
+                    + String.format(Locale.US, "\nFuerza %.2f G · pico %.2f G", gNow, gPeak) + "\nArranca desde 0 · mantén presionado para borrar");
+        }
+        feedControls();
+        if (!bigClocks.isEmpty() && clock != null) {
+            bigClocks.get(0).setText(clock.getText());
+            if (date != null) bigClocks.get(1).setText(date.getText());
+        }
+    }
+
+    /** "Números que ruedan": el valor llega contando en vez de saltar. */
+    private void roll(final TextView t, final float to, final String fmt) {
+        Object o = t.getTag();
+        float from = o instanceof Float ? (Float) o : to;
+        t.setTag(to);
+        if (!Views.anim || !prefs.getBoolean("anim.roll", true) || Math.abs(to - from) < 0.0001f) { t.setText(String.format(Locale.US, fmt, to)); return; }
+        android.animation.ValueAnimator va = android.animation.ValueAnimator.ofFloat(from, to);
+        va.setDuration(600);
+        va.addUpdateListener(new android.animation.ValueAnimator.AnimatorUpdateListener() {
+            public void onAnimationUpdate(android.animation.ValueAnimator a) { t.setText(String.format(Locale.US, fmt, (Float) a.getAnimatedValue())); }
+        });
+        va.start();
+    }
+
+    /** "Entrada de tarjetas": suben y aparecen una tras otra al armar el tema. */
+    private void enterCards(View root) {
+        if (!Views.anim || !prefs.getBoolean("anim.cards", true)) return;
+        List<View> cards = new ArrayList<View>();
+        collectCards(root, cards);
+        for (int i = 0; i < cards.size(); i++) {
+            View v = cards.get(i);
+            v.setAlpha(0f); v.setTranslationY(dp(26));
+            v.animate().alpha(1f).translationY(0).setStartDelay(80 + i * 70).setDuration(380)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(2f)).start();
+        }
+    }
+
+    private void collectCards(View v, List<View> out) {
+        if ("card".equals(v.getTag(R_CARD))) { out.add(v); return; }
+        if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) collectCards(g.getChildAt(i), out);
+        }
+    }
+    private static final int R_CARD = 0x7f0f0f01;
 
     // ======================= puente para la interfaz web (WebHome) =======================
     private boolean useWeb() { return "web".equals(prefs.getString("engine", "native")); }

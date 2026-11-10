@@ -62,8 +62,19 @@ public class Views {
 
         public Gauge(Context c) { super(c); }
 
-        public void setSpeed(float kmh) { target = Math.max(0, Math.min(max, kmh)); invalidate(); }
+        public void setSpeed(float kmh) {
+            float v = Math.max(0, Math.min(max, kmh));
+            if (sweeping) { pending = v; return; }
+            target = v; invalidate();
+        }
         public void setSub(String s) { sub = s; invalidate(); }
+        private boolean sweeping = false; private float pending = 0;
+        /** Barrido de aguja al encender (como el Cockpit). */
+        public void sweep() {
+            if (!anim) return;
+            pending = target; sweeping = true; target = max; invalidate();
+            postDelayed(new Runnable() { public void run() { sweeping = false; target = pending; invalidate(); } }, 750);
+        }
 
         @Override
         protected void onDraw(Canvas c) {
@@ -355,11 +366,22 @@ public class Views {
 
         public Bar(Context c) { super(c); }
 
-        public void setFraction(float f) { frac = Math.max(0, Math.min(1, f)); invalidate(); }
+        private float shownF = 0; private long pulseT = 0;
+        public void setFraction(float f) {
+            float n = Math.max(0, Math.min(1, f));
+            if (Math.abs(n - frac) > 0.005f) pulseT = android.os.SystemClock.uptimeMillis();
+            frac = n; if (!anim) shownF = frac; postInvalidateOnAnimation();
+        }
 
         @Override
         protected void onDraw(Canvas c) {
             float w = getWidth(), h = getHeight(), r = h / 2f;
+            // "barra viva": se llena con suavidad y brilla un momento al cambiar
+            float real = frac;
+            shownF += (real - shownF) * 0.12f;
+            if (Math.abs(real - shownF) < 0.002f) shownF = real; else postInvalidateOnAnimation();
+            long dt = android.os.SystemClock.uptimeMillis() - pulseT;
+            float frac = shownF;
             p.setShader(null);
             p.setColor(fg(0x1A));
             c.drawRoundRect(0, 0, w, h, r, r, p);
@@ -368,7 +390,41 @@ public class Views {
                 p.setShader(new LinearGradient(0, 0, fw, 0, COCK_ACC, COCK_ACC2, Shader.TileMode.CLAMP));
                 c.drawRoundRect(0, 0, fw, h, r, r, p);
                 p.setShader(null);
+                if (anim && dt < 900) {
+                    p.setColor(android.graphics.Color.argb((int) (120 * (1 - dt / 900f)), 255, 255, 255));
+                    c.drawRoundRect(0, 0, fw, h, r, r, p);
+                    postInvalidateOnAnimation();
+                }
             }
+        }
+    }
+
+    /** Línea de altitud (tarjeta Altitud del Cockpit). */
+    public static class Line extends View {
+        private static final float[] data = new float[90];
+        private static int n = 0;
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        public Line(Context c) { super(c); }
+        public static void push(float v) {
+            System.arraycopy(data, 1, data, 0, data.length - 1);
+            data[data.length - 1] = v; if (n < data.length) n++;
+        }
+        @Override protected void onDraw(Canvas c) {
+            if (n < 2) return;
+            float w = getWidth(), h = getHeight(), lo = Float.MAX_VALUE, hi = -Float.MAX_VALUE;
+            for (int i = data.length - n; i < data.length; i++) { lo = Math.min(lo, data[i]); hi = Math.max(hi, data[i]); }
+            if (hi - lo < 10) { float m = (hi + lo) / 2; lo = m - 5; hi = m + 5; }
+            android.graphics.Path path = new android.graphics.Path();
+            for (int i = 0; i < n; i++) {
+                float x = w * i / (n - 1), y = h - 2 - (data[data.length - n + i] - lo) / (hi - lo) * (h - 4);
+                if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
+            }
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(COCK_ACC);
+            c.drawPath(path, p);
+            path.lineTo(w, h); path.lineTo(0, h); path.close();
+            p.setStyle(Paint.Style.FILL);
+            p.setShader(new LinearGradient(0, 0, 0, h, (COCK_ACC & 0xFFFFFF) | 0x55000000, 0, Shader.TileMode.CLAMP));
+            c.drawPath(path, p); p.setShader(null);
         }
     }
 

@@ -134,6 +134,11 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 4. **Cockpit** — rehecho para quedar igual al de la interfaz web: carretera neón animada de fondo (`Views.CockpitRoad`),
    velocímetro con aguja, estela de velocidad y arco con degradado (`Views.CockpitGauge`), brújula (`Views.Compass`),
    y tarjetas Viaje / Batería (`Views.Bar`) / GPS / Música. Reemplazó al Cockpit viejo de tarjetas.
+   Los 4 espacios de tarjetas se eligen en **Ajustes Launcher → Tema actual** (`cockpit.slot1..4`, `HomeActivity.cockSlot`):
+   Viaje, Batería, GPS, Música, Rumbo + calle (Geocoder), Altitud y pendiente (`Views.Line`), 0–100 y fuerza G
+   (`accel.best`), Accesos (ZLINK/CarPlay/mapas: solo los abre, no se pueden incrustar en una tarjeta), Controles, Reloj grande.
+   Animaciones: barrido de aguja también en Glass/Dusk, números que ruedan (`anim.roll`), barra de voltaje viva,
+   entrada de tarjetas (`anim.cards`, tarjetas marcadas con tag `R_CARD`).
 5. **Inicio** — cuadrícula de íconos grandes con páginas (estilo pantalla de inicio iOS/CarPlay).
 
 Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto del auto).
