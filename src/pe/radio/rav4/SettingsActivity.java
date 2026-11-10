@@ -114,7 +114,7 @@ public class SettingsActivity extends Activity {
 
     // ======================= construcción de la pantalla =======================
     // Pestañas (se cambian tocándolas o deslizando a los lados)
-    private static final String[] TABS = {"General", "Tema actual", "Brillo", "Apps", "Permisos", "Sistema"};
+    private static final String[] TABS = {"General", "Tema actual", "Espectro", "Brillo", "Apps", "Permisos", "Sistema"};
     private static int tab = 0;
     private LinearLayout tabBar;
 
@@ -140,9 +140,10 @@ public class SettingsActivity extends Activity {
         content.removeAllViews();
         if (tab == 0) tabGeneral();
         else if (tab == 1) tabTema();
-        else if (tab == 2) tabBrillo();
-        else if (tab == 3) tabApps();
-        else if (tab == 4) { section("Permisos"); content.addView(permsCard()); }
+        else if (tab == 2) tabEspectro();
+        else if (tab == 3) tabBrillo();
+        else if (tab == 4) tabApps();
+        else if (tab == 5) { section("Permisos"); content.addView(permsCard()); }
         else tabSistema();
     }
 
@@ -231,7 +232,6 @@ public class SettingsActivity extends Activity {
             }
             content.addView(t);
         }
-        specSection();
         section("Animaciones");
         LinearLayout a = card();
         a.addView(segRow("Animaciones", "Carretera, estela de la aguja, barrido al encender", "native.anim",
@@ -280,10 +280,8 @@ public class SettingsActivity extends Activity {
             if ("gradient".equals(cur)) c.addView(colorRow("Color 2", "bg.color2", 0xFF3A1C71));
         }
         if ("photo".equals(cur)) c.addView(linkRow("Elegir otra imagen (galería o USB)", new View.OnClickListener() { public void onClick(View v) { pickBackground(); } }));
-        if ("spectrum".equals(cur)) {
-            c.addView(chipPicker("Estilo del espectro de fondo", "spec.bgStyle", "wave", SPEC_STYLE_LBL, SPEC_STYLES));
-            c.addView(chipPicker("Colores", "spec.colors", "neon", SPEC_PAL_LBL, SPEC_PALS));
-        }
+        if ("spectrum".equals(cur)) c.addView(linkRow("Elegir estilo y colores del espectro → pestaña Espectro", new View.OnClickListener() {
+            public void onClick(View v) { tab = 2; rebuild(); } }));
         c.addView(sliderIntRow("Oscurecer el fondo", "bg.dim", 0, 80, 0));
         content.addView(c);
     }
@@ -336,44 +334,87 @@ public class SettingsActivity extends Activity {
         ph.postDelayed(this, 60);
     } };
 
-    private void specSection() {
-        section("Espectro de audio (todas las tarjetas, fondo y tema Sonido)");
-        LinearLayout c = card();
-        // vista previa animada
-        LinearLayout pv = new LinearLayout(this);
-        pv.setPadding(dp(14), dp(12), dp(14), dp(4));
+    /** Pestaña Espectro: todo lo del espectro de audio en un solo lugar, separado en Tarjeta / Fondo / Colores / Sonido. */
+    private void tabEspectro() {
         float g = 1f; try { g = Float.parseFloat(prefs.getString("spec.gain", "1")); } catch (Exception e) { }
         Theme.P = Theme.fromPrefs(prefs); Views.anim = true;
-        prevA = new Views.Spectrum(this);
-        prevA.configure(prefs.getString("spec.style", "bars"), prefs.getString("spec.colors", "neon"), g);
-        prevA.setBackground(round(0xFF0B0B12));
-        pv.addView(prevA, new LinearLayout.LayoutParams(0, dp(150), 1f));
-        prevB = new Views.Spectrum(this);
-        prevB.configure(prefs.getString("spec.bgStyle", "wave"), prefs.getString("spec.colors", "neon"), g);
-        prevB.setBackground(round(0xFF0B0B12));
-        LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(0, dp(150), 1f); bl.leftMargin = dp(10);
-        pv.addView(prevB, bl);
-        c.addView(pv);
-        LinearLayout pl = new LinearLayout(this);
-        pl.setPadding(dp(14), 0, dp(14), 0);
-        TextView la = tv("Tarjetas", 12, DIM); TextView lb = tv("Fondo", 12, DIM);
-        pl.addView(la, new LinearLayout.LayoutParams(0, -2, 1f)); pl.addView(lb, new LinearLayout.LayoutParams(0, -2, 1f));
-        c.addView(pl);
-        ph.removeCallbacks(prevTick); ph.post(prevTick);
+        String pal = prefs.getString("spec.colors", "neon");
 
-        c.addView(chipPicker("Estilo de las tarjetas", "spec.style", "bars", SPEC_STYLE_LBL, SPEC_STYLES));
-        c.addView(chipPicker("Colores", "spec.colors", "neon", SPEC_PAL_LBL, SPEC_PALS));
-        c.addView(segRow("Sensibilidad", "Súbela si las barras se mueven poco", "spec.gain",
+        // 1) tarjeta
+        section("1 · Espectro en las tarjetas");
+        LinearLayout c1 = card();
+        prevA = new Views.Spectrum(this);
+        prevA.configure(prefs.getString("spec.style", "bars"), pal, g);
+        prevA.setBackground(round(0xFF0B0B12));
+        LinearLayout.LayoutParams pa = new LinearLayout.LayoutParams(-1, dp(170)); pa.setMargins(dp(14), dp(12), dp(14), dp(4));
+        c1.addView(prevA, pa);
+        c1.addView(chipPicker("Estilo de la tarjeta", "spec.style", "bars", SPEC_STYLE_LBL, SPEC_STYLES));
+        TextView n1 = tv("Para mostrar la tarjeta: pestaña Tema actual → Tarjetas → \"Espectro de audio\" en el espacio que quieras.", 13, DIM);
+        n1.setPadding(dp(14), 0, dp(14), dp(12));
+        c1.addView(n1);
+        content.addView(c1);
+
+        // 2) fondo
+        section("2 · Espectro de fondo");
+        LinearLayout c2 = card();
+        String mode = "spectrum".equals(prefs.getString("bg.kind", "theme")) ? "full" : "on".equals(prefs.getString("spec.bg", "off")) ? "over" : "off";
+        c2.addView(bgModeRow(mode));
+        prevB = new Views.Spectrum(this);
+        prevB.configure(prefs.getString("spec.bgStyle", "wave"), pal, g);
+        prevB.setBackground(round(0xFF0B0B12));
+        LinearLayout.LayoutParams pb = new LinearLayout.LayoutParams(-1, dp(170)); pb.setMargins(dp(14), dp(4), dp(14), dp(4));
+        c2.addView(prevB, pb);
+        c2.addView(chipPicker("Estilo del fondo", "spec.bgStyle", "wave", SPEC_STYLE_LBL, SPEC_STYLES));
+        c2.addView(sliderIntRow("Intensidad del fondo", "spec.bgAlpha", 10, 80, 35));
+        content.addView(c2);
+
+        // 3) colores
+        section("3 · Colores y sensibilidad (tarjeta y fondo)");
+        LinearLayout c3 = card();
+        c3.addView(chipPicker("Colores", "spec.colors", "neon", SPEC_PAL_LBL, SPEC_PALS));
+        c3.addView(segRow("Sensibilidad", "Súbela si se mueve poco con la música", "spec.gain",
                 new String[]{"Baja", "Normal", "Alta", "Máxima"}, new String[]{"0.7", "1", "1.4", "2"}, "1"));
-        c.addView(segRow("Espectro de fondo", "Detrás de cualquier tema, se mueve con la música", "spec.bg",
-                new String[]{"Sí", "No"}, new String[]{"on", "off"}, "off"));
-        if ("on".equals(prefs.getString("spec.bg", "off"))) {
-            c.addView(chipPicker("Estilo del fondo", "spec.bgStyle", "wave", SPEC_STYLE_LBL, SPEC_STYLES));
-            c.addView(sliderIntRow("Intensidad del fondo", "spec.bgAlpha", 10, 80, 35));
+        content.addView(c3);
+
+        // 4) tema Sonido
+        section("4 · Tema Sonido");
+        LinearLayout c4 = card();
+        c4.addView(segRow("Centro del tema Sonido", "El círculo grande con el volumen", "spec.soundUser",
+                new String[]{"Círculo", "Estilo de la tarjeta"}, new String[]{"off", "on"}, "off"));
+        content.addView(c4);
+        ph.removeCallbacks(prevTick); ph.post(prevTick);
+    }
+
+    /** No / Encima del fondo del tema / Como fondo completo (este último usa bg.kind=spectrum). */
+    private LinearLayout bgModeRow(String cur) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(14), dp(12), dp(14), dp(12));
+        LinearLayout t = new LinearLayout(this); t.setOrientation(LinearLayout.VERTICAL);
+        t.addView(tv("Mostrar de fondo", 16, TXT));
+        t.addView(tv("Encima: se ve sobre el fondo del tema · Completo: reemplaza el fondo", 12, DIM));
+        row.addView(t, new LinearLayout.LayoutParams(0, -2, 1f));
+        LinearLayout seg = new LinearLayout(this);
+        GradientDrawable bg = new GradientDrawable(); bg.setColor(SOFT); bg.setCornerRadius(dp(12));
+        seg.setBackground(bg); seg.setPadding(dp(3), dp(3), dp(3), dp(3));
+        String[] vals = {"off", "over", "full"}, lbl = {"No", "Encima", "Fondo completo"};
+        for (int i = 0; i < 3; i++) {
+            final String v = vals[i];
+            boolean on = v.equals(cur);
+            TextView b = tv(lbl[i], 14, on ? 0xFFFFFFFF : TXT);
+            b.setPadding(dp(14), dp(9), dp(14), dp(9));
+            if (on) { GradientDrawable sg = new GradientDrawable(); sg.setColor(ACC); sg.setCornerRadius(dp(10)); b.setBackground(sg); }
+            b.setOnClickListener(new View.OnClickListener() { public void onClick(View x) {
+                SharedPreferences.Editor e = prefs.edit();
+                e.putString("spec.bg", "over".equals(v) ? "on" : "off");
+                if ("full".equals(v)) e.putString("bg.kind", "spectrum");
+                else if ("spectrum".equals(prefs.getString("bg.kind", "theme"))) e.putString("bg.kind", "theme");
+                e.apply(); touch(); rebuild();
+            } });
+            seg.addView(b);
         }
-        if ("sound".equals(prefs.getString("theme", ""))) c.addView(segRow("Centro del tema Sonido", null, "spec.soundUser",
-                new String[]{"Círculo", "Estilo elegido"}, new String[]{"off", "on"}, "off"));
-        content.addView(c);
+        row.addView(seg);
+        return row;
     }
 
     private GradientDrawable round(int color) { GradientDrawable g = new GradientDrawable(); g.setColor(color); g.setCornerRadius(dp(12)); return g; }
