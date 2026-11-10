@@ -138,6 +138,10 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
 ### Reglas de UX acordadas con el usuario
 - Brillo: **nunca por debajo del 18 %** (`MIN_BRIGHTNESS=46/255`). Por debajo la pantalla se apaga.
   El launcher lo vigila cada segundo y lo corrige lo haya bajado quien lo haya bajado.
+- **Brillo automático por tramos** (Ajustes RAV4 → Brillo automático): pref `autobright` on/off y
+  `autobright.bands` = "hora:porcentaje,.." (ej. "7:90,19:55,22:25"). El tramo vigente es el de mayor hora ≤ ahora
+  (envuelve medianoche). `HomeActivity.applyAutoBrightness` lo aplica al cambiar de tramo (un ajuste manual dentro
+  del mismo tramo se respeta); nunca baja del 18 %.
 - El cajón de apps debe verse pulido (íconos grandes squircle, nombres, sin cajas grises).
 - Nada de círculos en los íconos (fue un rechazo explícito).
 - Controles y apps empiezan por la **izquierda**, lado del conductor.

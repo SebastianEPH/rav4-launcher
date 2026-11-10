@@ -53,9 +53,37 @@
       var k = seg.getAttribute('data-k'), v = get(k, seg.getAttribute('data-d') || defs[k] || '');
       $$('.seg[data-k="' + k + '"] button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); });
     });
+    document.body.setAttribute('data-ab', get('autobright', 'off'));
+    renderBands();
     $('#version').textContent = 'RAV4 Launcher ' + R.version();
     setTimeout(renderPerms, 30);
   }
+
+  function bandList() {
+    return get('autobright.bands', '7:90,19:55,22:25').split(',').map(function (b) {
+      var hp = b.split(':'); return { h: +hp[0], p: +hp[1] };
+    }).filter(function (b) { return !isNaN(b.h) && !isNaN(b.p); }).sort(function (a, b) { return a.h - b.h; });
+  }
+  function saveBands(list) {
+    list.sort(function (a, b) { return a.h - b.h; });
+    R.setPref('autobright.bands', list.map(function (b) { return b.h + ':' + b.p; }).join(','));
+  }
+  function renderBands() {
+    var list = bandList();
+    $('#bands').innerHTML = list.map(function (b, i) {
+      return '<div class="band" data-i="' + i + '"><div class="hr"><button data-bh="-1">−</button><em>' +
+        (b.h < 10 ? '0' + b.h : b.h) + ':00</em><button data-bh="1">+</button></div>' +
+        '<div class="br"><div class="lvl">Brillo <b>' + b.p + ' %</b></div><input type="range" min="18" max="100" value="' + b.p + '"></div>' +
+        '<button class="del" data-del="' + i + '"' + (list.length <= 1 ? ' style="visibility:hidden"' : '') + '>✕</button></div>';
+    }).join('');
+  }
+  document.addEventListener('input', function (e) {
+    if (e.target.type !== 'range' || !e.target.closest('.band')) return;
+    var i = +e.target.closest('.band').getAttribute('data-i'), list = bandList();
+    list[i].p = +e.target.value;
+    e.target.closest('.band').querySelector('.lvl b').textContent = list[i].p + ' %';
+    saveBands(list);
+  });
 
   function renderPerms() {
     var list = [];
@@ -79,6 +107,12 @@
       var p = el.getAttribute('data-h').split(':'), k = p[0] === 'from' ? 'web.darkFrom' : 'web.darkTo';
       set(k, String((+get(k, p[0] === 'from' ? '18' : '6') + +p[1] + 24) % 24)); return;
     }
+    if ((el = t.closest('[data-bh]'))) {
+      var bi = +el.closest('.band').getAttribute('data-i'), l = bandList();
+      l[bi].h = (l[bi].h + +el.getAttribute('data-bh') + 24) % 24; saveBands(l); renderBands(); return;
+    }
+    if (t.closest('#addBand')) { var l2 = bandList(); var used = l2.map(function (b) { return b.h; }); var nh = 12; while (used.indexOf(nh) >= 0) nh = (nh + 1) % 24; l2.push({ h: nh, p: 60 }); saveBands(l2); renderBands(); return; }
+    if ((el = t.closest('[data-del]'))) { var l3 = bandList(); if (l3.length > 1) { l3.splice(+el.getAttribute('data-del'), 1); saveBands(l3); renderBands(); } return; }
     if ((el = t.closest('[data-grant]'))) { R.grant(el.getAttribute('data-grant')); return; }
     if (t.closest('#all')) { R.grant('all'); return; }
     if ((el = t.closest('[data-act]'))) {
@@ -94,7 +128,7 @@
     try { st = JSON.parse(localStorage.getItem('rav4set') || '{}'); } catch (e) { }
     var ok = false;
     return {
-      pref: function (k, d) { return st[k] != null ? st[k] : d; },
+      pref: function (k, d) { if (k === 'autobright' && /ab/.test(location.search) && st[k] == null) return 'on'; return st[k] != null ? st[k] : d; },
       setPref: function (k, v) { st[k] = v; try { localStorage.setItem('rav4set', JSON.stringify(st)); } catch (e) { } },
       perms: function () {
         return JSON.stringify([['location', 'Ubicación (GPS)', 'Velocidad, viaje y rumbo'], ['storage', 'Almacenamiento', 'Grabar el bus CAN en el USB'],

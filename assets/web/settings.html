@@ -44,6 +44,16 @@
   .all:disabled { background: rgba(48,209,88,.15); color: #30d158; }
   .note { color: var(--dim); font-size: .82rem; margin: .6rem .4rem 0; line-height: 1.4; }
   .hide { display: none; }
+  .band { display: flex; align-items: center; background: var(--row); border-radius: 1.2rem; padding: .8rem 1rem; margin-bottom: .6rem; }
+  .band .hr { display: flex; align-items: center; flex: none; }
+  .band .hr button { width: 2.2rem; height: 2.2rem; border-radius: 50%; background: rgba(255,255,255,.1); font-size: 1.1rem; }
+  .band .hr em { width: 3.8rem; text-align: center; font-style: normal; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .band .br { flex: 1; margin: 0 1rem; }
+  .band .br .lvl { font-size: .82rem; color: var(--dim); margin-bottom: .2rem; }
+  .band .br .lvl b { color: #f2f4f8; }
+  .band input[type=range] { width: 100%; accent-color: var(--acc); }
+  .band .del { width: 2.4rem; height: 2.4rem; border-radius: 50%; background: rgba(255,69,58,.16); color: #ff6961; font-size: 1.2rem; flex: none; }
+  body:not([data-ab="on"]) #bandsWrap { display: none; }
 </style>
 </head>
 <body>
@@ -70,6 +80,16 @@
         <div class="seg" data-k="web.fx"><button data-v="high">Altos</button><button data-v="low">Suaves</button><button data-v="off">No</button></div></div>
       <div class="row nativeonly"><b>Fondo (Cockpit / Inicio)</b>
         <div class="seg" data-k="wall"><button data-v="ondas">Ondas</button><button data-v="noche">Noche</button><button data-v="atardecer">Atardecer</button><button data-v="rav4">Mi RAV4</button></div></div>
+    </div>
+    <h2>Brillo automático</h2>
+    <div class="box">
+      <div class="row"><b>Ajustar el brillo según la hora<small>El launcher sube o baja el brillo solo</small></b>
+        <div class="seg" data-k="autobright" data-d="off"><button data-v="on">Sí</button><button data-v="off">No</button></div></div>
+    </div>
+    <div id="bandsWrap">
+      <div id="bands"></div>
+      <button class="all" id="addBand" style="background:var(--row);color:var(--acc)">+ Agregar tramo</button>
+      <p class="note">Cada tramo rige desde su hora hasta el siguiente. Mínimo 18 % (por debajo la pantalla se apaga). Ej.: 7:00 → 90 %, 19:00 → 55 %, 22:00 → 25 %.</p>
     </div>
     <h2>Permisos</h2>
     <div class="box" id="perms"></div>

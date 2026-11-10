@@ -1065,6 +1065,41 @@ public class HomeActivity extends Activity {
         }
     }
 
+    private int lastAutoPct = -1;
+
+    /** Brillo automático por tramos horarios (pref "autobright" on/off, "autobright.bands" = "hora:porcentaje,..").
+     *  El tramo vigente es el de mayor hora <= ahora (con vuelta a medianoche). Se aplica solo al cambiar de
+     *  tramo, así un ajuste manual dentro del mismo tramo se respeta hasta la próxima frontera. */
+    private void applyAutoBrightness() {
+        if (!"on".equals(prefs.getString("autobright", "off"))) { lastAutoPct = -1; return; }
+        if (Build.VERSION.SDK_INT >= 23 && !android.provider.Settings.System.canWrite(this)) return;
+        int target = autoBrightnessFor(java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY));
+        if (target < 0 || target == lastAutoPct) return;
+        lastAutoPct = target;
+        int v = Math.max(MIN_BRIGHTNESS, Math.min(255, Math.round(target * 255f / 100f)));
+        try {
+            android.content.ContentResolver cr = getContentResolver();
+            android.provider.Settings.System.putInt(cr, android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE, 0);
+            android.provider.Settings.System.putInt(cr, android.provider.Settings.System.SCREEN_BRIGHTNESS, v);
+        } catch (Exception e) { }
+    }
+
+    /** Porcentaje de brillo del tramo que cubre la hora dada; -1 si no hay tramos definidos. */
+    private int autoBrightnessFor(int hour) {
+        String[] bands = prefs.getString("autobright.bands", "7:90,19:55,22:25").split(",");
+        int best = -1, bestHour = -1, lastPct = -1, lastHour = -1;
+        for (String band : bands) {
+            String[] hp = band.split(":");
+            if (hp.length != 2) continue;
+            try {
+                int bh = Integer.parseInt(hp[0].trim()), bp = Integer.parseInt(hp[1].trim());
+                if (bh > lastHour) { lastHour = bh; lastPct = bp; }   // tramo más tardío, por si ninguno cubre
+                if (bh <= hour && bh > bestHour) { bestHour = bh; best = bp; }
+            } catch (Exception e) { }
+        }
+        return best >= 0 ? best : lastPct;   // antes del primer tramo del día: aplica el último (envuelve medianoche)
+    }
+
     private void toggleMode() {
         prefs.edit().putString("mode", P.dark ? Theme.LIGHT : Theme.DARK).apply();
         applyTheme();
@@ -1930,6 +1965,8 @@ public class HomeActivity extends Activity {
         public void run() {
             if (web != null) {
                 enforceMinBrightness();
+            applyAutoBrightness();
+                applyAutoBrightness();
                 if ((SystemClock.elapsedRealtime() / 1000) % 3 == 0)
                     try { sendBroadcast(new Intent("com.nwd.action.ACTION_QUERY_CAN_BATTERY_VOLTAGE")); } catch (Exception e) { }
                 if (gpsOn && !fresh()) curKmh = 0;
