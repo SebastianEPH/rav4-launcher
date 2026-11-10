@@ -302,6 +302,7 @@ public class HomeActivity extends Activity {
         // en el resto va detrás de todo el tema
         if (!bgSpecAdded && "on".equals(prefs.getString("spec.bg", "off"))) root.addView(bgSpec(), new FrameLayout.LayoutParams(-1, -1));
         root.addView(themeView);
+        applyFocus(themeView);
         enterCards(themeView);
         if (!specs.isEmpty()) startViz();
         if (gauge != null && startupPlayed) gauge.sweep();
@@ -3328,6 +3329,39 @@ public class HomeActivity extends Activity {
             public void onAnimationUpdate(android.animation.ValueAnimator a) { t.setText(String.format(Locale.US, fmt, (Float) a.getAnimatedValue())); }
         });
         va.start();
+    }
+
+    /**
+     * Difuminado focalizado (Ajustes → General → Apariencia → "Resaltar textos sobre el fondo"):
+     * halo suave detrás de cada texto y disco difuminado detrás de los velocímetros. "Automático" se activa
+     * cuando la intensidad de las tarjetas está bajo 70 % o el fondo es animado/foto.
+     */
+    private void applyFocus(View root) {
+        String m = prefs.getString("focus.mode", "auto");
+        float f;
+        if ("off".equals(m)) f = 0;
+        else if ("soft".equals(m)) f = 0.45f;
+        else if ("strong".equals(m)) f = 0.8f;
+        else {
+            boolean busyBg = !"theme".equals(prefs.getString("bg.kind", "theme")) || "on".equals(prefs.getString("spec.bg", "off")) || P.cockpit;
+            f = P.cardAlpha < 0.7f ? 0.6f : busyBg ? 0.35f : 0;
+        }
+        Views.focus = f;
+        Views.focusColor = P.dark ? 0xFF000000 : 0xFFFFFFFF;
+        if (cockGauge != null) cockGauge.invalidate();
+        if (gauge != null) gauge.invalidate();
+        if (f <= 0) return;
+        shadowTexts(root, dp(Math.round(2 + 6 * f)), ((int) (255 * Math.min(1f, f + 0.25f)) << 24) | (P.dark ? 0x000000 : 0xFFFFFF));
+    }
+
+    private void shadowTexts(View v, float r, int col) {
+        if (v instanceof TextView) {
+            TextView t = (TextView) v;
+            if (t.getBackground() == null) t.setShadowLayer(r, 0, 0, col);   // los botones con fondo propio no lo necesitan
+        } else if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) shadowTexts(g.getChildAt(i), r, col);
+        }
     }
 
     /** "Entrada de tarjetas": suben y aparecen una tras otra al armar el tema. */

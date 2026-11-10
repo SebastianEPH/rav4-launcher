@@ -166,6 +166,9 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
   tarjetas funcionan siempre.
 - **Intensidad de tarjetas** (Ajustes → General → Apariencia): `card.alphaDark` / `card.alphaLight` (10–100 %, int). Se
   aplica en `Theme.fromPrefs` escalando el alfa de `P.panel` (`Theme.scaleAlpha`) y en `HomeActivity.cCard()` → todos los temas.
+- **Difuminado focalizado** (Ajustes → General → Apariencia → "Resaltar textos sobre el fondo", `focus.mode` auto/soft/strong/off):
+  sin desenfoque real (Android 10 no lo tiene y sería lento con fondos animados). Halo con `setShadowLayer` en cada TextView sin fondo
+  + disco radial detrás de los velocímetros (`Views.drawFocus`). Auto: se activa si tarjetas < 70 % o fondo animado/foto.
 - **Respaldo y restauración** (Ajustes → Sistema, `Backup.java`; botones fijos "Guardar respaldo ahora" y "Restaurar respaldo…", este último lista los respaldos y permite elegir un .json de cualquier carpeta): .json con todas las prefs tipadas + `files/icons` +
   `files/bg.jpg` en base64; en `files/respaldos` y en `RAV4Launcher/respaldos` del USB. Restaurar guarda antes un respaldo
   automático. Probado en emulador (guardar → cambiar tema → restaurar).

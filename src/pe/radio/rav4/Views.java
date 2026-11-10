@@ -124,6 +124,7 @@ public class Views {
             float cx = w / 2f, cy = h * 0.52f;
             float start = 135, sweep = 270, frac = shown / max;
             r.set(cx - rad, cy - rad, cx + rad, cy + rad);
+            drawFocus(c, p, cx, cy, rad);
             drawAccelGlow(c, p, cx, cy, rad, Theme.P != null && !Theme.P.cockpit ? Theme.P.accent : COCK_ACC);
             p.setStyle(Paint.Style.STROKE);
             p.setShader(null);
@@ -235,6 +236,23 @@ public class Views {
     static int fg(int alpha) { return (alpha << 24) | (Theme.P.dark ? 0xFFFFFF : 0x0B0C10); }
     /** false = sin animaciones (carretera quieta, sin estela ni halo, sin barrido). */
     public static boolean anim = true;
+    /** Difuminado focalizado: 0 = no, 0..1 = fuerza del disco difuminado detrás de los velocímetros. */
+    public static float focus = 0f;
+    public static int focusColor = 0xFF000000;
+
+    /** Disco difuminado (degradado radial) detrás del dial para que se lea sobre fondos muy vivos. */
+    static void drawFocus(Canvas c, Paint p, float cx, float cy, float rad) {
+        if (focus <= 0) return;
+        int a = Math.round(230 * focus);
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(0xFFFFFFFF);   // el degradado hereda la transparencia del color que quedó en el pincel
+        p.setShader(new android.graphics.RadialGradient(cx, cy, rad * 1.3f,
+                new int[]{(focusColor & 0xFFFFFF) | (a << 24), (focusColor & 0xFFFFFF) | ((a * 2 / 3) << 24), focusColor & 0xFFFFFF},
+                new float[]{0f, 0.72f, 1f}, Shader.TileMode.CLAMP));
+        c.drawCircle(cx, cy, rad * 1.3f, p);
+        p.setShader(null);
+        p.setAlpha(255);
+    }
 
     /** Carretera neón en perspectiva; la cuadrícula corre más rápido cuanto mayor es la velocidad. */
     public static class CockpitRoad extends View {
@@ -559,6 +577,7 @@ public class Views {
             float cx = w / 2f, cy = h * 0.5f;
             float frac = shown / max;
             r.set(cx - rad, cy - rad, cx + rad, cy + rad);
+            drawFocus(c, p, cx, cy, rad);
             drawAccelGlow(c, p, cx, cy, rad, Theme.P != null && !Theme.P.cockpit ? Theme.P.accent : COCK_ACC);
 
             // arco de fondo
