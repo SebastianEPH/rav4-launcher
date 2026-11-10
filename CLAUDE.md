@@ -161,6 +161,13 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 - **Estado bajo el velocímetro** (`HomeActivity.updateDriveState`, todos los temas): Estacionado (0 km/h, aunque no haya
   GPS) / En marcha / Acelerando ▲ / Frenando ▼ (fuerza G por GPS) + rumbo. Al acelerar el velocímetro brilla y salen rayas;
   al frenar brilla en rojo (`setAccel` → `drawAccelGlow`). Probar en emulador: `adb emu geo fix <lon> <lat> 10 8 <nudos>`.
+- **Acelerar estacionado** (todos los temas): mantener el dedo en el velocímetro con 0 km/h sube la aguja como un motor
+  (brillo + carretera) y al soltar baja (`HomeActivity.revOnTouch`/`revTick`). En marcha no hace nada (aviso). Las demás
+  tarjetas funcionan siempre.
+- **Respaldo y restauración** (Ajustes → Sistema, `Backup.java`): .json con todas las prefs tipadas + `files/icons` +
+  `files/bg.jpg` en base64; en `files/respaldos` y en `RAV4Launcher/respaldos` del USB. Restaurar guarda antes un respaldo
+  automático. Probado en emulador (guardar → cambiar tema → restaurar).
+- Tarjeta **Conectividad**: WiFi, Bluetooth y **Compartir internet** (punto de acceso por reflexión; toca → TetherSettings).
 - **Fondo de pantalla global** (Tema actual → Fondo, todos los temas): `bg.kind` = theme (el del tema) / spectrum /
   ios (manchas) / road (carretera neón) / ondas / noche / atardecer / rav4 / color (`bg.color`) / gradient (`bg.color2`) /
   photo (`files/bg.jpg`, elegida de galería/USB) + velo `bg.dim` 0–80 %. Con fondo propio, Cockpit y Sonido no dibujan

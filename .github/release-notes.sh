@@ -55,6 +55,7 @@ cat <<'EOF'
 - Dos interfaces: **Nativa** (Java, liviana) y **Web animada** con 6 temas: Terminal, Glass, Dusk, Cockpit, Inicio y Auto · CAN.
 - Cockpit con tarjetas a elección (rumbo y calle, altitud y pendiente, 0–100 y fuerza G, accesos a CarPlay/mapas, controles, reloj) en Ajustes Launcher → Tema actual.
 - Tema Sonido: visualizador del audio que suena, volumen grande con deslizador y lo que se está reproduciendo.
+- Respaldo y restauración de toda la configuración (radio y USB); acelerar el velocímetro estacionado como demostración.
 - Espectro de audio con 17 estilos (incluye solo bajos) y 8 paletas, como tarjeta en cualquier tema o de fondo; volumen sin la barra del sistema.
 - Velocidad y viaje por GPS, voltaje de la batería del auto, volumen real de la radio (NWD) y brillo con mínimo seguro.
 - **Bus CAN en vivo** (tema Auto · CAN): puertas, RPM, luces, freno de mano, cinturón… y grabación en `.txt` al USB.

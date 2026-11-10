@@ -96,6 +96,7 @@ public class Views {
                 }
             }
             p.setStyle(old); p.setStrokeWidth(ow);
+            p.setAlpha(255);   // si no, el arco con degradado hereda la transparencia del brillo
             postInvalidateOnAnimation();
         }
         private boolean sweeping = false; private float pending = 0;
@@ -143,6 +144,7 @@ public class Views {
                 p.setColor(P.track);
                 c.drawArc(r, start, sweep, false, p);
                 if (frac > 0.003f) {
+                    p.setColor(0xFFFFFFFF);   // opaco: si no, el degradado hereda la transparencia del fondo del arco
                     p.setShader(new LinearGradient(cx - rad, cy + rad, cx + rad, cy - rad,
                             new int[]{P.ok, P.accent, frac > 0.6f ? P.err : P.accent}, null, Shader.TileMode.CLAMP));
                     c.drawArc(r, start, sweep * frac, false, p);
@@ -532,6 +534,7 @@ public class Views {
                 }
             }
             p.setStyle(old); p.setStrokeWidth(ow);
+            p.setAlpha(255);   // si no, el arco con degradado hereda la transparencia del brillo
             postInvalidateOnAnimation();
         }
 

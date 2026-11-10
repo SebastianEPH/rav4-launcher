@@ -269,7 +269,7 @@ public class HomeActivity extends Activity {
             dock = null; drawer = null; cc = null; settings = null; homeGrid = null;
             volLabel = brLabel = null; gauge = null; spark = null; clock = date = prompt = chips = sysPanel = gnssMini = null;
             tDist = tTime = tAvg = tMax = null; cockGauge = null; cockRoad = null; cockCompass = null; cockBattBar = null; tripBig = tripSub = cockBattV = cockBattState = cockSats = cockGpsSub = null; cockGauge = null; cockRoad = null; cockCompass = null; cockBattBar = null; tripBig = tripSub = cockBattV = cockBattState = cockSats = cockGpsSub = null;
-            netWifi = netWifiSub = netBt = netBtSub = null; cmpBig = null; cmpDir = cmpStreet = altTxt = altSub = accTxt = accSub = ctlVol = ctlBr = null; altLine = null; bigClocks.clear();
+            netWifi = netWifiSub = netBt = netBtSub = netAp = netApSub = null; cmpBig = null; cmpDir = cmpStreet = altTxt = altSub = accTxt = accSub = ctlVol = ctlBr = null; altLine = null; bigClocks.clear();
             if (web == null) web = new WebHome(this);
             setContentView(web.view());
             immersive();
@@ -393,6 +393,7 @@ public class HomeActivity extends Activity {
 
         LinearLayout speedP = tPanel("speed.gps");
         gauge = new Views.Gauge(this);
+        revOnTouch(gauge);
         speedP.addView(gauge, new LinearLayout.LayoutParams(-1, 0, 1f));
         speedP.addView(tLabel("history[120s]"));
         spark = new Views.Spark(this);
@@ -540,6 +541,7 @@ public class HomeActivity extends Activity {
         LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(0, -1, 1.55f);
         gl.leftMargin = dp(12);
         cockGauge = new Views.CockpitGauge(this);
+        revOnTouch(cockGauge);
         String gs = prefs.getString("cockpit.size", "m");
         cockGauge.setScale("s".equals(gs) ? 0.74f : "l".equals(gs) ? 1f : 0.88f);
         if (startupPlayed) cockGauge.sweep();   // al cambiar de tema; el arranque lo hace playStartup()
@@ -690,6 +692,12 @@ public class HomeActivity extends Activity {
             LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, -2); bl.topMargin = dp(10);
             c.addView(netBt, bl);
             netBtSub = txt("", 12, cDim()); c.addView(netBtSub);
+            netAp = txt("—", 17, cTxt()); netAp.setTypeface(P.fontBold); netAp.setSingleLine(true);
+            netAp.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(-1, -2); al.topMargin = dp(10);
+            c.addView(netAp, al);
+            netApSub = txt("", 12, cDim()); c.addView(netApSub);
+            netAp.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { openTether(); } });
             netWifi.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { openSys(android.provider.Settings.ACTION_WIFI_SETTINGS); } });
             netBt.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { openSys(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS); } });
             watchBtDevices();
@@ -714,7 +722,28 @@ public class HomeActivity extends Activity {
         return c;
     }
 
-    private TextView netWifi, netWifiSub, netBt, netBtSub;
+    private TextView netWifi, netWifiSub, netBt, netBtSub, netAp, netApSub;
+
+    private void openTether() {
+        try { startActivity(new Intent().setClassName("com.android.settings", "com.android.settings.TetherSettings").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return; } catch (Exception e) { }
+        openSys(android.provider.Settings.ACTION_WIRELESS_SETTINGS);
+    }
+
+    /** Punto de acceso (compartir internet): Android no lo expone públicamente, se lee por reflexión. */
+    private void feedHotspot() {
+        if (netAp == null) return;
+        boolean on = false; String ssid = null;
+        try {
+            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+            on = (Boolean) wm.getClass().getMethod("isWifiApEnabled").invoke(wm);
+            if (on) {
+                Object cfg = wm.getClass().getMethod("getWifiApConfiguration").invoke(wm);
+                if (cfg != null) ssid = (String) cfg.getClass().getField("SSID").get(cfg);
+            }
+        } catch (Throwable t) { }
+        netAp.setText("Compartir internet · " + (on ? "activo" : "apagado"));
+        netApSub.setText(on ? (ssid != null ? "Red: " + ssid : "La radio comparte su conexión") : "Toca para compartir la conexión de la radio");
+    }
     private volatile String btDevices = "";
 
     private void openSys(String action) {
@@ -763,6 +792,7 @@ public class HomeActivity extends Activity {
             netBtSub.setText(btDevices.length() > 0 ? "Conectado" : "Sin equipos conectados");
         }
         if ((SystemClock.elapsedRealtime() / 1000) % 10 == 0) watchBtDevices();
+        feedHotspot();
     }
 
     private final List<TextView> bigClocks = new ArrayList<TextView>();
@@ -1407,6 +1437,7 @@ public class HomeActivity extends Activity {
 
         LinearLayout sp = dCard("Velocidad");
         gauge = new Views.Gauge(this);
+        revOnTouch(gauge);
         sp.addView(gauge, new LinearLayout.LayoutParams(-1, 0, 1f));
         cards.addView(sp, dWeight(0.9f, true));
 
@@ -1510,6 +1541,7 @@ public class HomeActivity extends Activity {
         LinearLayout sp = gCard();
         sp.addView(gHead("⦿", "Velocidad", 0xFF0A84FF));
         gauge = new Views.Gauge(this);
+        revOnTouch(gauge);
         sp.addView(gauge, new LinearLayout.LayoutParams(-1, 0, 1f));
         area.addView(sp, weight(1f, dp(16)));
 
@@ -3154,7 +3186,48 @@ public class HomeActivity extends Activity {
     }
 
     // ======================= Cockpit: alimentar velocímetro y tarjetas =======================
+    // ---- "acelerar" estacionado: mantener el dedo en el velocímetro sube la aguja (solo con 0 km/h) ----
+    private boolean revving = false, revHeld = false;
+    private float revVal = 0;
+    private final Runnable revTick = new Runnable() { public void run() {
+        float max = 180;
+        try { max = Math.min(220, Integer.parseInt(prefs.getString("web.t.cockpit.scale", "180"))); } catch (Exception e) { }
+        float before = revVal;
+        if (revHeld) revVal += (max * 0.92f - revVal) * 0.045f + 0.6f;   // sube cada vez más lento, como un motor
+        else revVal -= Math.max(1.2f, revVal * 0.06f);                  // al soltar cae
+        revVal = Math.max(0, Math.min(max, revVal));
+        float g = (revVal - before) / 3.6f / 0.033f / 9.81f;              // "fuerza G" de la animación para el brillo
+        if (gauge != null) { gauge.setSpeed(revVal); gauge.setAccel(revHeld ? Math.max(0.2f, g) : (revVal > 1 ? -0.2f : 0)); }
+        if (cockGauge != null) { cockGauge.setSpeed(revVal); cockGauge.setAccel(revHeld ? Math.max(0.2f, g) : (revVal > 1 ? -0.2f : 0)); }
+        if (cockRoad != null) cockRoad.setSpeed(revVal);
+        if (revHeld || revVal > 0) h.postDelayed(this, 33);
+        else { revving = false; feedGauge(curKmh); updateDriveState(); }
+    } };
+
+    private void revOnTouch(View v) {
+        v.setOnTouchListener(new View.OnTouchListener() { public boolean onTouch(View view, android.view.MotionEvent e) {
+            int a = e.getActionMasked();
+            if (a == android.view.MotionEvent.ACTION_DOWN) {
+                if (curKmh >= 2) {   // en marcha no: solo estacionado
+                    android.widget.Toast.makeText(HomeActivity.this, "Solo con el auto estacionado", android.widget.Toast.LENGTH_SHORT).show();
+                    return false;
+                }
+                view.getParent().requestDisallowInterceptTouchEvent(true);
+                revHeld = true;
+                feedGaugeSub(P.glass ? "Acelerando ▲ · demostración" : "rev ▲ · demo");
+                if (!revving) { revving = true; h.removeCallbacks(revTick); h.post(revTick); }
+                return true;
+            }
+            if (a == android.view.MotionEvent.ACTION_UP || a == android.view.MotionEvent.ACTION_CANCEL) {
+                if (revHeld) { revHeld = false; feedGaugeSub(P.glass ? "Estacionado" : "parked"); }
+                return true;
+            }
+            return revHeld;
+        } });
+    }
+
     private void feedGauge(float kmh) {
+        if (revving) { if (kmh >= 2) { revHeld = false; revVal = 0; } else return; }   // si el auto arranca, manda el GPS
         if (gauge != null) gauge.setSpeed(kmh);
         if (cockGauge != null) cockGauge.setSpeed(kmh);
         if (cockRoad != null) cockRoad.setSpeed(kmh);
@@ -3165,6 +3238,7 @@ public class HomeActivity extends Activity {
      * (fuerza G estimada por GPS), y le pasa la aceleración al velocímetro para su brillo animado.
      */
     private void updateDriveState() {
+        if (revving) return;
         boolean fix = last != null && fresh();
         String st;
         float g = curKmh < 2 ? 0 : gNow;

@@ -579,10 +579,77 @@ public class SettingsActivity extends Activity {
             public void onClick(View v) { open("android.settings.SETTINGS"); }
         }));
         content.addView(sc);
+        backupSection();
         TextView ver = tv("RAV4 Launcher " + Updater.currentVersion(this) + " · Android " + Build.VERSION.RELEASE, 12, DIM);
         ver.setPadding(dp(4), dp(10), 0, 0);
         content.addView(ver);
     }
+
+    // ---------- respaldo y restauración ----------
+    private void backupSection() {
+        section("Respaldo y restauración");
+        LinearLayout c = card();
+        TextView info = tv("Guarda toda tu configuración (temas, tarjetas, fondo, espectro, brillo, apps ocultas y fijadas, íconos "
+                + "cambiados e imagen de fondo) para volver a ella cuando quieras. Se guarda en la radio y, si hay pendrive, también en "
+                + "RAV4Launcher/respaldos del USB. Al restaurar se guarda antes un respaldo automático, así siempre puedes deshacer.", 13, DIM);
+        info.setPadding(dp(14), dp(12), dp(14), dp(4));
+        c.addView(info);
+        c.addView(linkRow("💾  Guardar respaldo ahora", new View.OnClickListener() { public void onClick(View v) {
+            final android.widget.EditText et = new android.widget.EditText(SettingsActivity.this);
+            et.setHint("Nombre (opcional), ej. Mi config de día");
+            new android.app.AlertDialog.Builder(SettingsActivity.this, dlgTheme()).setTitle("Guardar respaldo").setView(et)
+                    .setPositiveButton("Guardar", new android.content.DialogInterface.OnClickListener() {
+                        public void onClick(android.content.DialogInterface d, int w) {
+                            String r = Backup.save(SettingsActivity.this, et.getText().toString().trim());
+                            android.widget.Toast.makeText(SettingsActivity.this, r.startsWith("ERROR") ? r : "Guardado: " + r, android.widget.Toast.LENGTH_LONG).show();
+                            rebuild();
+                        }
+                    }).setNegativeButton("Cancelar", null).show();
+        } }));
+        java.util.List<java.io.File> list = Backup.list(this);
+        if (list.isEmpty()) {
+            TextView none = tv("Todavía no hay respaldos.", 14, DIM);
+            none.setPadding(dp(14), dp(4), dp(14), dp(14));
+            c.addView(none);
+        }
+        int n = 0;
+        for (final java.io.File f : list) {
+            if (n++ >= 12) break;
+            LinearLayout row = new LinearLayout(this);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(14), dp(8), dp(14), dp(8));
+            boolean usb = !f.getAbsolutePath().startsWith(getFilesDir().getAbsolutePath());
+            TextView t = tv((usb ? "🔌 USB · " : "📱 ") + Backup.describe(f), 14, TXT);
+            row.addView(t, new LinearLayout.LayoutParams(0, -2, 1f));
+            TextView rb = smallBtn("Restaurar");
+            rb.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+                new android.app.AlertDialog.Builder(SettingsActivity.this, dlgTheme()).setTitle("¿Restaurar este respaldo?")
+                        .setMessage(Backup.describe(f) + "\n\nLa configuración actual se guarda antes automáticamente.")
+                        .setPositiveButton("Restaurar", new android.content.DialogInterface.OnClickListener() {
+                            public void onClick(android.content.DialogInterface d, int w) {
+                                String r = Backup.restore(SettingsActivity.this, f);
+                                android.widget.Toast.makeText(SettingsActivity.this, r, android.widget.Toast.LENGTH_LONG).show();
+                                recreate();
+                            }
+                        }).setNegativeButton("Cancelar", null).show();
+            } });
+            row.addView(rb);
+            TextView db = smallBtn("Borrar");
+            LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(-2, -2); dl.leftMargin = dp(8);
+            db.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+                new android.app.AlertDialog.Builder(SettingsActivity.this, dlgTheme()).setTitle("¿Borrar este respaldo?")
+                        .setMessage(Backup.describe(f))
+                        .setPositiveButton("Borrar", new android.content.DialogInterface.OnClickListener() {
+                            public void onClick(android.content.DialogInterface d, int w) { f.delete(); rebuild(); }
+                        }).setNegativeButton("Cancelar", null).show();
+            } });
+            row.addView(db, dl);
+            c.addView(row);
+        }
+        content.addView(c);
+    }
+
+    private int dlgTheme() { return darkUi ? android.R.style.Theme_DeviceDefault_Dialog_Alert : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert; }
 
     // ---------- brillo: ahora, perfiles ----------
     private boolean canWrite() { return Build.VERSION.SDK_INT < 23 || android.provider.Settings.System.canWrite(this); }
