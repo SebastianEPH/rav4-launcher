@@ -27,6 +27,7 @@
     <div class="st-time"><b data-k="time">--:--</b><span data-k="dateShort"></span></div>
     <div class="st-mid" id="stMid"></div>
     <div class="st-icons">
+      <button class="recbadge" id="recBadge"><i></i>REC <b id="recTime">0:00</b><em id="recLn">0 líneas</em></button>
       <span class="ico" data-on="gps" title="GPS"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg><em data-k="sats">—</em></span>
       <span class="ico" data-on="bt" title="Bluetooth"><svg viewBox="0 0 24 24"><path d="M17.7 7.7 12 2h-1v7.6L6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l4.6-4.6V22h1l5.7-5.7-4.3-4.3 4.3-4.3zM13 5.8l1.9 1.9L13 9.6V5.8zm1.9 10.5L13 18.2v-3.8l1.9 1.9z"/></svg></span>
       <span class="ico" data-on="wifi" title="WiFi"><svg viewBox="0 0 24 24"><path d="M12 21 0 8.6A17 17 0 0 1 24 8.6L12 21z"/></svg></span>
@@ -121,6 +122,34 @@
 
 <div id="scrim"></div>
 <div id="toast"></div>
+<div id="recFrame"></div>
+
+<!-- prueba guiada mientras se graba el bus CAN -->
+<section id="recGuide" class="recg">
+  <div class="recg-top"><span class="dot"></span><b>Grabando bus CAN</b><span id="rgTime">0:00</span><span id="rgSync" class="sync"></span>
+    <button id="rgMin" class="mini-btn" aria-label="Minimizar">–</button></div>
+  <div class="recg-body">
+    <p class="step-n" id="rgN">Paso 1 de 17</p>
+    <h3 id="rgStep">Espera 10 segundos sin tocar nada</h3>
+    <p class="step-h" id="rgHint"></p>
+    <div class="recg-bar"><i id="rgBar"></i></div>
+    <div class="recg-actions">
+      <button class="ghost" id="rgSkip">Saltar</button>
+      <button class="primary" id="rgDone">Hecho ✓</button>
+    </div>
+    <button class="stop" id="rgStop">■ Terminar y guardar</button>
+  </div>
+</section>
+
+<!-- resultado al detener -->
+<section id="recDone" class="recdone">
+  <div class="rd-card">
+    <div class="rd-icon"><div class="spin"></div><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>
+    <h3 id="rdTitle">Asegurando los datos en el USB…</h3>
+    <p id="rdText"></p>
+    <button class="primary" id="rdOk">Entendido</button>
+  </div>
+</section>
 
 <script src="app.js"></script>
 </body>

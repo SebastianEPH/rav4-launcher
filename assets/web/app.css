@@ -507,3 +507,66 @@ body[data-mode="light"] .car .body { fill: rgba(255,255,255,.7); stroke: rgba(0,
 .rec:active { transform: scale(.92); }
 .rec.on { background: #ff453a; animation: recPulse 1.4s ease-in-out infinite; }
 @keyframes recPulse { 50% { box-shadow: 0 0 0 .5rem rgba(255,69,58,.25); } }
+
+/* ================= grabación del bus CAN ================= */
+.recbadge { display: none; align-items: center; margin-left: 1rem; padding: .35rem .8rem; border-radius: 1.2rem; background: #ff3b30; color: #fff;
+  font-size: .9rem; font-weight: 700; letter-spacing: .04em; box-shadow: 0 0 1.2rem rgba(255,59,48,.55); }
+.recbadge i { width: .6rem; height: .6rem; border-radius: 50%; background: #fff; margin-right: .45rem; animation: recDot 1s ease-in-out infinite; }
+.recbadge b { margin-left: .35rem; font-variant-numeric: tabular-nums; }
+.recbadge em { font-style: normal; font-weight: 500; margin-left: .6rem; opacity: .9; font-variant-numeric: tabular-nums; display: inline-block; }
+.recbadge em.bump { animation: bump .35s ease-out; }
+@keyframes bump { 40% { transform: scale(1.25); } }
+@keyframes recDot { 50% { opacity: .25; } }
+body.recording .recbadge { display: flex; }
+#recFrame { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 30; pointer-events: none; border: .3rem solid #ff3b30; opacity: 0; transition: opacity .4s; }
+body.recording #recFrame { opacity: 1; animation: recFrame 2s ease-in-out infinite; }
+@keyframes recFrame { 50% { border-color: rgba(255,59,48,.25); } }
+
+.recg { position: fixed; right: 1.4rem; bottom: 1.4rem; z-index: 35; width: 27rem; border-radius: 1.8rem; overflow: hidden; color: #fff;
+  background: rgba(24,24,30,.9); border: 1px solid rgba(255,255,255,.18); box-shadow: 0 1.5rem 4rem rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,.3);
+  transform: translateY(130%); transition: transform .5s cubic-bezier(.2,1.2,.4,1); }
+body[data-fx="high"] .recg { -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); background: rgba(24,24,30,.72); }
+.recg.on { transform: none; }
+.recg.on.mini { transform: translateY(calc(100% - 3.6rem)); }
+.recg-top { display: flex; align-items: center; height: 3.6rem; padding: 0 1rem 0 1.2rem; background: rgba(255,59,48,.9); }
+.recg-top .dot { width: .7rem; height: .7rem; border-radius: 50%; background: #fff; margin-right: .6rem; animation: recDot 1s infinite; }
+.recg-top b { flex: 1; font-size: 1.05rem; }
+.recg-top span { font-variant-numeric: tabular-nums; font-weight: 700; margin-left: .6rem; }
+.recg-top .sync { font-weight: 500; font-size: .8rem; opacity: .85; }
+.mini-btn { width: 2.4rem; height: 2.4rem; border-radius: 50%; background: rgba(255,255,255,.25); margin-left: .6rem; font-size: 1.3rem; line-height: 1; }
+.recg-body { padding: 1.1rem 1.3rem 1.3rem; }
+.step-n { font-size: .85rem; color: rgba(255,255,255,.6); letter-spacing: .06em; text-transform: uppercase; }
+.recg h3 { font-size: 1.55rem; line-height: 1.2; margin: .35rem 0 .3rem; }
+.recg h3.pop { animation: stepIn .45s cubic-bezier(.2,1.3,.4,1); }
+@keyframes stepIn { from { opacity: 0; transform: translateX(1.5rem); } to { opacity: 1; transform: none; } }
+.step-h { font-size: .92rem; color: rgba(255,255,255,.65); min-height: 1.2rem; }
+.recg-bar { height: .4rem; border-radius: .2rem; background: rgba(255,255,255,.15); margin: .9rem 0; overflow: hidden; }
+.recg-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #30d158, #5ac8fa); transition: width .5s; }
+.recg-actions { display: flex; }
+.recg-actions button { flex: 1; padding: 1rem 0; border-radius: 1.2rem; font-size: 1.1rem; font-weight: 600; transition: transform .2s; }
+.recg-actions .ghost { background: rgba(255,255,255,.12); margin-right: .7rem; flex: .6; }
+.recg-actions .primary, .rd-card .primary { background: #30d158; color: #fff; }
+.recg-actions button:active, .recg .stop:active { transform: scale(.95); }
+.recg .stop { width: 100%; margin-top: .7rem; padding: .85rem 0; border-radius: 1.2rem; background: rgba(255,59,48,.18); color: #ff6961; font-weight: 600; }
+
+.recdone { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 45; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55); opacity: 0; pointer-events: none; transition: opacity .3s; }
+.recdone.on { opacity: 1; pointer-events: auto; }
+.rd-card { width: 30rem; padding: 2rem; border-radius: 2rem; text-align: center; color: #fff; background: rgba(28,28,34,.95); border: 1px solid rgba(255,255,255,.15);
+  transform: scale(.9); transition: transform .4s cubic-bezier(.2,1.4,.4,1); }
+.recdone.on .rd-card { transform: none; }
+.rd-icon { width: 5.5rem; height: 5.5rem; margin: 0 auto 1rem; position: relative; }
+.rd-icon .spin { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: 50%; border: .35rem solid rgba(255,255,255,.15); border-top-color: #5ac8fa; animation: spin .8s linear infinite; }
+.rd-icon svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; fill: none; stroke: #30d158; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+.rd-icon svg circle { stroke-dasharray: 151; stroke-dashoffset: 151; }
+.rd-icon svg path { stroke-dasharray: 40; stroke-dashoffset: 40; }
+.recdone.ok .spin { display: none; }
+.recdone.ok svg { opacity: 1; }
+.recdone.ok svg circle { animation: draw .6s ease-out forwards; }
+.recdone.ok svg path { animation: draw .4s .5s ease-out forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+.rd-card h3 { font-size: 1.5rem; margin-bottom: .6rem; }
+.rd-card p { color: rgba(255,255,255,.75); font-size: 1rem; line-height: 1.5; word-break: break-all; }
+.rd-card .primary { margin-top: 1.3rem; padding: .9rem 2.4rem; border-radius: 1.2rem; font-size: 1.05rem; font-weight: 600; }
+.logcard .profile { font-size: .8rem; color: var(--dim); margin-top: .25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); }

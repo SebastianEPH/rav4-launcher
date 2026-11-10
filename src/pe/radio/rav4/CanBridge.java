@@ -249,7 +249,7 @@ public class CanBridge {
     private File usbFile, intFile;
     private volatile String recInfo = "";
     private volatile int outLines = 0;
-    private long lastSync = 0;
+    private long lastSync = 0, recStart = 0;
 
     /** Carpeta RAV4Launcher en el pendrive (mismas rutas que usa Radio Diagnóstico); null si no hay USB. */
     public static File usbDir() {
@@ -274,6 +274,7 @@ public class CanBridge {
         if (recording()) return recInfo;
         String name = "can_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".txt";
         String head = "# RAV4 Launcher — registro del bus CAN\n# " + header + "\n# Estado del servicio: " + status
+                + "\n# Perfil CAN de la radio: " + profile()
                 + "\n# Formato: hora  tipo  datos (hex completo). 'estado' = resumen decodificado cada 5 s.\n"
                 + "# Tipos: auto=datos del auto (tipo 2), puertas (3), radar (4), aire (1), crudo=caja CAN sin procesar,\n"
                 + "#        carinfo=objeto CarInfo serializado, broadcast=aviso del sistema con sus extras.\n\n";
@@ -297,6 +298,8 @@ public class CanBridge {
         } catch (Exception e) { closeQuiet(intOut); intOut = null; }
         if (!recording()) return "ERROR: no se pudo crear el archivo (" + usbErr + "). ¿Diste permiso de almacenamiento?";
         outLines = 0;
+        recStart = SystemClock.elapsedRealtime();
+        lastSync = recStart;
         recInfo = usbOut != null ? "USB: " + usbFile.getAbsolutePath()
                 : "Memoria interna (" + usbErr + "): " + intFile.getAbsolutePath();
         if (usbErr != null) add("error", "USB: " + usbErr + " → se graba solo en la memoria interna");
@@ -343,6 +346,23 @@ public class CanBridge {
         if (now - lastSync > 2000) { lastSync = now; syncQuiet(usbOut); syncQuiet(intOut); }
     }
 
+    // Perfil CAN que eligió el instalador en "Datos del automóvil" (com.nwd.can.setting lo guarda en Settings.System).
+    private static final String[][] PROFILE_KEYS = {{"can_config_app_cartype_json", "auto"}, {"can_provider_key", "caja CAN"},
+            {"can_version_info", "info caja"}, {"can_box_version", "versión caja"}, {"can_app_version", "versión app CAN"}};
+
+    public String profile() {
+        StringBuilder b = new StringBuilder();
+        for (String[] k : PROFILE_KEYS) {
+            String v = null;
+            try { v = android.provider.Settings.System.getString(ctx.getContentResolver(), k[0]); } catch (Exception e) { }
+            b.append(b.length() > 0 ? " · " : "").append(k[1]).append(": ").append(v == null || v.length() == 0 ? "(vacío)" : v);
+        }
+        return b.toString();
+    }
+
+    /** Marca escrita por la prueba guiada ("▶ paso" / "✓ paso") para saber qué se hizo en cada momento. */
+    public void mark(String text) { add("marca", text); }
+
     private static void syncQuiet(FileOutputStream f) { if (f != null) try { f.flush(); f.getFD().sync(); } catch (Exception e) { } }
 
     private static void closeQuiet(java.io.Closeable c) { if (c != null) try { c.close(); } catch (Exception e) { } }
@@ -382,6 +402,11 @@ public class CanBridge {
         o.put("radar", arr(radar));
         o.put("recording", recording() ? recInfo : "");
         o.put("recLines", outLines);
+        o.put("profile", profile());
+        long now = SystemClock.elapsedRealtime();
+        o.put("recMs", recording() ? now - recStart : 0);
+        o.put("syncAgoMs", recording() ? now - lastSync : -1);
+        o.put("recUsb", usbOut != null);
         JSONArray l = new JSONArray();
         synchronized (log) { for (String s : log) l.put(s); }
         o.put("log", l);

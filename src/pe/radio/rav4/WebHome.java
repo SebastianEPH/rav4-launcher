@@ -137,6 +137,9 @@ public class WebHome {
         }
 
         @JavascriptInterface
+        public void canMark(String text) { can.mark(text); }
+
+        @JavascriptInterface
         public String can() {
             try { return can.state().toString(); } catch (Exception e) { return "{}"; }
         }

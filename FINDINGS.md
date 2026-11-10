@@ -92,3 +92,10 @@ hay `toyota` con cajas `binary`, `daojun`, `hiworld`, `luzhen`, `oudi`, `raise`)
   el canal **crudo** de la caja CAN (`addCallBack4Outerface`, código 3 → `ICanRemote4OuterCallback.onDistributeRawData`),
   los `CarInfo` serializados, todos los broadcasts CAN conocidos con sus extras y un resumen decodificado cada 5 s.
   Sirve para descubrir señales que el launcher todavía no interpreta.
+- **Perfil CAN configurado** (lo guarda `com.nwd.can.setting` en `Settings.System`, legible por cualquier app):
+  `can_config_app_cartype_json` (marca/modelo elegido), `can_provider_key` (fabricante de la caja CAN),
+  `can_version_info`, `can_box_version`, `can_app_version`. Va en la cabecera de cada grabación y en el tema Auto · CAN.
+  **Importa**: la radio decodifica según ese perfil; si está en otra marca o caja, los datos salen mal o no salen
+  (el canal "crudo" sí llega igual y sirve para deducir el perfil correcto).
+- **Prueba guiada**: al grabar, el launcher pide acciones paso a paso y escribe marcas `▶ paso` / `✓ paso`
+  en el archivo, para saber qué se hizo en cada momento.

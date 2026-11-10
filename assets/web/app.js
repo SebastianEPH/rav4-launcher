@@ -389,7 +389,7 @@
         '<div class="card indcard"><h4>Señales</h4><div class="inds">' + INDICATORS.map(function (d, i) {
           return '<div class="ind nd" id="ind' + i + '">' + ci(d[0]) + '<div><b>' + d[1] + '</b><span>sin dato</span></div></div>';
         }).join('') + '</div><div class="turns"><span class="tl" id="tl">' + ci('left') + '</span><span class="fuel">' + ci('fuel') + '<b data-k="fuel">—</b></span><span class="tr" id="tr">' + ci('right') + '</span></div></div>' +
-        '<div class="card logcard"><div class="head">' + ci('bus') + '<h4>Bus CAN</h4><span class="st" data-k="canStatus"></span><span class="pill" data-k="canPk">0 paquetes</span><button class="rec" id="recBtn">● Grabar en USB</button></div><div class="canlog" id="canlog"></div></div>' +
+        '<div class="card logcard"><div class="head">' + ci('bus') + '<h4>Bus CAN</h4><span class="st" data-k="canStatus"></span><span class="pill" data-k="canPk">0 paquetes</span><button class="rec" id="recBtn">● Grabar en USB</button></div><p class="profile" data-k="canProfile"></p><div class="canlog" id="canlog"></div></div>' +
         '</div>';
     },
     tick: function () {
@@ -416,6 +416,7 @@
       var age = C.ageMs;
       setK('canStatus', (C.status || 'Esperando al servicio CAN…') + (age >= 0 ? ' · último hace ' + (age / 1000).toFixed(1) + ' s' : ''));
       setK('canPk', (C.packets || 0) + ' paquetes');
+      setK('canProfile', C.profile ? 'Perfil configurado en la radio → ' + C.profile : '');
       var rb = $('#recBtn');
       if (rb) { rb.classList.toggle('on', !!C.recording); rb.textContent = C.recording ? '■ Detener · ' + (C.recLines || 0) + ' líneas' : '● Grabar en USB'; }
       var lg = $('#canlog');
@@ -484,7 +485,8 @@
   // ================= datos en vivo =================
   function poll() {
     try { S = JSON.parse(R.state()) || {}; } catch (e) { S = {}; }
-    if (prefs.theme === 'auto' && R.can) try { C = JSON.parse(R.can()) || {}; } catch (e) { }
+    if ((prefs.theme === 'auto' || C.recording) && R.can) try { C = JSON.parse(R.can()) || {}; } catch (e) { }
+    updateRec();
     tick();
   }
   function tick() {
@@ -778,15 +780,13 @@
     if (t.closest('#showHidden')) { showHiddenApps = !showHiddenApps; renderDrawer(); return; }
     if ((el = t.closest('[data-theme-pick]'))) { setPref('theme', el.getAttribute('data-theme-pick')); return; }
     if ((el = t.closest('.seg button'))) { setPref(el.parentNode.getAttribute('data-pref'), el.getAttribute('data-v')); return; }
-    if (t.closest('#recBtn')) {
-      var res = R.canRecord(!C.recording);
-      if (res === 'PERMISO') toast('Acepta el permiso de almacenamiento y vuelve a pulsar Grabar');
-      else if (res.indexOf('ERROR') === 0) toast(res.slice(7));
-      else if (C.recording) toast('Guardado en ' + res + '. Ya puedes sacar el USB.');
-      else toast('Grabando en ' + res);
-      setTimeout(poll, 200);
-      return;
-    }
+    if (t.closest('#recBtn')) { if (C.recording) stopRec(); else startRec(); return; }
+    if (t.closest('#recBadge')) { $('#recGuide').classList.remove('mini'); return; }
+    if (t.closest('#rgMin')) { $('#recGuide').classList.toggle('mini'); return; }
+    if (t.closest('#rgDone')) { nextStep(true); return; }
+    if (t.closest('#rgSkip')) { nextStep(false); return; }
+    if (t.closest('#rgStop')) { stopRec(); return; }
+    if (t.closest('#rdOk')) { $('#recDone').classList.remove('on'); return; }
     if ((el = t.closest('[data-accent]'))) { setPref('accent', el.getAttribute('data-accent')); return; }
     if ((el = t.closest('[data-hour]'))) { var hp = el.getAttribute('data-hour').split(':'); setPref(hp[0], String((+prefs[hp[0]] + +hp[1] + 24) % 24)); return; }
     if ((el = t.closest('[data-media]'))) { R.media(el.getAttribute('data-media')); return; }
@@ -806,6 +806,87 @@
     if (t.id === 'brUp') stepBr(10);
   });
 
+  // ================= grabación del bus CAN: indicador + prueba guiada =================
+  var STEPS = [
+    ['Espera 10 segundos sin tocar nada', 'Sirve de referencia: así se ve el auto "quieto".'],
+    ['Abre y cierra la puerta del conductor', 'Déjala abierta 3 segundos antes de cerrarla.'],
+    ['Abre y cierra la puerta del copiloto', ''],
+    ['Abre y cierra la puerta trasera izquierda', ''],
+    ['Abre y cierra la puerta trasera derecha', ''],
+    ['Abre y cierra el maletero', ''],
+    ['Abre y cierra el capó', 'Si no es cómodo, puedes saltar este paso.'],
+    ['Prende y apaga las luces bajas', ''],
+    ['Prende y apaga las luces altas', ''],
+    ['Prende y apaga los neblineros', 'Si tu RAV4 no tiene, sáltalo.'],
+    ['Direccional izquierda unos segundos', ''],
+    ['Direccional derecha unos segundos', ''],
+    ['Luces de emergencia unos segundos', ''],
+    ['Pon y quita el freno de mano', ''],
+    ['Abróchate y suéltate el cinturón', ''],
+    ['Cierra y abre los seguros', 'Con el botón de la puerta.'],
+    ['En P: acelera a ~3000 rpm y suelta', 'Hazlo dos veces, despacio.']
+  ];
+  var step = 0;
+  function fmtDur(ms) { var s2 = Math.floor((ms || 0) / 1000); return Math.floor(s2 / 60) + ':' + pad(s2 % 60); }
+  function mark(txt) { if (R.canMark) R.canMark(txt); }
+  function showStep() {
+    var done = step >= STEPS.length;
+    $('#rgN').textContent = done ? 'Prueba completa' : 'Paso ' + (step + 1) + ' de ' + STEPS.length;
+    $('#rgStep').textContent = done ? 'Listo. Pulsa "Terminar y guardar".' : STEPS[step][0];
+    $('#rgHint').textContent = done ? 'Si quieres, maneja un poco antes de terminar: también se graba.' : STEPS[step][1];
+    $('#rgBar').style.width = (Math.min(step, STEPS.length) / STEPS.length * 100) + '%';
+    $('#rgDone').style.display = $('#rgSkip').style.display = done ? 'none' : '';
+    var h = $('#rgStep'); h.classList.remove('pop'); void h.offsetWidth; h.classList.add('pop');
+    if (!done) mark('▶ ' + STEPS[step][0]);
+  }
+  function nextStep(ok) {
+    if (step < STEPS.length) mark((ok ? '✓ ' : '✗ salteado: ') + STEPS[step][0]);
+    step++;
+    showStep();
+  }
+  function startRec() {
+    var res = R.canRecord(true);
+    if (res === 'PERMISO') { toast('Acepta el permiso de almacenamiento y vuelve a pulsar Grabar'); return; }
+    if (res.indexOf('ERROR') === 0) { toast(res.slice(7)); return; }
+    C.recording = res;
+    step = 0;
+    $('#recGuide').classList.remove('mini');
+    showStep();
+    closeSheets();
+    poll();
+  }
+  function stopRec() {
+    if (step < STEPS.length) mark('■ grabación detenida en el paso ' + (step + 1));
+    var res = R.canRecord(false), lines = C.recLines || 0, d = $('#recDone');
+    C.recording = '';
+    updateRec();
+    d.classList.remove('ok'); d.classList.add('on');
+    $('#rdTitle').textContent = 'Asegurando los datos en el USB…';
+    $('#rdText').textContent = '';
+    $('#rdOk').style.visibility = 'hidden';
+    setTimeout(function () {
+      d.classList.add('ok');
+      var usb = res.indexOf('USB') === 0;
+      $('#rdTitle').textContent = usb ? 'Guardado en el USB ✓' : 'Guardado en la radio';
+      $('#rdText').innerHTML = '<b>' + esc(res.replace(/^[^:]*: /, '')) + '</b><br>' + lines + ' líneas · ' + (usb ? 'Ya puedes sacar el USB y traer el archivo.' :
+        'No se pudo usar el USB: el archivo quedó en la memoria interna de la radio, carpeta RAV4Launcher.');
+      $('#rdOk').style.visibility = 'visible';
+    }, 1600);
+    setTimeout(poll, 300);
+  }
+  var lastLines = 0;
+  function updateRec() {
+    var on = !!C.recording;
+    body.classList.toggle('recording', on);
+    $('#recGuide').classList.toggle('on', on);
+    if (!on) return;
+    $('#recTime').textContent = $('#rgTime').textContent = fmtDur(C.recMs);
+    var ln = C.recLines || 0, el = $('#recLn');
+    el.textContent = ln + ' líneas';
+    if (ln !== lastLines) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); lastLines = ln; }
+    $('#rgSync').textContent = C.syncAgoMs >= 0 ? (C.recUsb === false ? 'en memoria interna' : 'guardado en USB hace ' + Math.max(0, Math.round(C.syncAgoMs / 1000)) + ' s') : '';
+  }
+
   // ================= API para Android (WebHome.java) =================
   window.RAV4 = {
     back: function () { if (!closeSheets() && prefs.theme === 'home') showHomePage(0); },
@@ -816,7 +897,7 @@
   // ================= simulador (solo navegador) =================
   function makeSim() {
     var kmh = params.kmh ? +params.kmh : 0, target = 45, dist = 3.2, max = 0, moving = 14, vol = 18, br = 62, wifi = true, bt = true, bearing = 60, batt = 13.8;
-    var store = {}, simDoor = -1, simLog = [], simLastT = 0, simRec = !!params.rec, simRecN = 0;
+    var store = {}, simDoor = -1, simLog = [], simLastT = 0, simRec = !!params.rec, simRecN = 0, simRecT = Date.now() - 42000;
     function pad2(n) { return (n < 10 ? '0' : '') + n; }
     try { store = JSON.parse(localStorage.getItem('rav4sim') || '{}'); } catch (e) { }
     setInterval(function () {
@@ -856,7 +937,8 @@
       resetTrip: function () { dist = 0; max = 0; moving = 0; }, checkUpdate: function () { toast('Simulado: buscar actualización'); },
       useNative: function () { toast('Simulado: volver a la interfaz nativa'); },
       version: function () { return 'web-preview'; }, permission: function () { },
-      canRecord: function (on) { simRec = on; simRecN = 0; return on ? 'USB: /storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt' : '/storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt'; },
+      canMark: function (t) { var d = new Date(); simLog.push(pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()) + '|marca|' + t); simRecN++; },
+      canRecord: function (on) { simRec = on; simRecN = 0; simRecT = Date.now(); return on ? 'USB: /storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt' : '/storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt'; },
       can: function () {
         if (simRec) simRecN += 3;
         var t = Date.now() / 1000, rpm = kmh > 1 ? Math.round(900 + kmh * 32 + Math.sin(t * 3) * 120) : 780;
@@ -874,7 +956,7 @@
           if (simLog.length > 40) simLog.splice(0, simLog.length - 40);
         }
         return JSON.stringify({ status: 'Simulación en navegador (en la radio son datos reales del bus CAN)', connected: true, packets: simLog.length * 7, ageMs: 180,
-          recording: simRec ? '/storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt' : '', recLines: simRecN, speed: Math.round(kmh), rpm: rpm, handbrake: kmh > 1 ? 0 : 1, fuel: 62, gear: kmh > 1 ? 4 : 1, beltDriver: 1, beltPassenger: 0,
+          recording: simRec ? 'USB: /storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt' : '', recLines: simRecN, recMs: simRec ? Date.now() - simRecT : 0, syncAgoMs: simRec ? 1200 : -1, recUsb: true, profile: 'auto: {"brand":"toyota","model":"RAV4 2013"} (simulado) · caja CAN: hiworld', speed: Math.round(kmh), rpm: rpm, handbrake: kmh > 1 ? 0 : 1, fuel: 62, gear: kmh > 1 ? 4 : 1, beltDriver: 1, beltPassenger: 0,
           doors: doors, locks: [kmh > 1 ? 1 : 0, 0, 0, 0, 0], lights: [0, night ? 1 : 0, 0, 0, night ? 1 : 0, 0, blink, 0], radar: [0, 0, 0, 0], log: simLog });
       }
     };
@@ -892,6 +974,7 @@
   setInterval(poll, 500);
   requestAnimationFrame(frame);
   if (R.ready) R.ready();
+  if (params.rec) { step = +params.step || 1; showStep(); }
   if (params.panel) openSheet('panel');
   if (params.drawer) openSheet('drawer');
 })();
