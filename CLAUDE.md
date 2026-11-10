@@ -127,6 +127,9 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
 Cada push a `main` (salvo cambios solo en `.md`, `site/` o `docs/`) dispara `.github/workflows/release.yml`: compila,
 firma con la keystore guardada en el secreto `KEYSTORE_B64` (la misma del Mac, para que la radio
 instale encima sin desinstalar) y publica un Release `v1.3.<n>` con el APK. No hace falta crear tags.
+Las notas del Release las arma `.github/release-notes.sh` desde git: commits desde la versión anterior,
+archivos agregados/eliminados, "Qué trae el launcher" (lista fija en el script: **actualizarla al agregar
+funciones**) y "Todavía no incluye" (sale de la sección Pendientes de este archivo).
 El repo es **público**: nunca subir claves, tokens ni la `debug.keystore`.
 
 ## Reglas de git

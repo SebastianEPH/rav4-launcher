@@ -73,6 +73,13 @@ jobs:
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           sha256sum "$NAME"
 
+      # Las notas automáticas de GitHub solo listan pull requests (aquí no hay): se arman desde git.
+      - name: Armar las notas (qué se agregó, qué se quitó, qué trae y qué falta)
+        run: |
+          chmod +x .github/release-notes.sh
+          .github/release-notes.sh "$VERSION" > release-notes.md
+          cat release-notes.md
+
       - name: Publicar Release con el APK y las notas
         uses: softprops/action-gh-release@v2
         with:
@@ -81,11 +88,4 @@ jobs:
           name: RAV4 Launcher ${{ env.VERSION }}
           files: ${{ steps.apk.outputs.name }}
           make_latest: true
-          generate_release_notes: true
-          body: |
-            **Launcher RAV4** — compilado automáticamente desde `main` (commit `${{ github.sha }}`).
-
-            Instalación: descarga el `.apk`, cópialo a un USB e instálalo en la radio.
-            Está firmado con la misma clave que las versiones anteriores, así que se instala encima.
-
-            Abajo el detalle de qué se agregó/cambió desde la versión anterior.
+          body_path: release-notes.md
