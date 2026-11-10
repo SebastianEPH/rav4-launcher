@@ -959,11 +959,15 @@
       resetTrip: function () { dist = 0; max = 0; moving = 0; }, checkUpdate: function () { toast('Simulado: buscar actualización'); },
       useNative: function () { toast('Simulado: volver a la interfaz nativa'); },
       version: function () { return 'web-preview'; }, permission: function () { },
-      perms: function () { return JSON.stringify([{ id: 'location', name: 'Ubicación (GPS)', desc: 'Velocidad, viaje y rumbo', ok: true },
-        { id: 'storage', name: 'Almacenamiento', desc: 'Grabar el bus CAN en el USB', ok: simPerm },
-        { id: 'settings', name: 'Modificar ajustes del sistema', desc: 'Brillo y su mínimo seguro', ok: true },
-        { id: 'install', name: 'Instalar apps', desc: 'Actualizarse desde GitHub', ok: simPerm },
-        { id: 'home', name: 'Launcher predeterminado', desc: 'Que el botón Inicio abra este launcher', ok: true }]); },
+      perms: function () {
+        return JSON.stringify([['location', 'Ubicación (GPS)', 'Velocidad, viaje y rumbo'], ['storage', 'Almacenamiento', 'Grabar el bus CAN en el USB'],
+          ['mic', 'Micrófono', 'Comandos de voz'], ['camera', 'Cámara', 'Cámara de retroceso / dashcam'], ['phone', 'Teléfono y contactos', 'Llamar desde el launcher'],
+          ['settings', 'Modificar ajustes del sistema', 'Brillo y su mínimo seguro'], ['install', 'Instalar apps', 'Actualizarse desde GitHub'],
+          ['notif', 'Acceso a notificaciones', 'Ver y controlar la música que suena'], ['overlay', 'Mostrar sobre otras apps', 'Velocímetro flotante encima de Waze/CarPlay'],
+          ['usage', 'Acceso de uso', 'Apps recientes y más usadas'], ['battery', 'Sin optimización de batería', 'Que Android no lo cierre (ni la grabación CAN)'],
+          ['dnd', 'No molestar', 'Modo manejo'], ['home', 'Launcher predeterminado', 'Que el botón Inicio abra este launcher']]
+          .map(function (p, i) { return { id: p[0], name: p[1], desc: p[2], ok: simPerm || i % 3 === 0 }; }));
+      },
       grant: function () { simPerm = true; toast('Simulado: se abre la pantalla del permiso'); setTimeout(renderPerms, 500); },
       canMark: function (t) { var d = new Date(); simLog.push(pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()) + '|marca|' + t); simRecN++; },
       canRecord: function (on) { simRec = on; simRecN = 0; simRecT = Date.now(); return on ? 'USB: /storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt' : '/storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt'; },

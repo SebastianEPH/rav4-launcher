@@ -96,7 +96,10 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
   En CSS: sin `filter: blur` en fondos (la aurora usa degradados radiales) y `backdrop-filter` solo con Efectos "Altos";
   por defecto los efectos son "Suaves".
 - **Permisos**: Android no permite "permiso total". Panel → Permisos (y ⚙ Ajustes → "Permisos (darlos todos)")
-  muestra ubicación, almacenamiento, modificar ajustes, instalar apps y launcher predeterminado; "Conceder todos"
+  pide **todos** los útiles (lista `HomeActivity.PERMS` con su "para qué"): ubicación, almacenamiento, micrófono,
+  cámara, teléfono/contactos, ajustes del sistema, instalar apps, notificaciones (`MediaListener`), mostrar encima,
+  acceso de uso, sin optimización de batería, no molestar y launcher predeterminado. Sin accesibilidad ni admin
+  del dispositivo (control total, sin uso aquí). "Conceder todos" pide cada uno una vez por recorrido,
   abre la pantalla de cada uno que falte y continúa solo al volver (`HomeActivity.startPermWizard`).
 - Íconos de apps **solos por defecto** (sin placa oscura detrás); "Con fondo" es opcional (pref `icons`).
 - **Compatibilidad**: el WebView de la radio puede ser Chrome ~74 → nada de `?.`, `??`, `:is()`,

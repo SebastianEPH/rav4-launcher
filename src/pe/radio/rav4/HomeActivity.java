@@ -2117,20 +2117,46 @@ public class HomeActivity extends Activity {
     // ======================= permisos =======================
     // Android no deja que una app se dé todos los permisos sola: los especiales se activan en su propia pantalla.
     // El asistente pide cada uno que falte, en orden, y sigue solo cuando el usuario vuelve al launcher.
+    // {id, nombre, para qué, permisos de Android (si es de diálogo; vacío = pantalla especial)}
     static final String[][] PERMS = {
-            {"location", "Ubicación (GPS)", "Velocidad, viaje y rumbo"},
-            {"storage", "Almacenamiento", "Grabar el bus CAN en el USB"},
-            {"settings", "Modificar ajustes del sistema", "Brillo y su mínimo seguro"},
-            {"install", "Instalar apps", "Actualizarse desde GitHub"},
-            {"home", "Launcher predeterminado", "Que el botón Inicio abra este launcher"}};
+            {"location", "Ubicación (GPS)", "Velocidad, viaje y rumbo", "android.permission.ACCESS_FINE_LOCATION"},
+            {"storage", "Almacenamiento", "Grabar el bus CAN en el USB", "android.permission.WRITE_EXTERNAL_STORAGE,android.permission.READ_EXTERNAL_STORAGE"},
+            {"mic", "Micrófono", "Comandos de voz", "android.permission.RECORD_AUDIO"},
+            {"camera", "Cámara", "Cámara de retroceso / dashcam", "android.permission.CAMERA"},
+            {"phone", "Teléfono y contactos", "Llamar desde el launcher", "android.permission.READ_CONTACTS,android.permission.READ_PHONE_STATE,android.permission.CALL_PHONE"},
+            {"settings", "Modificar ajustes del sistema", "Brillo y su mínimo seguro", ""},
+            {"install", "Instalar apps", "Actualizarse desde GitHub", ""},
+            {"notif", "Acceso a notificaciones", "Ver y controlar la música que suena", ""},
+            {"overlay", "Mostrar sobre otras apps", "Velocímetro flotante encima de Waze/CarPlay", ""},
+            {"usage", "Acceso de uso", "Apps recientes y más usadas", ""},
+            {"battery", "Sin optimización de batería", "Que Android no lo cierre (ni la grabación CAN)", ""},
+            {"dnd", "No molestar", "Modo manejo", ""},
+            {"home", "Launcher predeterminado", "Que el botón Inicio abra este launcher", ""}};
     private boolean permWizard = false;
+
+    private boolean runtimeOk(String perms) {
+        if (Build.VERSION.SDK_INT < 23) return true;
+        for (String p : perms.split(",")) if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) return false;
+        return true;
+    }
 
     boolean permGranted(String id) {
         try {
-            if ("location".equals(id)) return Build.VERSION.SDK_INT < 23 || checkSelfPermission("android.permission.ACCESS_FINE_LOCATION") == PackageManager.PERMISSION_GRANTED;
-            if ("storage".equals(id)) return webHasStorage();
-            if ("settings".equals(id)) return Build.VERSION.SDK_INT < 23 || android.provider.Settings.System.canWrite(this);
+            for (String[] p : PERMS) if (p[0].equals(id) && p[3].length() > 0) return runtimeOk(p[3]);
+            if (Build.VERSION.SDK_INT < 23) return true;
+            if ("settings".equals(id)) return android.provider.Settings.System.canWrite(this);
             if ("install".equals(id)) return Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls();
+            if ("overlay".equals(id)) return android.provider.Settings.canDrawOverlays(this);
+            if ("notif".equals(id)) {
+                String l = android.provider.Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
+                return l != null && l.contains(getPackageName());
+            }
+            if ("usage".equals(id)) {
+                android.app.AppOpsManager ao = (android.app.AppOpsManager) getSystemService(APP_OPS_SERVICE);
+                return ao.checkOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), getPackageName()) == android.app.AppOpsManager.MODE_ALLOWED;
+            }
+            if ("battery".equals(id)) return ((android.os.PowerManager) getSystemService(POWER_SERVICE)).isIgnoringBatteryOptimizations(getPackageName());
+            if ("dnd".equals(id)) return ((android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE)).isNotificationPolicyAccessGranted();
             if ("home".equals(id)) {
                 ResolveInfo r = getPackageManager().resolveActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), PackageManager.MATCH_DEFAULT_ONLY);
                 return r != null && r.activityInfo != null && getPackageName().equals(r.activityInfo.packageName);
@@ -2142,31 +2168,51 @@ public class HomeActivity extends Activity {
     void permRequest(String id) {
         try {
             Uri me = Uri.parse("package:" + getPackageName());
-            if ("location".equals(id) || "storage".equals(id)) {
+            for (String[] p : PERMS) if (p[0].equals(id) && p[3].length() > 0) {
+                // todos los permisos "de diálogo" que falten, en una sola tanda
                 List<String> l = new ArrayList<String>();
-                if (!permGranted("location")) l.add("android.permission.ACCESS_FINE_LOCATION");
-                if (!permGranted("storage")) { l.add("android.permission.WRITE_EXTERNAL_STORAGE"); l.add("android.permission.READ_EXTERNAL_STORAGE"); }
+                for (String[] q : PERMS) if (q[3].length() > 0 && !runtimeOk(q[3])) for (String x : q[3].split(",")) l.add(x);
                 if (Build.VERSION.SDK_INT >= 23 && !l.isEmpty()) requestPermissions(l.toArray(new String[0]), 3);
-            } else if ("settings".equals(id)) startActivity(new Intent("android.settings.action.MANAGE_WRITE_SETTINGS", me).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            else if ("install".equals(id)) startActivity(new Intent("android.settings.MANAGE_UNKNOWN_APP_SOURCES", me).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            else if ("home".equals(id)) startActivity(new Intent("android.settings.HOME_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            }
+            String action = "settings".equals(id) ? "android.settings.action.MANAGE_WRITE_SETTINGS"
+                    : "install".equals(id) ? "android.settings.MANAGE_UNKNOWN_APP_SOURCES"
+                    : "overlay".equals(id) ? "android.settings.action.MANAGE_OVERLAY_PERMISSION"
+                    : "battery".equals(id) ? "android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+                    : "notif".equals(id) ? "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"
+                    : "usage".equals(id) ? "android.settings.USAGE_ACCESS_SETTINGS"
+                    : "dnd".equals(id) ? "android.settings.NOTIFICATION_POLICY_ACCESS_SETTINGS"
+                    : "android.settings.HOME_SETTINGS";
+            boolean withPkg = !"notif".equals(id) && !"usage".equals(id) && !"dnd".equals(id) && !"home".equals(id);
+            Intent it = withPkg ? new Intent(action, me) : new Intent(action);
+            startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (Exception e) { appInfo(getPackageName()); }
     }
 
-    void startPermWizard() { permWizard = true; continueWizard(); }
+    private final Set<String> permAsked = new HashSet<String>();
+
+    void startPermWizard() { permAsked.clear(); permWizard = true; continueWizard(); }
 
     private void continueWizard() {
         if (!permWizard) return;
         h.postDelayed(new Runnable() {
             public void run() {
                 if (!permWizard) return;
-                for (String[] p : PERMS) if (!permGranted(p[0])) {
+                int missing = 0;
+                for (String[] p : PERMS) {
+                    if (permGranted(p[0])) continue;
+                    missing++;
+                    if (permAsked.contains(p[0])) continue;
+                    // los de diálogo se piden juntos: se marcan todos como ya preguntados
+                    if (p[3].length() > 0) { for (String[] q : PERMS) if (q[3].length() > 0) permAsked.add(q[0]); }
+                    else permAsked.add(p[0]);
                     android.widget.Toast.makeText(HomeActivity.this, "Permiso: " + p[1] + " — " + p[2], android.widget.Toast.LENGTH_LONG).show();
                     permRequest(p[0]);
                     return;
                 }
                 permWizard = false;
-                android.widget.Toast.makeText(HomeActivity.this, "✅ Todos los permisos concedidos", android.widget.Toast.LENGTH_LONG).show();
+                android.widget.Toast.makeText(HomeActivity.this, missing == 0 ? "✅ Todos los permisos concedidos"
+                        : "Quedaron " + missing + " permisos sin dar; puedes darlos uno por uno en Permisos.", android.widget.Toast.LENGTH_LONG).show();
                 if (web != null) web.js("RAV4.resume()");
             }
         }, 700);
