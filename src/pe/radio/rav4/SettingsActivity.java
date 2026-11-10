@@ -608,9 +608,15 @@ public class SettingsActivity extends Activity {
                         }
                     }).setNegativeButton("Cancelar", null).show();
         } }));
+        c.addView(linkRow("♻  Restaurar respaldo…", new View.OnClickListener() { public void onClick(View v) { restoreChooser(); } }));
         java.util.List<java.io.File> list = Backup.list(this);
+        if (!list.isEmpty()) {
+            TextView h = tv("Respaldos encontrados (también puedes restaurar desde aquí):", 13, DIM);
+            h.setPadding(dp(14), dp(8), dp(14), dp(2));
+            c.addView(h);
+        }
         if (list.isEmpty()) {
-            TextView none = tv("Todavía no hay respaldos.", 14, DIM);
+            TextView none = tv("No encontré respaldos en la radio ni en el USB. Con \"Restaurar respaldo…\" puedes buscar el archivo .json en otra carpeta.", 14, DIM);
             none.setPadding(dp(14), dp(4), dp(14), dp(14));
             c.addView(none);
         }
@@ -624,17 +630,7 @@ public class SettingsActivity extends Activity {
             TextView t = tv((usb ? "🔌 USB · " : "📱 ") + Backup.describe(f), 14, TXT);
             row.addView(t, new LinearLayout.LayoutParams(0, -2, 1f));
             TextView rb = smallBtn("Restaurar");
-            rb.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
-                new android.app.AlertDialog.Builder(SettingsActivity.this, dlgTheme()).setTitle("¿Restaurar este respaldo?")
-                        .setMessage(Backup.describe(f) + "\n\nLa configuración actual se guarda antes automáticamente.")
-                        .setPositiveButton("Restaurar", new android.content.DialogInterface.OnClickListener() {
-                            public void onClick(android.content.DialogInterface d, int w) {
-                                String r = Backup.restore(SettingsActivity.this, f);
-                                android.widget.Toast.makeText(SettingsActivity.this, r, android.widget.Toast.LENGTH_LONG).show();
-                                recreate();
-                            }
-                        }).setNegativeButton("Cancelar", null).show();
-            } });
+            rb.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { confirmRestore(f); } });
             row.addView(rb);
             TextView db = smallBtn("Borrar");
             LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(-2, -2); dl.leftMargin = dp(8);
@@ -649,6 +645,43 @@ public class SettingsActivity extends Activity {
             c.addView(row);
         }
         content.addView(c);
+    }
+
+    /** Elegir qué restaurar: los respaldos encontrados o un archivo .json de cualquier carpeta/USB. */
+    private void restoreChooser() {
+        final java.util.List<java.io.File> list = Backup.list(this);
+        String[] items = new String[list.size() + 1];
+        for (int i = 0; i < list.size(); i++) {
+            boolean usb = !list.get(i).getAbsolutePath().startsWith(getFilesDir().getAbsolutePath());
+            items[i] = (usb ? "🔌 USB · " : "📱 ") + Backup.describe(list.get(i));
+        }
+        items[list.size()] = "📂 Buscar archivo .json (USB, descargas…)";
+        new android.app.AlertDialog.Builder(this, dlgTheme()).setTitle("Restaurar respaldo")
+                .setItems(items, new android.content.DialogInterface.OnClickListener() {
+                    public void onClick(android.content.DialogInterface d, int w) {
+                        if (w < list.size()) confirmRestore(list.get(w));
+                        else {
+                            try {
+                                Intent it = new Intent(Intent.ACTION_GET_CONTENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE);
+                                startActivityForResult(Intent.createChooser(it, "Elegir respaldo (.json)"), 79);
+                            } catch (Exception e) {
+                                android.widget.Toast.makeText(SettingsActivity.this, "No hay una app para elegir archivos", android.widget.Toast.LENGTH_LONG).show();
+                            }
+                        }
+                    }
+                }).setNegativeButton("Cancelar", null).show();
+    }
+
+    private void confirmRestore(final java.io.File f) {
+        new android.app.AlertDialog.Builder(this, dlgTheme()).setTitle("¿Restaurar este respaldo?")
+                .setMessage(Backup.describe(f) + "\n\nLa configuración actual se guarda antes automáticamente.")
+                .setPositiveButton("Restaurar", new android.content.DialogInterface.OnClickListener() {
+                    public void onClick(android.content.DialogInterface d, int w) {
+                        String r = Backup.restore(SettingsActivity.this, f);
+                        android.widget.Toast.makeText(SettingsActivity.this, r, android.widget.Toast.LENGTH_LONG).show();
+                        recreate();
+                    }
+                }).setNegativeButton("Cancelar", null).show();
     }
 
     private int dlgTheme() { return darkUi ? android.R.style.Theme_DeviceDefault_Dialog_Alert : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert; }
@@ -1356,6 +1389,21 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
+        if (req == 79 && res == RESULT_OK && data != null && data.getData() != null) {
+            try {
+                java.io.InputStream in = getContentResolver().openInputStream(data.getData());
+                java.io.File tmp = new java.io.File(getCacheDir(), "respaldo_elegido.json");
+                java.io.FileOutputStream out = new java.io.FileOutputStream(tmp);
+                byte[] buf = new byte[8192]; int n;
+                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                in.close(); out.close();
+                new org.json.JSONObject(new String(Backup.read(tmp), "UTF-8")).getJSONObject("prefs");   // ¿es un respaldo válido?
+                confirmRestore(tmp);
+            } catch (Exception e) {
+                android.widget.Toast.makeText(this, "Ese archivo no es un respaldo del RAV4 Launcher", android.widget.Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
         if (req == 78 && res == RESULT_OK && data != null && data.getData() != null) {
             try {
                 // se guarda reducida a ~1280 px para que no pese al dibujar

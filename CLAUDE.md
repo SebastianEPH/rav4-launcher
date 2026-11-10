@@ -166,7 +166,7 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
   tarjetas funcionan siempre.
 - **Intensidad de tarjetas** (Ajustes → General → Apariencia): `card.alphaDark` / `card.alphaLight` (10–100 %, int). Se
   aplica en `Theme.fromPrefs` escalando el alfa de `P.panel` (`Theme.scaleAlpha`) y en `HomeActivity.cCard()` → todos los temas.
-- **Respaldo y restauración** (Ajustes → Sistema, `Backup.java`): .json con todas las prefs tipadas + `files/icons` +
+- **Respaldo y restauración** (Ajustes → Sistema, `Backup.java`; botones fijos "Guardar respaldo ahora" y "Restaurar respaldo…", este último lista los respaldos y permite elegir un .json de cualquier carpeta): .json con todas las prefs tipadas + `files/icons` +
   `files/bg.jpg` en base64; en `files/respaldos` y en `RAV4Launcher/respaldos` del USB. Restaurar guarda antes un respaldo
   automático. Probado en emulador (guardar → cambiar tema → restaurar).
 - Tarjeta **Conectividad**: WiFi, Bluetooth y **Compartir internet** (punto de acceso por reflexión; toca → TetherSettings).
