@@ -58,7 +58,7 @@ public class Updater {
                     JSONArray assets = rel.getJSONArray("assets");
                     for (int i = 0; i < assets.length(); i++) {
                         JSONObject a = assets.getJSONObject(i);
-                        if (a.getString("name").endsWith(".apk")) { apkUrl = a.getString("browser_download_url"); break; }
+                        if (a.getString("name").startsWith("RAV4Launcher") && a.getString("name").endsWith(".apk")) { /* no la ayudante RAV4Volumen */ apkUrl = a.getString("browser_download_url"); break; }
                     }
                     final String fTag = tag, fNotes = notes, fUrl = apkUrl;
                     ui.post(new Runnable() { public void run() { onRelease(fTag, fNotes, fUrl); } });

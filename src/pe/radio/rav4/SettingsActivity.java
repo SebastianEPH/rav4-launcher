@@ -169,8 +169,16 @@ public class SettingsActivity extends Activity {
         content.addView(ap);
         section("Sonido");
         LinearLayout so = card();
-        so.addView(segRow("Cambiar volumen sin la barra del sistema", "Si ves que no cambia en tu radio, ponlo en No", "volume.silent",
+        so.addView(segRow("Cambiar volumen sin la ventana de la radio", "Necesita la app ayudante \"RAV4 Volumen\"", "volume.silent",
                 new String[]{"Sí", "No"}, new String[]{"on", "off"}, "on"));
+        boolean helper = HomeActivity.hasVolHelper(this);
+        TextView hs = tv(helper ? "✓ Ayudante \"RAV4 Volumen\" instalada. Si la ventana sigue saliendo, ábrela una vez desde la lista de apps."
+                : "Falta la ayudante \"RAV4 Volumen\": bájala del mismo Release en GitHub (RAV4Volumen.apk), instálala y ábrela una vez.", 13, helper ? DIM : 0xFFFF9F0A);
+        hs.setPadding(dp(14), 0, dp(14), dp(12));
+        so.addView(hs);
+        if (!helper) so.addView(linkRow("Abrir la página de descargas", new View.OnClickListener() { public void onClick(View v) {
+            try { startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/sebastianeph/rav4-launcher/releases/latest"))); } catch (Exception e) { }
+        } }));
         content.addView(so);
 
     }

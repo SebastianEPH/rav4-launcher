@@ -19,6 +19,9 @@ Todo esto sale de descompilar con `jadx` las APK del sistema exportadas con la a
   (1–40). Lo usa `CpuTempMonitor` para bajar el volumen por temperatura; el receptor marca
   `mbSlientSetVolume = true` y `NewOsSystemVolumeManager.setSystemVolume` salta `notifyAudioDataChange` (el aviso).
   No acepta 0 (silencio va por la vía normal). Receptor registrado sin permiso.
+- **La ventana de volumen** la dibuja `com.nwd.setting.service/view/ToastPanel` y solo si
+  `Settings.System` **`show_toast_panel`** == 0 (las apps NWD lo ponen en 1 estando delante; `com.nwd.kernel`
+  `SourceMgr.reset()` lo vuelve a 0 al arrancar). Escribirlo requiere app con targetSdk < 23.
 - Volúmenes separados que existen (futuros controles): `mcu_bt_volume`, `mcu_gps_volume`,
   `nwd_navi_vol`, `nwd_media_vol`, `nwd_media_mix_navi_vol`, y `ACTION_CHANGE_GAIN_VOL`.
 

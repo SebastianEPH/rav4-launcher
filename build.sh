@@ -15,3 +15,4 @@ $BT/zipalign -f 4 build/unsigned.apk build/aligned.apk
 [ -f debug.keystore ] || keytool -genkeypair -keystore debug.keystore -storepass android -keypass android -alias diag -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Radio Diag" >/dev/null 2>&1
 $BT/apksigner sign --ks debug.keystore --ks-pass pass:android --v1-signing-enabled true --v2-signing-enabled true --out RAV4Launcher.apk build/aligned.apk
 echo "APK listo: $(pwd)/RAV4Launcher.apk"
+[ -d helper ] && ./helper/build.sh "$(pwd)/${KEYSTORE_PATH:-debug.keystore}" >/dev/null && echo "Ayudante lista: $(pwd)/RAV4Volumen.apk"

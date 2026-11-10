@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Ayudante de volumen del RAV4 Launcher. targetSdk 22 A PROPÓSITO: Android solo deja que apps "antiguas" escriban
+  ajustes propios del fabricante en Settings.System. Lo usamos para "show_toast_panel" (1 = la radio NWD no muestra
+  su ventana de volumen). Sin permiso de firma a propósito: si la ayudante se instala después del launcher, Android no
+  le concedería el permiso. Lo peor que otra app podría hacer es ocultar la ventana de volumen unos segundos.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="pe.radio.rav4.vol" android:versionCode="1" android:versionName="1.0">
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="22"/>
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
+    <application android:label="RAV4 Volumen" android:icon="@android:drawable/ic_lock_silent_mode_off">
+        <activity android:name=".Main" android:exported="true" android:theme="@android:style/Theme.DeviceDefault.Dialog">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <receiver android:name=".Quiet" android:exported="true">
+            <intent-filter><action android:name="pe.radio.rav4.vol.QUIET"/></intent-filter>
+        </receiver>
+        <receiver android:name=".Restore" android:exported="false"/>
+    </application>
+</manifest>

@@ -166,8 +166,13 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
   photo (`files/bg.jpg`, elegida de galería/USB) + velo `bg.dim` 0–80 %. Con fondo propio, Cockpit y Sonido no dibujan
   el suyo (`HomeActivity.addCustomBackground`).
 - Sin música el espectro queda **quieto al instante** (FFT en silencio y `!isMusicActive()` → ceros; caída rápida).
-- **Volumen sin la barra del sistema**: `nwdSetVolume` usa `ACTION_HIGHTEMP_TRIGGER` (silencioso, 1–40) y si no cambia
-  en 700 ms repite con la vía normal. Opción en Ajustes → General → Sonido (`volume.silent`). Ver FINDINGS.md.
+- **Volumen sin la ventana de la radio**: la ventana la dibuja `com.nwd.setting.service` (ToastPanel) y SOLO si
+  `Settings.System show_toast_panel == 0` (las apps de NWD lo ponen en 1 cuando están delante). Android 10 no deja
+  escribir esa clave a apps con targetSdk ≥ 23 → app ayudante **RAV4 Volumen** (`helper/`, `pe.radio.rav4.vol`,
+  targetSdk 22, la compila `build.sh` y va en el Release como `RAV4Volumen.apk`). El launcher le manda `QUIET`
+  (explícito, `FLAG_INCLUDE_STOPPED_PACKAGES`), ella pone 1 y a los ~2 s vuelve a 0 (alarma exacta). Hay que abrirla una
+  vez tras instalarla. Sin ayudante se usa `ACTION_HIGHTEMP_TRIGGER` y luego la vía normal. El actualizador solo toma
+  assets `RAV4Launcher*.apk`.
 
 Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto del auto).
 

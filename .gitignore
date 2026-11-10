@@ -17,3 +17,6 @@ debug.keystore
 .idea/
 *.iml
 .vscode/
+
+RAV4Volumen.apk
+helper/build/

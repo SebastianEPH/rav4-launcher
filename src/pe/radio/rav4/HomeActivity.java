@@ -1778,6 +1778,15 @@ public class HomeActivity extends Activity {
     private void nwdSetVolume(int v) {
         v = Math.max(0, Math.min(nwdMax(), v));
         final int want = v;
+        // 1) con la app ayudante "RAV4 Volumen" (targetSdk 22): pone show_toast_panel=1 y la radio no muestra su ventana
+        if (hasVolHelper() && !"off".equals(prefs.getString("volume.silent", "on"))) {
+            Intent q = new Intent("pe.radio.rav4.vol.QUIET").setClassName("pe.radio.rav4.vol", "pe.radio.rav4.vol.Quiet");
+            q.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES | Intent.FLAG_RECEIVER_FOREGROUND);
+            q.putExtra("ms", 2000);
+            sendBroadcast(q);
+            h.postDelayed(new Runnable() { public void run() { nwdSetVolumeUi(want); } }, 120);
+            return;
+        }
         if (v >= 1 && !"off".equals(prefs.getString("volume.silent", "on"))) {
             Intent i = new Intent("com.nwd.action.ACTION_HIGHTEMP_TRIGGER");
             i.putExtra("extra_volume", v);
@@ -1789,6 +1798,11 @@ public class HomeActivity extends Activity {
         }
         nwdSetVolumeUi(v);
     }
+
+    static boolean hasVolHelper(Context c) {
+        try { c.getPackageManager().getPackageInfo("pe.radio.rav4.vol", 0); return true; } catch (Exception e) { return false; }
+    }
+    private boolean hasVolHelper() { return hasVolHelper(this); }
 
     private void nwdSetVolumeUi(int v) {
         Intent i = new Intent("com.nwd.action.ACTION_REQUEST_SET_SYSTEM_VOLUME");
