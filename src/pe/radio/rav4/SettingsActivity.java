@@ -308,8 +308,10 @@ public class SettingsActivity extends Activity {
     }
 
     // ---- Espectro de audio (global: tarjetas, fondo y tema Sonido) ----
-    static final String[] SPEC_STYLES = {"bars", "mirror", "wave", "led", "circle", "rings", "radial"};
-    static final String[] SPEC_STYLE_LBL = {"Barras", "Espejo", "Onda", "LED", "Círculo", "Anillos", "Sol"};
+    static final String[] SPEC_STYLES = {"bars", "mirror", "center", "wave", "mountains", "led", "city", "circle", "rings", "radial",
+            "blob", "particles", "osc", "vu", "bass", "bassbar", "pulse"};
+    static final String[] SPEC_STYLE_LBL = {"Barras", "Espejo", "Desde el centro", "Onda", "Montañas", "LED", "Ciudad", "Círculo",
+            "Anillos", "Sol", "Gota", "Partículas", "Osciloscopio", "Vúmetros", "Solo bajos · parlante", "Solo bajos · barras", "Pulso"};
     static final String[] SPEC_PALS = {"neon", "fuego", "oceano", "matrix", "atardecer", "hielo", "oro", "arcoiris"};
     static final String[] SPEC_PAL_LBL = {"Neón", "Fuego", "Océano", "Matrix", "Atardecer", "Hielo", "Oro", "Arcoíris"};
     private Views.Spectrum prevA, prevB;
@@ -395,7 +397,7 @@ public class SettingsActivity extends Activity {
         w.setPadding(dp(14), dp(12), dp(14), dp(12));
         w.addView(tv(label, 16, TXT));
         android.widget.GridLayout g = new android.widget.GridLayout(this);
-        g.setColumnCount(8);
+        g.setColumnCount(6);
         String cur = prefs.getString(key, def);
         for (int i = 0; i < values.length; i++) {
             final String val = values[i];
@@ -403,12 +405,13 @@ public class SettingsActivity extends Activity {
             TextView b = tv(labels[i], 14, on ? 0xFFFFFFFF : TXT);
             b.setGravity(Gravity.CENTER);
             b.setSingleLine(true);
+            b.setEllipsize(android.text.TextUtils.TruncateAt.END);
             b.setPadding(dp(6), dp(12), dp(6), dp(12));
             GradientDrawable sg = new GradientDrawable(); sg.setColor(on ? ACC : SOFT); sg.setCornerRadius(dp(10));
             b.setBackground(sg);
             b.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { prefs.edit().putString(key, val).apply(); touch(); rebuild(); } });
             android.widget.GridLayout.LayoutParams lp = new android.widget.GridLayout.LayoutParams(
-                    android.widget.GridLayout.spec(i / 8), android.widget.GridLayout.spec(i % 8, 1f));
+                    android.widget.GridLayout.spec(i / 6), android.widget.GridLayout.spec(i % 6, 1f));
             lp.width = 0;
             lp.setMargins(dp(3), dp(6), dp(3), 0);
             g.addView(b, lp);

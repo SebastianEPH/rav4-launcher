@@ -68,6 +68,36 @@ public class Views {
             target = v; invalidate();
         }
         public void setSub(String s) { sub = s; invalidate(); }
+        private float accel = 0, glow = 0;
+        /** aceleración en G: >0 acelera (brillo del acento que late), <0 frena (brillo rojo) */
+        public void setAccel(float g) { accel = g; postInvalidateOnAnimation(); }
+        private void drawAccelGlow(Canvas c, Paint p, float cx, float cy, float rad, int accent) {
+            float want = !anim ? 0 : accel > 0.10f ? Math.min(1, accel * 3) : accel < -0.15f ? Math.min(1, -accel * 2.5f) : 0;
+            glow += (want - glow) * 0.12f;
+            if (glow < 0.01f) { glow = 0; return; }
+            int col = accel < 0 ? 0xFFFF3B30 : accent;
+            float pulse = 0.75f + 0.25f * (float) Math.sin(android.os.SystemClock.uptimeMillis() / 90.0);
+            Paint.Style old = p.getStyle(); float ow = p.getStrokeWidth();
+            p.setStyle(Paint.Style.STROKE);
+            for (int k = 3; k >= 1; k--) {
+                p.setStrokeWidth(rad * 0.05f * k);
+                p.setColor((col & 0xFFFFFF) | ((int) (glow * pulse * 70 / k) << 24));
+                c.drawCircle(cx, cy, rad * (1.04f + 0.02f * k), p);
+            }
+            // rayas de velocidad hacia afuera al acelerar
+            if (accel > 0) {
+                p.setStrokeWidth(Math.max(2, rad * 0.012f));
+                long t = android.os.SystemClock.uptimeMillis();
+                for (int k = 0; k < 18; k++) {
+                    double a = Math.toRadians(k * 20 + (t / 6 % 20));
+                    float r0 = rad * (1.12f + ((t / 4 + k * 37) % 100) / 400f), r1 = r0 + rad * 0.08f * glow;
+                    p.setColor((col & 0xFFFFFF) | ((int) (glow * 160) << 24));
+                    c.drawLine(cx + (float) Math.cos(a) * r0, cy + (float) Math.sin(a) * r0, cx + (float) Math.cos(a) * r1, cy + (float) Math.sin(a) * r1, p);
+                }
+            }
+            p.setStyle(old); p.setStrokeWidth(ow);
+            postInvalidateOnAnimation();
+        }
         private boolean sweeping = false; private float pending = 0;
         /** Barrido de aguja al encender (como el Cockpit). */
         public void sweep() {
@@ -93,6 +123,7 @@ public class Views {
             float cx = w / 2f, cy = h * 0.52f;
             float start = 135, sweep = 270, frac = shown / max;
             r.set(cx - rad, cy - rad, cx + rad, cy + rad);
+            drawAccelGlow(c, p, cx, cy, rad, Theme.P != null && !Theme.P.cockpit ? Theme.P.accent : COCK_ACC);
             p.setStyle(Paint.Style.STROKE);
             p.setShader(null);
 
@@ -473,6 +504,36 @@ public class Views {
             target = v; postInvalidateOnAnimation();
         }
         public void setSub(String s) { sub = s; invalidate(); }
+        private float accel = 0, glow = 0;
+        /** aceleración en G: >0 acelera (brillo del acento que late), <0 frena (brillo rojo) */
+        public void setAccel(float g) { accel = g; postInvalidateOnAnimation(); }
+        private void drawAccelGlow(Canvas c, Paint p, float cx, float cy, float rad, int accent) {
+            float want = !anim ? 0 : accel > 0.10f ? Math.min(1, accel * 3) : accel < -0.15f ? Math.min(1, -accel * 2.5f) : 0;
+            glow += (want - glow) * 0.12f;
+            if (glow < 0.01f) { glow = 0; return; }
+            int col = accel < 0 ? 0xFFFF3B30 : accent;
+            float pulse = 0.75f + 0.25f * (float) Math.sin(android.os.SystemClock.uptimeMillis() / 90.0);
+            Paint.Style old = p.getStyle(); float ow = p.getStrokeWidth();
+            p.setStyle(Paint.Style.STROKE);
+            for (int k = 3; k >= 1; k--) {
+                p.setStrokeWidth(rad * 0.05f * k);
+                p.setColor((col & 0xFFFFFF) | ((int) (glow * pulse * 70 / k) << 24));
+                c.drawCircle(cx, cy, rad * (1.04f + 0.02f * k), p);
+            }
+            // rayas de velocidad hacia afuera al acelerar
+            if (accel > 0) {
+                p.setStrokeWidth(Math.max(2, rad * 0.012f));
+                long t = android.os.SystemClock.uptimeMillis();
+                for (int k = 0; k < 18; k++) {
+                    double a = Math.toRadians(k * 20 + (t / 6 % 20));
+                    float r0 = rad * (1.12f + ((t / 4 + k * 37) % 100) / 400f), r1 = r0 + rad * 0.08f * glow;
+                    p.setColor((col & 0xFFFFFF) | ((int) (glow * 160) << 24));
+                    c.drawLine(cx + (float) Math.cos(a) * r0, cy + (float) Math.sin(a) * r0, cx + (float) Math.cos(a) * r1, cy + (float) Math.sin(a) * r1, p);
+                }
+            }
+            p.setStyle(old); p.setStrokeWidth(ow);
+            postInvalidateOnAnimation();
+        }
 
         @Override
         protected void onDraw(Canvas c) {
@@ -495,6 +556,7 @@ public class Views {
             float cx = w / 2f, cy = h * 0.5f;
             float frac = shown / max;
             r.set(cx - rad, cy - rad, cx + rad, cy + rad);
+            drawAccelGlow(c, p, cx, cy, rad, Theme.P != null && !Theme.P.cockpit ? Theme.P.accent : COCK_ACC);
 
             // arco de fondo
             p.setStyle(Paint.Style.STROKE);
@@ -622,6 +684,8 @@ public class Views {
         public boolean bars = false;   // compatibilidad: true = "bars"
         private float beat = 0, rot = 0;
         public Spectrum(Context c) { super(c); }
+        private float[] px, py, pvx, pvy, plife;
+        private static boolean P_dark() { return Theme.P == null || Theme.P.dark; }
 
         public void configure(String style, String palette, float gain) { this.style = style; this.pal = specPalette(palette); this.gain = gain; invalidate(); }
 
@@ -721,6 +785,155 @@ public class Views {
                     p.setShader(new LinearGradient(x0, y0, x1, y1, col(i, n, 0), colH(i, n, shown[i] + 0.3f), Shader.TileMode.CLAMP));
                     c.drawLine(x0, y0, x1, y1, p);
                 }
+            } else if ("bass".equals(st)) {
+                // SOLO BAJOS: un parlante (subwoofer) cuyo cono late con los graves
+                float cx = w / 2f, cy = h / 2f, R = Math.min(w, h) * 0.42f;
+                float b = 0; for (int i = 0; i < 8; i++) b += shown[i] / 8f;
+                p.setColor(fg(0x22)); c.drawCircle(cx, cy, R, p);
+                p.setShader(new android.graphics.RadialGradient(cx, cy, R * (0.85f + b * 0.2f), new int[]{col(0, n, 2), col(0, n, 1), 0xFF000000},
+                        new float[]{0f, 0.35f, 1f}, Shader.TileMode.CLAMP));
+                c.drawCircle(cx, cy, R * (0.78f + b * 0.18f), p);
+                p.setShader(null);
+                p.setStyle(Paint.Style.STROKE);
+                for (int k = 1; k <= 4; k++) {
+                    p.setStrokeWidth(2 + b * 6);
+                    p.setColor((col(0, n, k % 3) & 0xFFFFFF) | ((int) (60 + b * 190) << 24));
+                    c.drawCircle(cx, cy, R * (0.2f * k) * (1 + b * 0.12f), p);
+                }
+                p.setStyle(Paint.Style.FILL); p.setColor(0xFF111111);
+                c.drawCircle(cx, cy, R * 0.16f * (1 + b * 0.3f), p);
+            } else if ("bassbar".equals(st)) {
+                // SOLO BAJOS: 8 barras gruesas de 20–250 Hz con brillo
+                int m = 8; float bw = w / m;
+                for (int i = 0; i < m; i++) {
+                    float v = shown[i], bh = Math.max(4, v * h);
+                    p.setShader(new LinearGradient(0, h, 0, h - bh, col(i, m, 0), colH(i, m, v), Shader.TileMode.CLAMP));
+                    c.drawRoundRect(i * bw + bw * 0.12f, h - bh, (i + 1) * bw - bw * 0.12f, h, bw * 0.2f, bw * 0.2f, p);
+                    p.setShader(null); p.setColor(fg(0xCC));
+                    c.drawRect(i * bw + bw * 0.12f, h - peak[i] * h - 5, (i + 1) * bw - bw * 0.12f, h - peak[i] * h, p);
+                }
+            } else if ("vu".equals(st)) {
+                // dos vúmetros analógicos con aguja (graves y agudos); lado a lado o uno sobre otro según el espacio
+                float lo = 0, hi = 0; for (int i = 0; i < 16; i++) lo += shown[i] / 16f; for (int i = 24; i < 64; i++) hi += shown[i] / 40f;
+                float[] vals = {Math.min(1, lo * 1.2f), Math.min(1, hi * 2f)};
+                boolean side = w >= h;
+                for (int k = 0; k < 2; k++) {
+                    float gap = Math.min(w, h) * 0.04f;
+                    float x0 = side ? k * w / 2f + gap : gap, x1 = side ? (k + 1) * w / 2f - gap : w - gap;
+                    float y0 = side ? gap : k * h / 2f + gap, y1 = side ? h - gap : (k + 1) * h / 2f - gap;
+                    float mw = x1 - x0, mh = y1 - y0;
+                    float cx = (x0 + x1) / 2f, cy = y1 - mh * 0.1f, R = Math.min(mw * 0.46f, mh * 0.78f);
+                    p.setStyle(Paint.Style.FILL);
+                    p.setColor(0xFFF3E9C6); c.drawRoundRect(x0, y0, x1, y1, 14, 14, p);
+                    p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(Math.max(2, R * 0.02f));
+                    for (int t = 0; t <= 10; t++) {
+                        double a = Math.toRadians(-150 + t * 12);
+                        p.setColor(t >= 8 ? 0xFFD32F2F : 0xFF333333);
+                        c.drawLine(cx + (float) Math.cos(a) * R * 0.8f, cy + (float) Math.sin(a) * R * 0.8f,
+                                cx + (float) Math.cos(a) * R * 0.95f, cy + (float) Math.sin(a) * R * 0.95f, p);
+                    }
+                    double a = Math.toRadians(-150 + vals[k] * 120);
+                    p.setStrokeWidth(Math.max(3, R * 0.03f)); p.setColor(0xFF111111);
+                    c.drawLine(cx, cy, cx + (float) Math.cos(a) * R * 0.97f, cy + (float) Math.sin(a) * R * 0.97f, p);
+                    p.setStyle(Paint.Style.FILL);
+                    c.drawCircle(cx, cy, Math.max(4, R * 0.05f), p);
+                    p.setTextSize(Math.min(mh * 0.12f, mw * 0.09f)); p.setColor(0xFF555555); p.setTextAlign(Paint.Align.CENTER);
+                    c.drawText(k == 0 ? "BAJOS" : "AGUDOS", cx, y0 + mh * 0.2f, p);
+                }
+            } else if ("particles".equals(st)) {
+                // partículas que salen del centro; más y más rápido con los bajos
+                if (px == null) { px = new float[160]; py = new float[160]; pvx = new float[160]; pvy = new float[160]; plife = new float[160]; }
+                float cx = w / 2f, cy = h / 2f;
+                for (int k = 0; k < 160; k++) {
+                    if (plife[k] <= 0 && Math.random() < beat * 0.5f) {
+                        double a = Math.random() * Math.PI * 2; float sp = (float) (2 + beat * 14 * Math.random());
+                        px[k] = cx; py[k] = cy; pvx[k] = (float) Math.cos(a) * sp; pvy[k] = (float) Math.sin(a) * sp; plife[k] = 1;
+                    }
+                    if (plife[k] > 0) {
+                        px[k] += pvx[k]; py[k] += pvy[k]; plife[k] -= 0.012f;
+                        p.setColor((col(k % n, n, k % 3) & 0xFFFFFF) | ((int) (plife[k] * 255) << 24));
+                        c.drawCircle(px[k], py[k], 2 + plife[k] * 4, p);
+                    }
+                }
+                p.setColor((col(0, n, 1) & 0xFFFFFF) | ((int) (80 + beat * 170) << 24));
+                c.drawCircle(cx, cy, Math.min(w, h) * (0.04f + beat * 0.08f), p);
+            } else if ("blob".equals(st)) {
+                // figura orgánica que respira con el audio
+                float cx = w / 2f, cy = h / 2f, R = Math.min(w, h) * 0.26f;
+                for (int layer = 2; layer >= 0; layer--) {
+                    path.reset();
+                    for (int k = 0; k <= 64; k++) {
+                        int i = k % 32 < 16 ? k % 32 : 31 - k % 32;
+                        double a = Math.toRadians(rot * (layer + 1) * 0.3 + k * 360.0 / 64);
+                        float r = R * (1 + layer * 0.18f) + shown[i * 2 + layer] * R * 0.9f;
+                        float x = cx + (float) Math.cos(a) * r, y = cy + (float) Math.sin(a) * r;
+                        if (k == 0) path.moveTo(x, y); else path.lineTo(x, y);
+                    }
+                    path.close();
+                    p.setColor((col(layer * 20, n, layer) & 0xFFFFFF) | (layer == 0 ? 0xDD000000 : 0x66000000));
+                    c.drawPath(path, p);
+                }
+            } else if ("mountains".equals(st)) {
+                // 3 cordilleras superpuestas: graves al fondo, medios y agudos adelante
+                for (int layer = 0; layer < 3; layer++) {
+                    path.reset(); path.moveTo(0, h);
+                    for (int k = 0; k <= 40; k++) {
+                        int i = Math.min(n - 1, layer * 20 + k / 2);
+                        float x = w * k / 40f, y = h * (0.45f + layer * 0.15f) - shown[i] * h * (0.5f - layer * 0.1f);
+                        path.lineTo(x, y);
+                    }
+                    path.lineTo(w, h); path.close();
+                    int cc = col(layer * 20, n, layer);
+                    p.setShader(new LinearGradient(0, 0, 0, h, (cc & 0xFFFFFF) | 0xEE000000, (cc & 0xFFFFFF) | 0x33000000, Shader.TileMode.CLAMP));
+                    c.drawPath(path, p);
+                }
+                p.setShader(null);
+            } else if ("osc".equals(st)) {
+                // osciloscopio: línea que vibra en el centro (suma de las bandas)
+                path.reset();
+                float mid = h / 2f;
+                for (int x = 0; x <= 200; x++) {
+                    float t = x / 200f, y = 0;
+                    for (int i = 0; i < 12; i++) y += shown[i * 5] * Math.sin(t * Math.PI * 2 * (i + 1) + rot * 0.05 * (i + 1)) / (1 + i * 0.3f);
+                    float yy = mid + y * h * 0.22f;
+                    if (x == 0) path.moveTo(0, yy); else path.lineTo(w * t, yy);
+                }
+                p.setStyle(Paint.Style.STROKE);
+                p.setStrokeWidth(10); p.setColor((col(0, n, 1) & 0xFFFFFF) | 0x44000000); c.drawPath(path, p);
+                p.setStrokeWidth(3); p.setColor(col(0, n, 0)); c.drawPath(path, p);
+            } else if ("city".equals(st)) {
+                // ciudad: edificios cuya altura es el espectro, con ventanas que se encienden
+                int m = 22; float bw = w / m;
+                for (int i = 0; i < m; i++) {
+                    float v = shown[i * n / m], bh = h * 0.12f + v * h * 0.8f;
+                    p.setColor(P_dark() ? 0xFF14141C : 0xFF4A4A5A);
+                    c.drawRect(i * bw + 2, h - bh, (i + 1) * bw - 2, h, p);
+                    int rows = (int) (bh / 14);
+                    for (int r = 0; r < rows; r++) for (int q = 0; q < 2; q++) {
+                        boolean lit = (r + q + i) % 3 != 0 && r < rows * (0.3f + v);
+                        if (!lit) continue;
+                        p.setColor(colH(i * n / m, n, r / (float) Math.max(1, rows)));
+                        float wx = i * bw + 6 + q * (bw - 12) / 2f;
+                        c.drawRect(wx, h - bh + 6 + r * 14, wx + (bw - 18) / 2f, h - bh + 12 + r * 14, p);
+                    }
+                }
+            } else if ("center".equals(st)) {
+                // barras que salen del centro hacia los lados (graves al medio)
+                float bw = w / (n * 2), mid = h / 2f;
+                for (int i = 0; i < n; i++) {
+                    float bh = Math.max(2, shown[i] * h * 0.48f);
+                    p.setColor(colH(i, n, shown[i]));
+                    float xr = w / 2f + i * bw, xl = w / 2f - (i + 1) * bw;
+                    c.drawRoundRect(xr + 1, mid - bh, xr + bw - 1, mid + bh, 3, 3, p);
+                    c.drawRoundRect(xl + 1, mid - bh, xl + bw - 1, mid + bh, 3, 3, p);
+                }
+            } else if ("pulse".equals(st)) {
+                // toda la superficie se ilumina con los golpes de bajo (ideal de fondo)
+                int cc = col(0, n, 1);
+                p.setShader(new android.graphics.RadialGradient(w / 2f, h / 2f, Math.max(w, h) * 0.7f,
+                        (cc & 0xFFFFFF) | ((int) (beat * 230) << 24), 0, Shader.TileMode.CLAMP));
+                c.drawRect(0, 0, w, h, p);
+                p.setShader(null);
             } else {   // circle
                 float cx = w / 2f, cy = h / 2f, base = Math.min(w, h) * 0.24f * (1 + beat * 0.12f), len = Math.min(w, h) * 0.22f;
                 int c2 = col(0, n, 1);

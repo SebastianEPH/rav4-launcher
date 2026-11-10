@@ -316,7 +316,7 @@ public class HomeActivity extends Activity {
         getWindow().setBackgroundDrawable(null);   // la foto de arranque ya no hace falta: evita dibujarla en cada cuadro
         rebuildDock();
         if (last != null) { updateTrip(); feedGauge(curKmh); }
-        else feedGaugeSub(P.glass ? "Buscando GPS…" : "gps: searching...");
+        else updateDriveState();
         immersive();
     }
 
@@ -2887,7 +2887,8 @@ public class HomeActivity extends Activity {
             enforceMinBrightness();
             if ((SystemClock.elapsedRealtime() / 1000) % 3 == 0)
                 try { sendBroadcast(new Intent("com.nwd.action.ACTION_QUERY_CAN_BATTERY_VOLTAGE")); } catch (Exception e) { }
-            if (gpsOn && !fr) { curKmh = 0; feedGauge(0); if (lastFix > 0) feedGaugeSub(P.glass ? "Sin señal GPS" : "gps: signal lost"); }
+            if (gpsOn && !fr) { curKmh = 0; gNow = 0; feedGauge(0); }
+            updateDriveState();
             Views.Spark.push(curKmh);
             feedCockpitLive();
             if (isOpen(cc)) updateCC();
@@ -3115,8 +3116,7 @@ public class HomeActivity extends Activity {
         if (kmh > maxKmh) maxKmh = kmh;
         trackExtras(l, kmh, now);
         feedGauge(kmh);
-        feedGaugeSub(P.glass ? String.format(Locale.US, "%s · ±%.0f m", heading(l), l.getAccuracy())
-                : String.format(Locale.US, "hdg %s · ±%.0fm", heading(l), l.getAccuracy()));
+        updateDriveState();
         if (cockCompass != null && l.hasBearing()) cockCompass.setBearing(l.getBearing());
         updateTrip();
     }
@@ -3144,6 +3144,29 @@ public class HomeActivity extends Activity {
         if (gauge != null) gauge.setSpeed(kmh);
         if (cockGauge != null) cockGauge.setSpeed(kmh);
         if (cockRoad != null) cockRoad.setSpeed(kmh);
+    }
+
+    /**
+     * Texto bajo el velocímetro según lo que hace el auto: Estacionado (0 km/h), En marcha, Acelerando ▲ o Frenando ▼
+     * (fuerza G estimada por GPS), y le pasa la aceleración al velocímetro para su brillo animado.
+     */
+    private void updateDriveState() {
+        boolean fix = last != null && fresh();
+        String st;
+        float g = curKmh < 2 ? 0 : gNow;
+        boolean term = !P.glass;
+        if (curKmh < 2) st = term ? "parked" : "Estacionado";
+        else if (g > 0.10f) st = term ? "accel ▲" : "Acelerando ▲";
+        else if (g < -0.15f) st = term ? "brake ▼" : "Frenando ▼";
+        else st = term ? "driving" : "En marcha";
+        String extra;
+        if (fix) extra = term ? String.format(Locale.US, " · hdg %s", heading(last)) : " · " + heading(last);
+        else if (lastFix > 0) extra = term ? " · gps lost" : " · sin señal GPS";
+        else extra = term ? " · gps searching" : " · buscando GPS";
+        if (curKmh >= 2 && !fix) extra = "";
+        feedGaugeSub(st + (st.startsWith("Estacionado") || st.startsWith("parked") || !fix ? extra : extra));
+        if (gauge != null) gauge.setAccel(g);
+        if (cockGauge != null) cockGauge.setAccel(g);
     }
 
     private void feedGaugeSub(String s) {

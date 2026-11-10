@@ -156,6 +156,11 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
    colores `spec.colors` (Neón, Fuego, Océano, Matrix, Atardecer, Hielo, Oro, Arcoíris), sensibilidad `spec.gain`,
    **fondo** detrás de cualquier tema `spec.bg` + `spec.bgStyle` + `spec.bgAlpha`, y tarjeta "Espectro de audio" en
    todos los temas. Todos los `Views.Spectrum` salen de `HomeActivity.newSpec()` y reciben el mismo audio (`specs`).
+- **Estilos de espectro (17)**: Barras, Espejo, Desde el centro, Onda, Montañas, LED, Ciudad, Círculo, Anillos, Sol, Gota,
+  Partículas, Osciloscopio, Vúmetros, **Solo bajos · parlante**, **Solo bajos · barras**, Pulso (`Views.Spectrum`).
+- **Estado bajo el velocímetro** (`HomeActivity.updateDriveState`, todos los temas): Estacionado (0 km/h, aunque no haya
+  GPS) / En marcha / Acelerando ▲ / Frenando ▼ (fuerza G por GPS) + rumbo. Al acelerar el velocímetro brilla y salen rayas;
+  al frenar brilla en rojo (`setAccel` → `drawAccelGlow`). Probar en emulador: `adb emu geo fix <lon> <lat> 10 8 <nudos>`.
 - **Fondo de pantalla global** (Tema actual → Fondo, todos los temas): `bg.kind` = theme (el del tema) / spectrum /
   ios (manchas) / road (carretera neón) / ondas / noche / atardecer / rav4 / color (`bg.color`) / gradient (`bg.color2`) /
   photo (`files/bg.jpg`, elegida de galería/USB) + velo `bg.dim` 0–80 %. Con fondo propio, Cockpit y Sonido no dibujan
