@@ -24,7 +24,7 @@
 
   <header id="status">
     <button class="st-btn" id="btnPanel" aria-label="Abrir panel"><span class="burger"><i></i><i></i><i></i></span></button>
-    <div class="st-time"><b data-k="time">--:--</b><span data-k="dateShort"></span></div>
+    <div class="st-time"><b data-k="time">--:--</b><small class="ampm" data-k="ampm"></small><span data-k="dateShort"></span></div>
     <div class="st-mid" id="stMid"></div>
     <div class="st-icons">
       <button class="recbadge" id="recBadge"><i></i>REC <b id="recTime">0:00</b><em id="recLn">0 líneas</em></button>
@@ -91,7 +91,7 @@
       <h3 class="sub">Color de acento</h3>
       <div class="accents" id="accents"></div>
       <div class="group two">
-        <div><h3 class="sub">Reloj</h3><div class="seg" data-pref="clock"><button data-v="24">24 h</button><button data-v="12">12 h</button></div></div>
+        <div><h3 class="sub">Reloj</h3><div class="seg" data-pref="clock"><button data-v="12">12 h (AM/PM)</button><button data-v="24">24 h</button></div></div>
         <div><h3 class="sub">Efectos</h3><div class="seg" data-pref="fx"><button data-v="high">Altos</button><button data-v="low">Suaves</button><button data-v="off">No</button></div></div>
       </div>
     </div>

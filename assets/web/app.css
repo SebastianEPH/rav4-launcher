@@ -570,3 +570,7 @@ body[data-fx="high"] .recg { -webkit-backdrop-filter: blur(30px) saturate(180%);
 .rd-card p { color: rgba(255,255,255,.75); font-size: 1rem; line-height: 1.5; word-break: break-all; }
 .rd-card .primary { margin-top: 1.3rem; padding: .9rem 2.4rem; border-radius: 1.2rem; font-size: 1.05rem; font-weight: 600; }
 .logcard .profile { font-size: .8rem; color: var(--dim); margin-top: .25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); }
+
+.ampm { font-size: .42em; font-weight: 500; margin-left: .25em; letter-spacing: .02em; opacity: .85; }
+.st-time .ampm { font-size: .7rem; margin-left: .2rem; }
+.ampm:empty { display: none; }

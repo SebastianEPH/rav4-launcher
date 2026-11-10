@@ -23,7 +23,7 @@
     mode: params.mode || R.pref('mode', 'dark'),
     fx: params.fx || R.pref('fx', 'high'),
     accent: params.accent || R.pref('accent', 'theme'),
-    clock: R.pref('clock', '24'),
+    clock: R.pref('clock', '12'),
     darkFrom: R.pref('darkFrom', '18'),
     darkTo: R.pref('darkTo', '6')
   };
@@ -39,7 +39,8 @@
     return prefs[key];
   }
   function hexA(hex, a) { var n = parseInt(hex.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; }
-  function hhmm(d) { return prefs.clock === '12' ? (d.getHours() % 12 || 12) + ':' + pad(d.getMinutes()) : pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function hhmm(d) { return prefs.clock === '24' ? pad(d.getHours()) + ':' + pad(d.getMinutes()) : (d.getHours() % 12 || 12) + ':' + pad(d.getMinutes()); }
+  function ampm(d) { return prefs.clock === '24' ? '' : (d.getHours() < 12 ? 'AM' : 'PM'); }
   var current = null;            // tema montado
   if (params.shot) document.documentElement.classList.add('shot');
 
@@ -157,7 +158,7 @@
     name: 'Glass', pv: ['#2a5bff', '#b44bff', '#00c2b8'],
     html: function () {
       return '<div class="screen glass stagger">' +
-        '<div class="card clock shine"><div><h4>Hoy</h4><div class="hh" data-k="time">--:--</div><div class="dd" data-k="dateLong"></div></div>' +
+        '<div class="card clock shine"><div><h4>Hoy</h4><div class="hh"><span data-k="time">--:--</span><small class="ampm" data-k="ampm"></small></div><div class="dd" data-k="dateLong"></div></div>' +
         '<div><div class="sub">Batería del auto</div><div class="big"><span data-k="battV">—</span><span class="unit">V</span></div><div class="bar"><i data-w="batt"></i></div>' +
         '<div class="sub" style="margin-top:1rem">GPS · <span data-k="satsTxt">—</span></div></div></div>' +
         '<div class="card ringcard shine"><div class="ring"><svg viewBox="0 0 340 340"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">' +
@@ -209,7 +210,7 @@
   THEMES.dusk = {
     name: 'Dusk', pv: ['#e58fa6', '#8e5c9e', '#231a3a'],
     html: function () {
-      return '<div class="screen dusk"><div class="hero"><div class="hh" data-k="time">--:--</div><div class="dd" data-k="dateLong"></div><div class="greet" data-k="greet"></div></div>' +
+      return '<div class="screen dusk"><div class="hero"><div class="hh"><span data-k="time">--:--</span><small class="ampm" data-k="ampm"></small></div><div class="dd" data-k="dateLong"></div><div class="greet" data-k="greet"></div></div>' +
         '<div class="row stagger">' +
         '<div class="card shine"><h4>Velocidad</h4><div class="big"><span data-k="kmhInt">0</span><span class="unit">km/h</span></div><div class="sub" data-k="gpsLine"></div></div>' +
         '<div class="card shine"><h4>Viaje</h4><div class="big"><span data-k="dist">0.0</span><span class="unit">km</span></div><div class="sub">Máx. <b data-k="maxKmh">0</b> km/h · <span data-k="moving"></span></div></div>' +
@@ -492,6 +493,7 @@
   function tick() {
     var d = new Date();
     setK('time', hhmm(d));
+    setK('ampm', ampm(d));
     setK('dateShort', DAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3));
     setK('dateLong', dateLong(d));
     setK('greet', greet());

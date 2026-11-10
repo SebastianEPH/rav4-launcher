@@ -1713,6 +1713,9 @@ public class HomeActivity extends Activity {
         left.addView(section("INTERFAZ"));
         left.addView(choice(new String[]{"Nativa", "Web (animada)"}, new String[]{"native", "web"},
                 prefs.getString("engine", "native"), "engine"));
+        left.addView(section("RELOJ"));
+        left.addView(choice(new String[]{"12 h (AM/PM)", "24 h"}, new String[]{"12", "24"},
+                prefs.getString("web.clock", "12"), "web.clock"));
         left.addView(section("TEMA"));
         String th = prefs.getString("theme", Theme.TERMINAL);
         String[][] themes = {
@@ -1918,17 +1921,17 @@ public class HomeActivity extends Activity {
             if (spark != null) spark.invalidate();
 
             if (!P.glass) {
-                clock.setText(new SimpleDateFormat("HH:mm:ss", Locale.US).format(now));
+                clock.setText(clockText(now, true));
                 date.setText(new SimpleDateFormat("EEE dd/MM/yyyy", new Locale("es")).format(now));
                 prompt.setText("rav4@k4811:~$ " + (fr ? "driving" : "idle"));
                 chips.setText(chipLine());
                 sysPanel.setText(telemetry());
             } else {
-                if (clock != null) clock.setText(new SimpleDateFormat("HH:mm", Locale.US).format(now));
+                if (clock != null) clock.setText(clockText(now, false));
                 if (chips != null) chips.setText((wifiConnected() ? "WiFi" : "—") + "  " + (btOn() ? "BT" : "") + (batteryV >= 0 ? "\n" + batteryText() : ""));
                 if (date != null) date.setText(new SimpleDateFormat("EEEE d 'de' MMMM", new Locale("es")).format(now).toUpperCase(new Locale("es")));
                 View big = root.findViewWithTag("bigclock");
-                if (big != null) ((TextView) big).setText(new SimpleDateFormat("HH:mm", Locale.US).format(now));
+                if (big != null) ((TextView) big).setText(clockText(now, false));
                 View dn = root.findViewWithTag("dayname");
                 if (dn != null) ((TextView) dn).setText(new SimpleDateFormat("EEEE", new Locale("es")).format(now));
                 View dd = root.findViewWithTag("daynum");
@@ -1940,6 +1943,17 @@ public class HomeActivity extends Activity {
             h.postDelayed(this, 1000);
         }
     };
+
+    /** Hora en 12 h con AM/PM pequeño (por defecto) o en 24 h; misma preferencia que la interfaz web. */
+    private CharSequence clockText(Date d, boolean seconds) {
+        if ("24".equals(prefs.getString("web.clock", "12")))
+            return new SimpleDateFormat(seconds ? "HH:mm:ss" : "HH:mm", Locale.US).format(d);
+        String t = new SimpleDateFormat(seconds ? "h:mm:ss" : "h:mm", Locale.US).format(d);
+        String ap = new SimpleDateFormat("a", Locale.US).format(d);
+        android.text.SpannableString s = new android.text.SpannableString(t + " " + ap);
+        s.setSpan(new android.text.style.RelativeSizeSpan(0.45f), t.length() + 1, s.length(), 0);
+        return s;
+    }
 
     private boolean fresh() { return lastFix > 0 && SystemClock.elapsedRealtime() - lastFix < 5000; }
 

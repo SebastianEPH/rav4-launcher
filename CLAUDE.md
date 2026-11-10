@@ -83,7 +83,7 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
 - 6 temas: Terminal, Glass, Dusk, Cockpit, Inicio y **Auto · CAN** (vidrio líquido estilo iOS con íconos
   propios: puertas animadas, tacómetro, señales y registro en vivo del bus CAN para probar qué llega).
 - **Todo configurable** desde el Panel: modo Oscuro/Claro/Automático con **horas configurables**
-  (`darkFrom`/`darkTo`), color de acento, reloj 12/24 h, efectos y **opciones propias de cada tema**
+  (`darkFrom`/`darkTo`), color de acento, reloj 12 h (por defecto) / 24 h, efectos y **opciones propias de cada tema**
   (`THEMES.x.opts`, guardadas como `t.<tema>.<clave>` y expuestas en CSS como `data-o-<clave>`).
 - Efectos Altos / Suaves / Ninguno; si la radio no llega a ~35 fps se bajan solos una vez.
 - Puente `window.Radio` (WebHome.Bridge): `state()` JSON (GPS, viaje, voltaje, volumen, brillo,
@@ -116,6 +116,7 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
 - El cajón de apps debe verse pulido (íconos grandes squircle, nombres, sin cajas grises).
 - Nada de círculos en los íconos (fue un rechazo explícito).
 - Controles y apps empiezan por la **izquierda**, lado del conductor.
+- Hora en **12 h con AM/PM por defecto** (pref compartida `web.clock` = "12"/"24"; nativa y web). Los registros técnicos (CAN, log) usan 24 h.
 - No copiar íconos de marcas (Apple, Google, Volkswagen): se usan los íconos reales de cada app.
 
 ## Cómo compilar e instalar
