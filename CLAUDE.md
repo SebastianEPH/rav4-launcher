@@ -209,6 +209,13 @@ archivos agregados/eliminados, "Qué trae el launcher" (lista fija en el script:
 funciones**) y "Todavía no incluye" (sale de la sección Pendientes de este archivo).
 El repo es **público**: nunca subir claves, tokens ni la `debug.keystore`.
 
+## Regla: toda función nueva va en TODOS los temas
+Cuando el usuario pide algo (una tarjeta, animación, fondo, opción), debe funcionar en **todos** los temas nativos
+(Terminal, Glass, Dusk, Cockpit, Inicio, Sonido) y, si aplica, en la web. **Antes de enviar**, probarlo en el emulador
+**tema por tema** con captura de cada uno. Ojo con los temas de fondo propio opaco (Cockpit: carretera; Sonido): lo que
+vaya "de fondo" se agrega con `addBgSpecInto(wrap)` encima de ese fondo, no en `root`.
+Para ver el espectro moviéndose sin música en el emulador: pref booleana `spec.demo=true`.
+
 ## Reglas de git
 - **Commitear y hacer push por cada cambio**, con mensaje en español.
 - **No agregar a Claude como coautor**: nada de `Co-Authored-By` ni firmas de Claude en commits o PRs.

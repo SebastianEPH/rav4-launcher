@@ -294,12 +294,11 @@ public class HomeActivity extends Activity {
         }
         stopViz();
         specs.clear(); spectrum = spectrumBars = null; sndVol = null;
-        if ("on".equals(prefs.getString("spec.bg", "off"))) {
-            Views.Spectrum bgs = newSpec(prefs.getString("spec.bgStyle", "wave"));
-            bgs.setAlpha(prefs.getInt("spec.bgAlpha", 35) / 100f);
-            root.addView(bgs, new FrameLayout.LayoutParams(-1, -1));
-        }
+        bgSpecAdded = false;
         themeView = P.sound ? buildSound() : P.home ? buildHome() : P.cockpit ? buildCockpit() : P.dusk ? buildDusk() : P.glass ? buildGlass() : buildTerminal();
+        // espectro de fondo: los temas con fondo propio opaco (Cockpit, Sonido) lo ponen encima de su fondo;
+        // en el resto va detrás de todo el tema
+        if (!bgSpecAdded && "on".equals(prefs.getString("spec.bg", "off"))) root.addView(bgSpec(), new FrameLayout.LayoutParams(-1, -1));
         root.addView(themeView);
         enterCards(themeView);
         if (!specs.isEmpty()) startViz();
@@ -479,6 +478,7 @@ public class HomeActivity extends Activity {
         FrameLayout wrap = new FrameLayout(this);
         cockRoad = new Views.CockpitRoad(this);
         wrap.addView(cockRoad, new FrameLayout.LayoutParams(-1, -1));
+        addBgSpecInto(wrap);
 
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
@@ -969,6 +969,21 @@ public class HomeActivity extends Activity {
     private boolean vizReal = false, sndTouch = false;
     private final Runnable simTick = new Runnable() { public void run() { simulate(); } };
 
+    private boolean bgSpecAdded = false;
+
+    private Views.Spectrum bgSpec() {
+        Views.Spectrum bgs = newSpec(prefs.getString("spec.bgStyle", "wave"));
+        int al = 35; try { al = prefs.getInt("spec.bgAlpha", 35); } catch (Exception e) { }
+        bgs.setAlpha(al / 100f);
+        bgSpecAdded = true;
+        return bgs;
+    }
+
+    /** Para temas cuyo fondo propio es opaco: agrega el espectro de fondo justo encima de ese fondo. */
+    private void addBgSpecInto(FrameLayout wrap) {
+        if ("on".equals(prefs.getString("spec.bg", "off"))) wrap.addView(bgSpec(), new FrameLayout.LayoutParams(-1, -1));
+    }
+
     private View buildSound() {
         final int C1 = 0xFFFF2D95, C2 = 0xFF7C4DFF, C3 = 0xFF00E5FF;
         FrameLayout wrap = new FrameLayout(this);
@@ -976,6 +991,7 @@ public class HomeActivity extends Activity {
         bg.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR, P.dark
                 ? new int[]{0xFF07040F, 0xFF140A2A, 0xFF05101A} : new int[]{0xFFF4EEFF, 0xFFE9E3FB, 0xFFE3F6FB}));
         wrap.addView(bg, new FrameLayout.LayoutParams(-1, -1));
+        addBgSpecInto(wrap);
 
         LinearLayout row = new LinearLayout(this);
         row.setPadding(dp(16), dp(14), dp(16), dp(16));
@@ -1156,10 +1172,10 @@ public class HomeActivity extends Activity {
     /** Si no hay datos reales, anima según si hay música sonando y el volumen. */
     private void simulate() {
         if (specs.isEmpty()) return;
-        boolean real = SystemClock.elapsedRealtime() - lastFftAt < 600;
+        boolean real = SystemClock.elapsedRealtime() - lastFftAt < 600 && !prefs.getBoolean("spec.demo", false);
         if (!real) {
             android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
-            boolean playing = am.isMusicActive();
+            boolean playing = am.isMusicActive() || prefs.getBoolean("spec.demo", false);
             float lvl = playing ? 0.35f + 0.5f * volNow() / (float) Math.max(1, volMax()) : 0.04f;
             double t = SystemClock.elapsedRealtime() / 1000.0;
             for (int i = 0; i < audio.length; i++) {
