@@ -1694,7 +1694,8 @@ public class HomeActivity extends Activity {
         // si quedó vacío, usar las primeras apps visibles (igual que el dock del web)
         if (items.isEmpty()) for (ResolveInfo r : sorted(all)) { if (!hidden.contains(key(r)) && !undock.contains(key(r))) items.put(key(r), r); if (items.size() >= 5) break; }
         // Ajustes Launcher siempre en el dock, en todos los temas
-        for (ResolveInfo r : all) if (r.activityInfo.name.equals(SettingsActivity.class.getName())) items.put(key(r), r);
+        // Ajustes Launcher va en el dock salvo que el usuario lo quite (siempre queda en "todas las apps")
+        for (ResolveInfo r : all) if (r.activityInfo.name.equals(SettingsActivity.class.getName()) && !undock.contains(key(r))) items.put(key(r), r);
         dockKeys = new HashSet<String>(items.keySet());
 
         // 3) apps
@@ -2052,13 +2053,13 @@ public class HomeActivity extends Activity {
         final String pkg = r.activityInfo.packageName;
         final boolean isHidden = hidden.contains(k), isPinned = pinned.contains(k) || dockKeys.contains(k);
         final boolean isSettings = r.activityInfo.name.equals(SettingsActivity.class.getName());
-        final String[] opts = isSettings ? new String[]{"Abrir Ajustes Launcher"} : new String[]{isPinned ? "Quitar del dock" : "Fijar en el dock",
+        final String[] opts = isSettings ? new String[]{"Abrir Ajustes Launcher", isPinned ? "Quitar del dock" : "Fijar en el dock"} : new String[]{isPinned ? "Quitar del dock" : "Fijar en el dock",
                 isHidden ? "Mostrar" : "Ocultar", "Info de la app", "Desinstalar de la radio"};
         new AlertDialog.Builder(this, alertStyle())
                 .setTitle(r.loadLabel(getPackageManager()))
                 .setItems(opts, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface d, int w) {
-                        if (isSettings) { openLauncherSettings(); return; }
+                        if (isSettings) { if (w == 0) openLauncherSettings(); else setDocked(k, !isPinned); return; }
                         if (w == 0) setDocked(k, !isPinned);
                         if (w == 1) toggleHidden(k);
                         if (w == 2) appInfo(pkg);
