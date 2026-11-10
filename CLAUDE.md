@@ -147,8 +147,8 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
   El launcher lo vigila cada segundo y lo corrige lo haya bajado quien lo haya bajado.
 - **Brillo automático por tramos** (Ajustes RAV4 → Brillo automático): pref `autobright` on/off y
   `autobright.bands` = "hora:porcentaje,.." (ej. "7:90,19:55,22:25"). El tramo vigente es el de mayor hora ≤ ahora
-  (envuelve medianoche). `HomeActivity.applyAutoBrightness` lo aplica al cambiar de tramo (un ajuste manual dentro
-  del mismo tramo se respeta); nunca baja del 18 %. Editor **táctil grande** (`SettingsActivity.BandGraph`, 300 dp):
+  (envuelve medianoche). Forma `autobright.shape`: **Arco suave** (`curve`, interpolación coseno entre puntos, `Views.brightAtF`) o Escalones (`steps`). `HomeActivity.applyAutoBrightness` lo aplica al cambiar de tramo (un ajuste manual dentro
+  del mismo tramo se respeta); nunca baja del 18 %. Editor **táctil grande** (`SettingsActivity.BandGraph`, 440 dp):
   arrastrar un punto (↕ brillo, ↔ hora), tocar un espacio vacío agrega un tramo, mantener presionado lo borra.
 - **Ajustes RAV4 en pestañas**: General · Brillo · Apps · Permisos · Sistema (tocar o deslizar ←/→). Corre en su propia
   tarea (`taskAffinity` aparte): sin eso, abrirlo desde el cajón solo traía el launcher al frente y "no abría".

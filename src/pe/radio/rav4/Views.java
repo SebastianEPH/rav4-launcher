@@ -316,6 +316,38 @@ public class Views {
         b.setPixels(px, 0, w, 0, 0, w, h);
     }
 
+    /**
+     * Brillo automático: % para una hora del día (con fracción) a partir de los puntos "hora:%,...".
+     * "steps" = escalones (cada punto rige hasta el siguiente); "curve" = arco suave (coseno) entre puntos,
+     * con vuelta a medianoche. Nunca baja de 18 %.
+     */
+    public static int brightAt(String bands, String shape, float hour) { return Math.round(brightAtF(bands, shape, hour)); }
+
+    /** Igual que brightAt pero sin redondear (para dibujar la curva sin dientes). */
+    public static float brightAtF(String bands, String shape, float hour) {
+        java.util.List<int[]> l = new java.util.ArrayList<int[]>();
+        for (String s : bands.split(",")) {
+            String[] hp = s.split(":");
+            if (hp.length != 2) continue;
+            try { l.add(new int[]{Integer.parseInt(hp[0].trim()), Integer.parseInt(hp[1].trim())}); } catch (Exception e) { }
+        }
+        if (l.isEmpty()) return -1f;
+        java.util.Collections.sort(l, new java.util.Comparator<int[]>() { public int compare(int[] a, int[] b) { return a[0] - b[0]; } });
+        if (l.size() == 1) return Math.max(18f, l.get(0)[1]);
+        int[] prev = l.get(l.size() - 1), next = l.get(0);
+        for (int i = 0; i < l.size(); i++) {
+            if (l.get(i)[0] <= hour) { prev = l.get(i); next = l.get((i + 1) % l.size()); }
+        }
+        if (!"curve".equals(shape)) return Math.max(18f, prev[1]);
+        float span = next[0] - prev[0];
+        if (span <= 0) span += 24;
+        float t = hour - prev[0];
+        if (t < 0) t += 24;
+        float f = Math.max(0, Math.min(1, t / span));
+        float v = prev[1] + (next[1] - prev[1]) * (1 - (float) Math.cos(Math.PI * f)) / 2f;
+        return Math.max(18f, v);
+    }
+
     /** Barra de nivel (0..1) con pista redondeada y relleno en degradado. */
     public static class Bar extends View {
         private float frac = 0;

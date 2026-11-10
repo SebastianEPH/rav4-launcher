@@ -1191,7 +1191,10 @@ public class HomeActivity extends Activity {
     private void applyAutoBrightness() {
         if (!"on".equals(prefs.getString("autobright", "off"))) { lastAutoPct = -1; return; }
         if (Build.VERSION.SDK_INT >= 23 && !android.provider.Settings.System.canWrite(this)) return;
-        int target = autoBrightnessFor(java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY));
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        float hr = cal.get(java.util.Calendar.HOUR_OF_DAY) + cal.get(java.util.Calendar.MINUTE) / 60f;
+        int target = Views.brightAt(prefs.getString("autobright.bands", "7:90,19:55,22:25"),
+                prefs.getString("autobright.shape", "curve"), hr);
         if (target < 0) return;
         int goal = Math.max(MIN_BRIGHTNESS, Math.min(255, Math.round(target * 255f / 100f)));
         if (target != lastAutoPct) { lastAutoPct = target; fadeGoal = goal; }

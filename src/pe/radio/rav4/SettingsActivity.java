@@ -189,6 +189,8 @@ public class SettingsActivity extends Activity {
         bc.addView(segRow("Ajustar el brillo según la hora", "El launcher sube o baja el brillo solo", "autobright",
                 new String[]{"Sí", "No"}, new String[]{"on", "off"}, "off"));
         if ("on".equals(prefs.getString("autobright", "off"))) {
+            bc.addView(segRow("Forma del brillo", "Arco: sube y baja de a poco entre los puntos", "autobright.shape",
+                    new String[]{"Arco suave", "Escalones"}, new String[]{"curve", "steps"}, "curve"));
             bc.addView(segRow("Transición entre tramos", "Suave: cambia de a poco en ~30 s", "autobright.fade",
                     new String[]{"Suave", "Inmediata"}, new String[]{"on", "off"}, "on"));
             bc.addView(presetsRow());
@@ -273,7 +275,8 @@ public class SettingsActivity extends Activity {
             apply.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                     int hr = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY);
-                    int pct = brightAt(bandList(), hr);
+                    java.util.Calendar cl = java.util.Calendar.getInstance();
+                    int pct = curveAt(bandList(), hr + cl.get(java.util.Calendar.MINUTE) / 60f);
                     setScreenBrightness(pct);
                     android.widget.Toast.makeText(SettingsActivity.this, "Brillo del horario aplicado: " + pct + " %", android.widget.Toast.LENGTH_SHORT).show();
                     rebuild();
@@ -524,7 +527,7 @@ public class SettingsActivity extends Activity {
         TextView how = tv("Arrastra un punto: ↕ brillo, ↔ hora · toca un espacio vacío para agregar · mantén presionado para borrar", 13, DIM);
         how.setPadding(dp(4), 0, 0, dp(8));
         graphCard.addView(how);
-        graphCard.addView(new BandGraph(this), new LinearLayout.LayoutParams(-1, dp(300)));
+        graphCard.addView(new BandGraph(this), new LinearLayout.LayoutParams(-1, dp(440)));
         LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(-1, -2);
         gl.bottomMargin = dp(10);
         wrap.addView(graphCard, gl);
@@ -637,6 +640,17 @@ public class SettingsActivity extends Activity {
         prefs.edit().putString("autobright.bands", sb.toString()).apply(); touch();
     }
 
+    private String shape() { return prefs.getString("autobright.shape", "curve"); }
+
+    /** % para una hora con fracción, según la forma elegida (arco suave o escalones). */
+    private int curveAt(List<int[]> l, float hour) { return Math.round(curveF(l, hour)); }
+
+    private float curveF(List<int[]> l, float hour) {
+        StringBuilder sb = new StringBuilder();
+        for (int[] x : l) { if (sb.length() > 0) sb.append(","); sb.append(x[0]).append(":").append(x[1]); }
+        return Views.brightAtF(sb.toString(), shape(), hour);
+    }
+
     private int brightAt(List<int[]> l, int hour) {
         int best = -1, bestH = -1, lastP = -1, lastH = -1;
         for (int[] b : l) {
@@ -675,6 +689,7 @@ public class SettingsActivity extends Activity {
         private float bottom() { return getHeight() - dp(30); }
         private float xFor(float hour) { return left() + (right() - left()) * hour / 24f; }
         private float yFor(int pct) { return bottom() - (pct / 100f) * (bottom() - top()); }
+        private float yForF(float pct) { return bottom() - (pct / 100f) * (bottom() - top()); }
         private int hourAt(float x) { return Math.max(0, Math.min(23, Math.round((x - left()) / (right() - left()) * 24f))); }
         private int pctAt(float y) { return Math.max(18, Math.min(100, Math.round((bottom() - y) / (bottom() - top()) * 100f))); }
 
@@ -729,7 +744,7 @@ public class SettingsActivity extends Activity {
             Collections.sort(l, new java.util.Comparator<int[]>() { public int compare(int[] a, int[] b) { return a[0] - b[0]; } });
             float L = left(), R = right(), T = top(), B = bottom();
             // cuadrícula: 25/50/75/100 %
-            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(1); p.setColor(SOFT);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(1); p.setColor(LINE);
             p.setPathEffect(null);
             for (int v = 25; v <= 100; v += 25) c.drawLine(L, yFor(v), R, yFor(v), p);
             for (int hr = 0; hr <= 24; hr += 3) c.drawLine(xFor(hr), T, xFor(hr), B, p);
@@ -739,10 +754,15 @@ public class SettingsActivity extends Activity {
             for (int hr = 0; hr <= 24; hr += 3) c.drawText(hourTxt(hr % 24), xFor(hr), B + dp(20), p);
             // curva escalonada + relleno
             android.graphics.Path area = new android.graphics.Path();
-            area.moveTo(L, yFor(brightAt(l, 0)));
-            for (int hr = 1; hr <= 24; hr++) {
-                area.lineTo(xFor(hr), yFor(brightAt(l, hr - 1)));
-                if (hr < 24) area.lineTo(xFor(hr), yFor(brightAt(l, hr)));
+            if ("curve".equals(shape())) {
+                area.moveTo(L, yForF(curveF(l, 0)));
+                for (float hr = 0.1f; hr <= 24.001f; hr += 0.1f) area.lineTo(xFor(hr), yForF(curveF(l, Math.min(23.999f, hr))));
+            } else {
+                area.moveTo(L, yFor(brightAt(l, 0)));
+                for (int hr = 1; hr <= 24; hr++) {
+                    area.lineTo(xFor(hr), yFor(brightAt(l, hr - 1)));
+                    if (hr < 24) area.lineTo(xFor(hr), yFor(brightAt(l, hr)));
+                }
             }
             android.graphics.Path fill = new android.graphics.Path(area);
             fill.lineTo(R, B); fill.lineTo(L, B); fill.close();
@@ -761,9 +781,9 @@ public class SettingsActivity extends Activity {
             // hora actual
             java.util.Calendar cal = java.util.Calendar.getInstance();
             float nx = xFor(cal.get(java.util.Calendar.HOUR_OF_DAY) + cal.get(java.util.Calendar.MINUTE) / 60f);
-            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(dp(1.5f)); p.setColor(0x88FFFFFF);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(dp(1.5f)); p.setColor((TXT & 0x00FFFFFF) | 0x88000000);
             c.drawLine(nx, T, nx, B, p);
-            p.setStyle(Paint.Style.FILL); p.setColor(0xCCFFFFFF); p.setTextAlign(Paint.Align.CENTER);
+            p.setStyle(Paint.Style.FILL); p.setColor(TXT); p.setTextAlign(Paint.Align.CENTER);
             c.drawText("ahora", nx, T - dp(4), p);
             // puntos grandes (tocables)
             for (int i = 0; i < l.size(); i++) {
@@ -776,7 +796,7 @@ public class SettingsActivity extends Activity {
                 p.setColor(ACC); c.drawCircle(px, py, dp(5.5f), p);
                 // etiqueta del punto
                 String lab = hourTxt(l.get(i)[0]) + " · " + l.get(i)[1] + "%";
-                p.setTextSize(dp(sel ? 14 : 12)); p.setColor(0xFFFFFFFF);
+                p.setTextSize(dp(sel ? 14 : 12)); p.setColor(TXT);
                 float ty = py - dp(22) < T + dp(10) ? py + dp(32) : py - dp(22);
                 c.drawText(lab, Math.max(L + dp(40), Math.min(R - dp(40), px)), ty, p);
             }
