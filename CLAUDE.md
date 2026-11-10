@@ -112,7 +112,8 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
   que pone lenta la radio al iniciar). Se reactiva el `fx` guardado a los 2.5 s o al primer toque (lo que ocurra
   antes), con `applyLook()` + `initParticles()`.
 - **Congelar al tocar**: `pointerdown` añade `body.freeze` (pausa las animaciones de fondo vía CSS y salta el dibujo
-  de partículas); `pointerup`/`pointercancel` lo quitan 650 ms después sin actividad. Así el cajón de apps abre fluido.
+  de partículas); `pointerup`/`pointercancel` lo quitan 650 ms después **solo si no hay una hoja abierta**. Mientras el cajón de
+  apps (o cualquier `.sheet`) está abierto, las animaciones de fondo quedan detenidas; se reanudan al cerrarlo.
 - **Permisos**: Android no permite "permiso total". Ajustes RAV4 → Permisos
   pide **todos** los útiles (lista `SettingsActivity.PERMS` con su "para qué"): ubicación, almacenamiento, micrófono,
   cámara, teléfono/contactos, ajustes del sistema, instalar apps, notificaciones (`MediaListener`), mostrar encima,

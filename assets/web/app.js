@@ -49,7 +49,7 @@
   // Congela animaciones mientras tocas (el cajón abre fluido); se reanudan al soltar sin actividad.
   var freezeT;
   function freeze() { body.classList.add('freeze'); clearTimeout(freezeT); }
-  function unfreezeSoon() { clearTimeout(freezeT); freezeT = setTimeout(function () { body.classList.remove('freeze'); }, 650); }
+  function unfreezeSoon() { clearTimeout(freezeT); freezeT = setTimeout(function () { if (!$('.sheet.open')) body.classList.remove('freeze'); }, 650); }
   function enableFx() {
     if (!booting) return;
     booting = false;
@@ -638,6 +638,7 @@
   // ================= panel y cajón =================
   function openSheet(id) {
     closeSheets(true);
+    freeze();
     var el = $('#' + id);
     el.classList.add('open');
     $('#scrim').classList.add('on');
@@ -655,6 +656,7 @@
   function closeSheets(silent) {
     var was = $$('.sheet.open').length > 0;
     $$('.sheet').forEach(function (s) { s.classList.remove('open'); });
+    if (!silent) unfreezeSoon();
     $('#scrim').classList.remove('on');
     return was;
   }
