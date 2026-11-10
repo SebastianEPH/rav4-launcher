@@ -162,8 +162,6 @@ public class SettingsActivity extends Activity {
                 new String[]{"Oscuro", "Claro", "Automático"}, new String[]{"dark", "light", "auto"}, "dark"));
         if ("auto".equals(prefs.getString("mode", "dark"))) ap.addView(hoursRow());
         ap.addView(segRow("Reloj", null, "web.clock", new String[]{"12 h (AM/PM)", "24 h"}, new String[]{"12", "24"}, "12"));
-        ap.addView(segRow("Fondo (Cockpit / Inicio)", null, "wall",
-                new String[]{"Ondas", "Noche", "Atardecer", "Mi RAV4"}, new String[]{"ondas", "noche", "atardecer", "rav4"}, "ondas"));
         ap.addView(segRow("Color de acento", null, "accent",
                 new String[]{"Tema", "Azul", "Verde", "Naranja", "Rosa"}, new String[]{"theme", "blue", "green", "orange", "pink"}, "theme"));
         if (web()) ap.addView(segRow("Efectos (web)", "\"Altos\" agrega desenfoque; más lento", "web.fx",
@@ -187,6 +185,7 @@ public class SettingsActivity extends Activity {
         boolean cock = "cockpit".equals(th) || "auto".equals(th);
         String name = "sound".equals(th) ? "Sonido" : "terminal".equals(th) ? "Terminal" : "glass".equals(th) ? "Glass" : "dusk".equals(th) ? "Dusk"
                 : "home".equals(th) ? "Inicio" : "Cockpit";
+        bgSection();
         section("Tema " + name);
         if (cock) {
             LinearLayout g = card();
@@ -194,8 +193,6 @@ public class SettingsActivity extends Activity {
                     new String[]{"Pequeño", "Mediano", "Grande"}, new String[]{"s", "m", "l"}, "m"));
             g.addView(segRow("Velocidad máxima del velocímetro", null, "web.t.cockpit.scale",
                     new String[]{"160", "180", "200", "220"}, new String[]{"160", "180", "200", "220"}, "180"));
-            g.addView(segRow("Fondo", null, "wall",
-                    new String[]{"Ondas", "Noche", "Atardecer", "Mi RAV4"}, new String[]{"ondas", "noche", "atardecer", "rav4"}, "ondas"));
             content.addView(g);
             section("Tarjetas (qué se muestra en cada espacio)");
             LinearLayout t = card();
@@ -205,12 +202,6 @@ public class SettingsActivity extends Activity {
             t.addView(slotPicker("Abajo (ancha)", "cockpit.slot4", "music"));
             content.addView(t);
         } else {
-            if ("home".equals(th)) {
-                LinearLayout g = card();
-                g.addView(segRow("Fondo", null, "wall",
-                        new String[]{"Ondas", "Noche", "Atardecer", "Mi RAV4"}, new String[]{"ondas", "noche", "atardecer", "rav4"}, "ondas"));
-                content.addView(g);
-            }
             section("Tarjetas (qué se muestra en cada espacio)");
             LinearLayout t = card();
             if ("terminal".equals(th)) {
@@ -240,6 +231,80 @@ public class SettingsActivity extends Activity {
         a.addView(boolRow("Entrada de tarjetas", "Aparecen deslizándose al volver a Inicio", "anim.cards"));
         a.addView(boolRow("Números que ruedan", "Velocidad, voltaje y km cuentan en vez de saltar", "anim.roll"));
         content.addView(a);
+    }
+
+    // ---- Fondo de pantalla (global, todos los temas) ----
+    static final String[] BG_KINDS = {"theme", "spectrum", "ios", "road", "ondas", "noche", "atardecer", "rav4", "color", "gradient", "photo"};
+    static final String[] BG_LBL = {"Original del tema", "Espectro de audio", "Manchas (iPhone)", "Carretera neón", "Ondas", "Noche",
+            "Atardecer", "Mi RAV4", "Color sólido", "Degradado", "Mi imagen"};
+    static final int[] BG_COLORS = {0xFF0B0B14, 0xFF000000, 0xFF101828, 0xFF0F2A1D, 0xFF2A0F2E, 0xFF3A1C71, 0xFF1B3BFF, 0xFFD76D77,
+            0xFFFFAF7B, 0xFF00B3A4, 0xFFF2F2F7, 0xFFFFFFFF};
+
+    private void bgSection() {
+        section("Fondo de pantalla (vale para el tema que elijas)");
+        LinearLayout c = card();
+        android.widget.GridLayout g = new android.widget.GridLayout(this);
+        g.setColumnCount(6);
+        String cur = prefs.getString("bg.kind", "theme");
+        for (int i = 0; i < BG_KINDS.length; i++) {
+            final String val = BG_KINDS[i];
+            boolean on = val.equals(cur);
+            TextView b = tv(BG_LBL[i], 14, on ? 0xFFFFFFFF : TXT);
+            b.setGravity(Gravity.CENTER); b.setSingleLine(true);
+            b.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            b.setPadding(dp(6), dp(14), dp(6), dp(14));
+            GradientDrawable sg = new GradientDrawable(); sg.setColor(on ? ACC : SOFT); sg.setCornerRadius(dp(10));
+            b.setBackground(sg);
+            b.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+                prefs.edit().putString("bg.kind", val).apply(); touch();
+                if ("photo".equals(val) && !new java.io.File(getFilesDir(), "bg.jpg").exists()) pickBackground(); else rebuild();
+            } });
+            android.widget.GridLayout.LayoutParams lp = new android.widget.GridLayout.LayoutParams(
+                    android.widget.GridLayout.spec(i / 6), android.widget.GridLayout.spec(i % 6, 1f));
+            lp.width = 0; lp.setMargins(dp(3), dp(6), dp(3), 0);
+            g.addView(b, lp);
+        }
+        LinearLayout gw = new LinearLayout(this); gw.setPadding(dp(11), dp(6), dp(11), dp(8));
+        gw.addView(g, new LinearLayout.LayoutParams(-1, -2));
+        c.addView(gw);
+        if ("color".equals(cur) || "gradient".equals(cur)) {
+            c.addView(colorRow("gradient".equals(cur) ? "Color 1" : "Color", "bg.color", 0xFF0B0B14));
+            if ("gradient".equals(cur)) c.addView(colorRow("Color 2", "bg.color2", 0xFF3A1C71));
+        }
+        if ("photo".equals(cur)) c.addView(linkRow("Elegir otra imagen (galería o USB)", new View.OnClickListener() { public void onClick(View v) { pickBackground(); } }));
+        if ("spectrum".equals(cur)) {
+            c.addView(chipPicker("Estilo del espectro de fondo", "spec.bgStyle", "wave", SPEC_STYLE_LBL, SPEC_STYLES));
+            c.addView(chipPicker("Colores", "spec.colors", "neon", SPEC_PAL_LBL, SPEC_PALS));
+        }
+        c.addView(sliderIntRow("Oscurecer el fondo", "bg.dim", 0, 80, 0));
+        content.addView(c);
+    }
+
+    private LinearLayout colorRow(String label, final String key, int def) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(14), dp(10), dp(14), dp(10));
+        row.addView(tv(label, 16, TXT), new LinearLayout.LayoutParams(dp(140), -2));
+        int cur = prefs.getInt(key, def);
+        for (final int col : BG_COLORS) {
+            View sw = new View(this);
+            GradientDrawable g = new GradientDrawable(); g.setShape(GradientDrawable.OVAL); g.setColor(col);
+            g.setStroke(dp(col == cur ? 4 : 1), col == cur ? ACC : 0x55888888);
+            sw.setBackground(g);
+            sw.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { prefs.edit().putInt(key, col).apply(); touch(); rebuild(); } });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(44), dp(44)); lp.rightMargin = dp(10);
+            row.addView(sw, lp);
+        }
+        return row;
+    }
+
+    private void pickBackground() {
+        try {
+            Intent it = new Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(Intent.createChooser(it, "Elegir fondo"), 78);
+        } catch (Exception e) {
+            android.widget.Toast.makeText(this, "No hay una app para elegir imágenes", android.widget.Toast.LENGTH_LONG).show();
+        }
     }
 
     // ---- Espectro de audio (global: tarjetas, fondo y tema Sonido) ----
@@ -1170,6 +1235,26 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
+        if (req == 78 && res == RESULT_OK && data != null && data.getData() != null) {
+            try {
+                // se guarda reducida a ~1280 px para que no pese al dibujar
+                android.graphics.BitmapFactory.Options o = new android.graphics.BitmapFactory.Options();
+                o.inJustDecodeBounds = true;
+                java.io.InputStream in = getContentResolver().openInputStream(data.getData());
+                android.graphics.BitmapFactory.decodeStream(in, null, o); in.close();
+                int ss = 1; while (o.outWidth / (ss * 2) >= 1280 && o.outHeight / (ss * 2) >= 800) ss *= 2;
+                o = new android.graphics.BitmapFactory.Options(); o.inSampleSize = ss;
+                in = getContentResolver().openInputStream(data.getData());
+                android.graphics.Bitmap bm = android.graphics.BitmapFactory.decodeStream(in, null, o); in.close();
+                if (bm == null) throw new Exception("imagen inválida");
+                java.io.FileOutputStream out = new java.io.FileOutputStream(new java.io.File(getFilesDir(), "bg.jpg"));
+                bm.compress(android.graphics.Bitmap.CompressFormat.JPEG, 88, out); out.close();
+                prefs.edit().putString("bg.kind", "photo").apply(); touch(); rebuild();
+            } catch (Exception e) {
+                android.widget.Toast.makeText(this, "No se pudo usar esa imagen: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
         if (req != 77 || res != RESULT_OK || data == null || data.getData() == null || pickingKey == null) return;
         try {
             java.io.InputStream in = getContentResolver().openInputStream(data.getData());

@@ -156,6 +156,11 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
    colores `spec.colors` (Neón, Fuego, Océano, Matrix, Atardecer, Hielo, Oro, Arcoíris), sensibilidad `spec.gain`,
    **fondo** detrás de cualquier tema `spec.bg` + `spec.bgStyle` + `spec.bgAlpha`, y tarjeta "Espectro de audio" en
    todos los temas. Todos los `Views.Spectrum` salen de `HomeActivity.newSpec()` y reciben el mismo audio (`specs`).
+- **Fondo de pantalla global** (Tema actual → Fondo, todos los temas): `bg.kind` = theme (el del tema) / spectrum /
+  ios (manchas) / road (carretera neón) / ondas / noche / atardecer / rav4 / color (`bg.color`) / gradient (`bg.color2`) /
+  photo (`files/bg.jpg`, elegida de galería/USB) + velo `bg.dim` 0–80 %. Con fondo propio, Cockpit y Sonido no dibujan
+  el suyo (`HomeActivity.addCustomBackground`).
+- Sin música el espectro queda **quieto al instante** (FFT en silencio y `!isMusicActive()` → ceros; caída rápida).
 - **Volumen sin la barra del sistema**: `nwdSetVolume` usa `ACTION_HIGHTEMP_TRIGGER` (silencioso, 1–40) y si no cambia
   en 700 ms repite con la vía normal. Opción en Ajustes → General → Sonido (`volume.silent`). Ver FINDINGS.md.
 

@@ -647,8 +647,10 @@ public class Views {
             float bass = 0;
             for (int i = 0; i < n; i++) {
                 float m = Math.min(1f, mags[i] * gain);
-                shown[i] += (m - shown[i]) * (m > shown[i] ? 0.6f : 0.15f);
-                peak[i] = Math.max(peak[i] - 0.008f, shown[i]);
+                // sube rápido; baja rápido también (si no, sigue "bailando" un rato sin música)
+                shown[i] += (m - shown[i]) * (m > shown[i] ? 0.6f : 0.35f);
+                if (m == 0 && shown[i] < 0.01f) shown[i] = 0;
+                peak[i] = m == 0 ? Math.max(0, peak[i] - 0.05f) : Math.max(peak[i] - 0.008f, shown[i]);
                 if (i < 6) bass += shown[i] / 6f;
             }
             beat += (bass - beat) * 0.3f;

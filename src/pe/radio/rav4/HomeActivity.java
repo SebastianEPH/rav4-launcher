@@ -284,8 +284,10 @@ public class HomeActivity extends Activity {
                 ? new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{P.bg, P.bg2, P.bg3})
                 : new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{P.bg, P.bg2});
         root.setBackground(wall);
-        if (P.glass && !P.dusk && !P.cockpit && !P.home) root.addView(new Views.IosWall(this));
-        if (P.cockpit || P.home) {
+        bgKind = prefs.getString("bg.kind", "theme");
+        if (!"theme".equals(bgKind)) addCustomBackground();
+        else if (P.glass && !P.dusk && !P.cockpit && !P.home && !P.sound) root.addView(new Views.IosWall(this));
+        if ("theme".equals(bgKind) && (P.cockpit || P.home)) {
             android.graphics.Bitmap photo = null;
             if ("rav4".equals(prefs.getString("wall", "ondas")))
                 photo = android.graphics.BitmapFactory.decodeResource(getResources(),
@@ -477,8 +479,7 @@ public class HomeActivity extends Activity {
         final int ACC = 0xFF00E5FF;
         FrameLayout wrap = new FrameLayout(this);
         cockRoad = new Views.CockpitRoad(this);
-        wrap.addView(cockRoad, new FrameLayout.LayoutParams(-1, -1));
-        addBgSpecInto(wrap);
+        if ("theme".equals(bgKind)) { wrap.addView(cockRoad, new FrameLayout.LayoutParams(-1, -1)); addBgSpecInto(wrap); }
 
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
@@ -970,6 +971,52 @@ public class HomeActivity extends Activity {
     private final Runnable simTick = new Runnable() { public void run() { simulate(); } };
 
     private boolean bgSpecAdded = false;
+    private String bgKind = "theme";
+
+    /**
+     * Fondo de pantalla elegido en Ajustes Launcher → Tema actual → Fondo (vale para todos los temas):
+     * theme (el del tema), spectrum (espectro de audio), ondas/noche/atardecer/rav4, color, gradient, photo (imagen propia).
+     * Con un fondo propio, Cockpit y Sonido no dibujan el suyo. Encima va un velo para oscurecer (bg.dim).
+     */
+    private void addCustomBackground() {
+        FrameLayout.LayoutParams full = new FrameLayout.LayoutParams(-1, -1);
+        int base = prefs.getInt("bg.color", 0xFF0B0B14);
+        if ("spectrum".equals(bgKind)) {
+            View b = new View(this);
+            b.setBackgroundColor(P.dark ? 0xFF05050A : 0xFFF2F2F7);
+            root.addView(b, full);
+            Views.Spectrum sp = newSpec(prefs.getString("spec.bgStyle", "wave"));
+            int al = 70; try { al = prefs.getInt("spec.bgAlpha", 70); } catch (Exception e) { }
+            sp.setAlpha(Math.max(0.3f, al / 100f));
+            root.addView(sp, full);
+            bgSpecAdded = true;
+        } else if ("color".equals(bgKind)) {
+            View b = new View(this); b.setBackgroundColor(base); root.addView(b, full);
+        } else if ("gradient".equals(bgKind)) {
+            View b = new View(this);
+            b.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{base, prefs.getInt("bg.color2", 0xFF3A1C71)}));
+            root.addView(b, full);
+        } else if ("photo".equals(bgKind)) {
+            ImageView iv = new ImageView(this);
+            iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            try { iv.setImageBitmap(android.graphics.BitmapFactory.decodeFile(new File(getFilesDir(), "bg.jpg").getAbsolutePath())); } catch (Throwable t) { }
+            iv.setBackgroundColor(0xFF000000);
+            root.addView(iv, full);
+        } else if ("ios".equals(bgKind)) {
+            root.addView(new Views.IosWall(this), full);
+        } else if ("road".equals(bgKind)) {
+            View b = new View(this); b.setBackgroundColor(0xFF05030C); root.addView(b, full);
+            cockRoad = new Views.CockpitRoad(this);
+            root.addView(cockRoad, full);
+        } else {   // ondas / noche / atardecer / rav4
+            android.graphics.Bitmap photo = null;
+            if ("rav4".equals(bgKind)) photo = android.graphics.BitmapFactory.decodeResource(getResources(),
+                    getResources().getIdentifier("rav4", "drawable", getPackageName()));
+            root.addView(new Views.Wallpaper(this, bgKind, photo), full);
+        }
+        int dim = 0; try { dim = prefs.getInt("bg.dim", 0); } catch (Exception e) { }
+        if (dim > 0) { View v = new View(this); v.setBackgroundColor(((int) (dim * 2.55f) << 24)); root.addView(v, full); }
+    }
 
     private Views.Spectrum bgSpec() {
         Views.Spectrum bgs = newSpec(prefs.getString("spec.bgStyle", "wave"));
@@ -990,8 +1037,7 @@ public class HomeActivity extends Activity {
         View bg = new View(this);
         bg.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR, P.dark
                 ? new int[]{0xFF07040F, 0xFF140A2A, 0xFF05101A} : new int[]{0xFFF4EEFF, 0xFFE9E3FB, 0xFFE3F6FB}));
-        wrap.addView(bg, new FrameLayout.LayoutParams(-1, -1));
-        addBgSpecInto(wrap);
+        if ("theme".equals(bgKind)) { wrap.addView(bg, new FrameLayout.LayoutParams(-1, -1)); addBgSpecInto(wrap); }
 
         LinearLayout row = new LinearLayout(this);
         row.setPadding(dp(16), dp(14), dp(16), dp(16));
@@ -1163,7 +1209,15 @@ public class HomeActivity extends Activity {
             out[b] = Math.max(0, Math.min(1, db / 42f));
             if (out[b] > 0.02f) any = true;
         }
-        if (!any) return;   // silencio o la radio no entrega datos: sigue la simulación
+        if (!any) {
+            // silencio real: quieto al instante (salvo que Android diga que suena música por otra vía, ej. la radio FM)
+            android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+            if (am.isMusicActive() || prefs.getBoolean("spec.demo", false)) return;
+            lastFftAt = SystemClock.elapsedRealtime();
+            java.util.Arrays.fill(audio, 0f);
+            for (Views.Spectrum sp : specs) java.util.Arrays.fill(sp.mags, 0f);
+            return;
+        }
         lastFftAt = SystemClock.elapsedRealtime();
         System.arraycopy(out, 0, audio, 0, bands);
         for (Views.Spectrum sp : specs) System.arraycopy(out, 0, sp.mags, 0, bands);
@@ -1176,13 +1230,13 @@ public class HomeActivity extends Activity {
         if (!real) {
             android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
             boolean playing = am.isMusicActive() || prefs.getBoolean("spec.demo", false);
-            float lvl = playing ? 0.35f + 0.5f * volNow() / (float) Math.max(1, volMax()) : 0.04f;
+            float lvl = playing ? 0.35f + 0.5f * volNow() / (float) Math.max(1, volMax()) : 0f;
             double t = SystemClock.elapsedRealtime() / 1000.0;
             for (int i = 0; i < audio.length; i++) {
                 float shape = 1f - i / (float) audio.length * 0.7f;
                 float v = (float) (lvl * shape * (0.55 + 0.45 * Math.sin(t * (3 + i * 0.37) + i) * Math.sin(t * 1.7 + i * 0.9)));
                 if (playing && Math.random() < 0.08) v += 0.3f * shape;
-                audio[i] = Math.max(0.02f, Math.min(1, Math.abs(v)));
+                audio[i] = playing ? Math.max(0.02f, Math.min(1, Math.abs(v))) : 0f;
                 for (Views.Spectrum sp : specs) sp.mags[i] = audio[i];
             }
         }
