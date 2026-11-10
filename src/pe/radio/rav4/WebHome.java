@@ -38,6 +38,18 @@ public class WebHome {
     private final Map<String, String> iconCache = new HashMap<String, String>();
     private volatile boolean ready = false;
     private final CanBridge can;
+    // El estado se arma en un hilo aparte y la página solo lee la última copia: así JS nunca queda
+    // esperando a Android (antes cada consulta bloqueaba la página y los toques tardaban segundos).
+    private volatile String stateJson = "{}", canJson = "{}";
+    private final android.os.HandlerThread bg = new android.os.HandlerThread("rav4-estado");
+    private android.os.Handler bgH;
+    private final Runnable refresh = new Runnable() {
+        public void run() {
+            try { stateJson = a.webState().toString(); } catch (Exception e) { }
+            try { canJson = can.state().toString(); } catch (Exception e) { }
+            bgH.postDelayed(this, 500);
+        }
+    };
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     public WebHome(HomeActivity activity) {
@@ -60,6 +72,9 @@ public class WebHome {
         });
         can = new CanBridge(a);
         can.start();
+        bg.start();
+        bgH = new android.os.Handler(bg.getLooper());
+        bgH.post(refresh);
         web.addJavascriptInterface(new Bridge(), "Radio");
         web.loadUrl(PAGE);
         // Red de seguridad: si el WebView de la radio no puede correr la página, no dejar la pantalla en negro.
@@ -81,6 +96,8 @@ public class WebHome {
     public void appsChanged() { js("RAV4.appsChanged()"); }
 
     public void destroy() {
+        bgH.removeCallbacks(refresh);
+        bg.quitSafely();
         can.stop();
         web.removeJavascriptInterface("Radio");
         web.destroy();
@@ -141,12 +158,12 @@ public class WebHome {
 
         @JavascriptInterface
         public String can() {
-            try { return can.state().toString(); } catch (Exception e) { return "{}"; }
+            return canJson;
         }
 
         @JavascriptInterface
         public String state() {
-            try { return a.webState().toString(); } catch (Exception e) { return "{}"; }
+            return stateJson;
         }
 
         @JavascriptInterface

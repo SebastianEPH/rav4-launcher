@@ -21,7 +21,8 @@
   var prefs = {
     theme: params.theme || R.pref('theme', 'cockpit'),
     mode: params.mode || R.pref('mode', 'dark'),
-    fx: params.fx || R.pref('fx', 'high'),
+    fx: params.fx || (R.pref('fxv2', '') ? R.pref('fx', 'low') : 'low'),
+    icons: params.icons || R.pref('icons', 'plain'),
     accent: params.accent || R.pref('accent', 'theme'),
     clock: R.pref('clock', '12'),
     darkFrom: R.pref('darkFrom', '18'),
@@ -451,6 +452,7 @@
     body.setAttribute('data-mode', resolvedMode());
     body.setAttribute('data-fx', prefs.fx);
     body.setAttribute('data-modepref', prefs.mode);
+    body.setAttribute('data-icons', prefs.icons);
     var ac = ACCENTS[prefs.accent];
     if (ac) { body.style.setProperty('--acc', ac); body.style.setProperty('--glow', hexA(ac, 0.5)); }
     else { body.style.removeProperty('--acc'); body.style.removeProperty('--glow'); }
@@ -965,6 +967,8 @@
   }
 
   // ================= arranque =================
+  // Desde v1.3.13 los efectos parten en "Suaves": el desenfoque de vidrio era demasiado para el GPU de la radio.
+  if (!SIM && !R.pref('fxv2', '')) { R.setPref('fxv2', '1'); R.setPref('fx', prefs.fx); }
   scale();
   window.addEventListener('resize', function () { scale(); if (current && current.apps) current.apps(); });
   bindSlider('#volSlider', 'vol');

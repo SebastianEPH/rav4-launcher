@@ -2153,6 +2153,9 @@ public class HomeActivity extends Activity {
         } catch (Exception e) { }
     }
 
+    private String cpuTempCache = "n/a";
+    private long cpuTempAt = -60000;
+
     org.json.JSONObject webState() throws org.json.JSONException {
         org.json.JSONObject o = new org.json.JSONObject();
         boolean fr = fresh();
@@ -2183,7 +2186,9 @@ public class HomeActivity extends Activity {
         o.put("canBright", Build.VERSION.SDK_INT < 23 || android.provider.Settings.System.canWrite(this));
         o.put("wifi", wifiConnected());
         o.put("bt", btOn());
-        o.put("cpuTemp", cpuTemp());
+        // leer los sensores térmicos es lento en este Unisoc: como mucho cada 15 s
+        if (SystemClock.elapsedRealtime() - cpuTempAt > 15000) { cpuTempCache = cpuTemp(); cpuTempAt = SystemClock.elapsedRealtime(); }
+        o.put("cpuTemp", cpuTempCache);
         o.put("sessionMin", (SystemClock.elapsedRealtime() - sessionTs) / 60000f);
         return o;
     }

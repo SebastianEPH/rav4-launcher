@@ -90,6 +90,12 @@ La **web** está en `assets/web/` (`index.html`, `app.css`, `app.js`) y se carga
   wifi/bt), `apps()`, `launch`, `appMenu` (diálogo nativo), `setVolume`, `setBrightness`, `media`,
   `open`, `toggle`, `pref/setPref` (SharedPreferences con prefijo `web.`), `checkUpdate`, `useNative`.
   El WebView solo carga `file:///android_asset/` para que ninguna web externa toque el puente.
+- **Rendimiento (la radio es lenta, ya pasó que los toques tardaban 5–15 s)**: las llamadas JS→Android son
+  síncronas y bloquean la página, así que el puente **solo devuelve copias en caché** (`WebHome` arma `state`/`can`
+  en un hilo aparte cada 500 ms). Nada de leer sensores/archivos en cada consulta (CPU cada 15 s, perfil CAN cada 10 s).
+  En CSS: sin `filter: blur` en fondos (la aurora usa degradados radiales) y `backdrop-filter` solo con Efectos "Altos";
+  por defecto los efectos son "Suaves".
+- Íconos de apps **solos por defecto** (sin placa oscura detrás); "Con fondo" es opcional (pref `icons`).
 - **Compatibilidad**: el WebView de la radio puede ser Chrome ~74 → nada de `?.`, `??`, `:is()`,
   `inset`, `clamp()/min()`, `aspect-ratio`, ni `gap` en flex (en grid sí).
 - Probar en el Mac: abrir `assets/web/index.html` en Chrome (usa un simulador). Parámetros:

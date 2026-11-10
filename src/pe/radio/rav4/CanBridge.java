@@ -350,6 +350,9 @@ public class CanBridge {
     private static final String[][] PROFILE_KEYS = {{"can_config_app_cartype_json", "auto"}, {"can_provider_key", "caja CAN"},
             {"can_version_info", "info caja"}, {"can_box_version", "versión caja"}, {"can_app_version", "versión app CAN"}};
 
+    private String profileCache = "";
+    private long profileAt = -60000;
+
     public String profile() {
         StringBuilder b = new StringBuilder();
         for (String[] k : PROFILE_KEYS) {
@@ -402,7 +405,8 @@ public class CanBridge {
         o.put("radar", arr(radar));
         o.put("recording", recording() ? recInfo : "");
         o.put("recLines", outLines);
-        o.put("profile", profile());
+        if (SystemClock.elapsedRealtime() - profileAt > 10000) { profileCache = profile(); profileAt = SystemClock.elapsedRealtime(); }
+        o.put("profile", profileCache);
         long now = SystemClock.elapsedRealtime();
         o.put("recMs", recording() ? now - recStart : 0);
         o.put("syncAgoMs", recording() ? now - lastSync : -1);
