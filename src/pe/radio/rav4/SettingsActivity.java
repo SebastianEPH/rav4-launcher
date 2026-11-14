@@ -358,6 +358,11 @@ public class SettingsActivity extends Activity {
         c1.addView(n1);
         content.addView(c1);
 
+        LinearLayout c0 = card();
+        c0.addView(segRow("Audio en vivo", "Captura lo que suena para mover el espectro. Si notas el sonido bajo, prueba Animado",
+                "spec.live", new String[]{"En vivo", "Animado"}, new String[]{"on", "off"}, "on"));
+        content.addView(c0);
+
         // 2) fondo
         section("2 · Espectro de fondo");
         LinearLayout c2 = card();

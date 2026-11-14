@@ -198,7 +198,13 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
 - **Brillo automático por tramos** (Ajustes Launcher → Brillo automático): pref `autobright` on/off y
   `autobright.bands` = "hora:porcentaje,.." (ej. "7:90,19:55,22:25"). El tramo vigente es el de mayor hora ≤ ahora
   (envuelve medianoche). Forma `autobright.shape`: **Arco suave** (`curve`, interpolación coseno entre puntos, `Views.brightAtF`) o Escalones (`steps`). `HomeActivity.applyAutoBrightness` lo aplica al cambiar de tramo (un ajuste manual dentro
-  del mismo tramo se respeta); nunca baja del 18 %. Editor **táctil grande** (`SettingsActivity.BandGraph`, 440 dp):
+  del mismo tramo se respeta); nunca baja del 18 %.
+  **La radio pisa el brillo**: `com.nwd.setting.service` (BackLightManager) restaura su brillo día/noche guardado al
+  arrancar/encender el auto (con `setTemporaryBrightness`), a veces segundos después del launcher. Por eso
+  `HomeActivity.brightGuard()` impone el horario durante 3 min tras arrancar, volver al launcher, despertar (hueco
+  >15 s entre ticks), SCREEN_ON o broadcasts NWD (`ACTION_BACKLIGHT_SWITCH_CHANGE`, `ACTION_MCU_STATE_CHANGE`,
+  `ACTION_INIT_FINISH`, `ACTION_ILL_STATE_CHANGE` = faros). Además se envía `com.nwd.action.ACTION_SET_BRIGHTNESS`
+  + `extra_brightness` (0–100) para que la radio guarde ese mismo valor. Editor **táctil grande** (`SettingsActivity.BandGraph`, 440 dp):
   arrastrar un punto (↕ brillo, ↔ hora), tocar un espacio vacío agrega un tramo, mantener presionado lo borra.
 - **Ajustes Launcher en pestañas**: General · Brillo · Apps · Permisos · Sistema (tocar o deslizar ←/→). Corre en su propia
   tarea (`taskAffinity` aparte): sin eso, abrirlo desde el cajón solo traía el launcher al frente y "no abría".

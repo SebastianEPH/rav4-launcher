@@ -114,6 +114,13 @@ public class HomeActivity extends Activity {
         public void onReceive(Context c, Intent i) { if (web != null) web.appsChanged(); }
     };
 
+    private final android.content.BroadcastReceiver wakeRx = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            if ("com.nwd.action.ACTION_BACKLIGHT_SWITCH_CHANGE".equals(i.getAction()) && !i.getBooleanExtra("extra_backlight_switch", true)) return;
+            brightGuard();
+        }
+    };
+
     private final android.content.BroadcastReceiver voltageRx = new android.content.BroadcastReceiver() {
         public void onReceive(Context c, Intent i) {
             int raw = i.getIntExtra("extra_voltage_value", -1);
@@ -156,6 +163,15 @@ public class HomeActivity extends Activity {
                 pf.addAction(Intent.ACTION_PACKAGE_CHANGED);
                 pf.addDataScheme("package");
                 try { registerReceiver(packagesRx, pf); } catch (Exception e) { }
+                // al encender el auto / volver la pantalla, la radio restaura SU brillo guardado: re-aplicar el horario
+                android.content.IntentFilter wf = new android.content.IntentFilter();
+                wf.addAction(Intent.ACTION_SCREEN_ON);
+                wf.addAction("com.nwd.action.ACTION_BACKLIGHT_SWITCH_CHANGE");
+                wf.addAction("com.nwd.action.ACTION_MCU_STATE_CHANGE");
+                wf.addAction("com.android.action.ACTION_INIT_FINISH");
+                wf.addAction("com.nwd.ACTION_ILL_STATE_CHANGE");
+                try { registerReceiver(wakeRx, wf); } catch (Exception e) { }
+                brightGuard();
                 tick.run();
             }
         });
@@ -169,6 +185,7 @@ public class HomeActivity extends Activity {
         long st = prefs.getLong("stamp", 0);
         if (st != appliedStamp) { appliedStamp = st; if (useWeb() != (web != null) || web == null) applyTheme(); else web.js("RAV4.reloadPrefs()"); }
         rebuildDock();
+        brightGuard();   // la radio puede restaurar su propio brillo al despertar: se vuelve a aplicar el del horario
         if (web != null) web.js("RAV4.resume()");
         if (!specs.isEmpty()) startViz();
     }
@@ -1200,6 +1217,8 @@ public class HomeActivity extends Activity {
         stopViz();
         if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             try { requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, 41); } catch (Exception e) { }
+        } else if ("off".equals(prefs.getString("spec.live", "on"))) {
+            vizReal = false;   // sin capturar el audio de Android: solo animación según volumen
         } else try {
             viz = new android.media.audiofx.Visualizer(0);
             viz.setEnabled(false);
@@ -1901,6 +1920,7 @@ public class HomeActivity extends Activity {
     }
 
     private void bright(int dir) {
+        guardUntil = 0;   // ajuste manual: se respeta
         if (Build.VERSION.SDK_INT >= 23 && !android.provider.Settings.System.canWrite(this)) {
             // permiso especial: Android pide autorizarlo una sola vez
             try {
@@ -1936,11 +1956,23 @@ public class HomeActivity extends Activity {
     }
 
     private int lastAutoPct = -1;
+    private long guardUntil = 0;          // hasta cuándo se impone el horario aunque la radio lo cambie
+    private long lastTickAt = 0;
 
-    /** Brillo automático por tramos horarios (pref "autobright" on/off, "autobright.bands" = "hora:porcentaje,..").
-     *  El tramo vigente es el de mayor hora <= ahora (con vuelta a medianoche). Se aplica solo al cambiar de
-     *  tramo, así un ajuste manual dentro del mismo tramo se respeta hasta la próxima frontera. */
+    /** Durante 3 min se impone el brillo del horario: la radio (com.nwd.setting.service, BackLightManager) restaura su
+     *  brillo "día/noche" guardado al arrancar o al encender el auto, a veces varios segundos después que el launcher. */
+    void brightGuard() {
+        lastAutoPct = -1;
+        guardUntil = SystemClock.elapsedRealtime() + 180000;
+    }
+
+    /** Brillo automático por horario (pref "autobright" on/off, "autobright.bands" = "hora:porcentaje,..").
+     *  Fuera de la ventana de arranque se aplica solo al cambiar el valor del horario, así un ajuste manual se respeta
+     *  hasta el siguiente cambio. Dentro de la ventana (arranque, encender el auto, volver al launcher) se impone. */
     private void applyAutoBrightness() {
+        long nowEr = SystemClock.elapsedRealtime();
+        if (lastTickAt > 0 && nowEr - lastTickAt > 15000) brightGuard();   // la radio estuvo dormida
+        lastTickAt = nowEr;
         if (!"on".equals(prefs.getString("autobright", "off"))) { lastAutoPct = -1; return; }
         if (Build.VERSION.SDK_INT >= 23 && !android.provider.Settings.System.canWrite(this)) return;
         java.util.Calendar cal = java.util.Calendar.getInstance();
@@ -1949,21 +1981,37 @@ public class HomeActivity extends Activity {
                 prefs.getString("autobright.shape", "curve"), hr);
         if (target < 0) return;
         int goal = Math.max(MIN_BRIGHTNESS, Math.min(255, Math.round(target * 255f / 100f)));
-        if (target != lastAutoPct) { lastAutoPct = target; fadeGoal = goal; }
-        if (fadeGoal < 0) return;
+        boolean guarding = nowEr < guardUntil;
         try {
             android.content.ContentResolver cr = getContentResolver();
             int cur = android.provider.Settings.System.getInt(cr, android.provider.Settings.System.SCREEN_BRIGHTNESS, goal);
+            if (guarding) {
+                // arranque: directo al valor del horario, sin transición, y otra vez si la radio lo pisa
+                if (Math.abs(cur - goal) > 3) writeBrightness(cr, goal, target);
+                lastAutoPct = target; fadeGoal = -1;
+                return;
+            }
+            if (target != lastAutoPct) { lastAutoPct = target; fadeGoal = goal; }
+            if (fadeGoal < 0) return;
             int next = goal;
-            // transición suave: llega al tramo nuevo en ~30 s (un paso por segundo)
+            // transición suave: llega al valor nuevo en ~30 s (un paso por segundo)
             if ("on".equals(prefs.getString("autobright.fade", "on")) && Math.abs(goal - cur) > 3) {
                 int step = Math.max(2, Math.abs(goal - cur) / 30 + 1);
                 next = cur + (goal > cur ? Math.min(step, goal - cur) : -Math.min(step, cur - goal));
             }
-            android.provider.Settings.System.putInt(cr, android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE, 0);
-            android.provider.Settings.System.putInt(cr, android.provider.Settings.System.SCREEN_BRIGHTNESS, next);
+            if (next != cur) writeBrightness(cr, next, -1);
             if (next == goal) fadeGoal = -1;   // llegó: desde aquí se respeta el ajuste manual
         } catch (Exception e) { fadeGoal = -1; }
+    }
+
+    /** Escribe el brillo. Con pct >= 0 también se lo pide a la radio (ACTION_SET_BRIGHTNESS, 0–100): así su
+     *  "brillo temporal" y su valor guardado día/noche quedan iguales al del horario y no lo vuelve a pisar. */
+    private void writeBrightness(android.content.ContentResolver cr, int v, int pct) {
+        android.provider.Settings.System.putInt(cr, android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE, 0);
+        android.provider.Settings.System.putInt(cr, android.provider.Settings.System.SCREEN_BRIGHTNESS, v);
+        if (pct >= 0 && isNwd()) {
+            try { sendBroadcast(new Intent("com.nwd.action.ACTION_SET_BRIGHTNESS").putExtra("extra_brightness", Math.max(18, pct))); } catch (Exception e) { }
+        }
     }
 
     private int fadeGoal = -1;
@@ -2618,6 +2666,7 @@ public class HomeActivity extends Activity {
     }
 
     private void setBrightness(int v) {
+        guardUntil = 0;
         if (Build.VERSION.SDK_INT >= 23 && !android.provider.Settings.System.canWrite(this)) {
             ccUserTouch = false;
             try {
@@ -2918,7 +2967,6 @@ public class HomeActivity extends Activity {
         public void run() {
             if (web != null) {
                 enforceMinBrightness();
-            applyAutoBrightness();
                 applyAutoBrightness();
                 if ((SystemClock.elapsedRealtime() / 1000) % 3 == 0)
                     try { sendBroadcast(new Intent("com.nwd.action.ACTION_QUERY_CAN_BATTERY_VOLTAGE")); } catch (Exception e) { }
@@ -2927,8 +2975,9 @@ public class HomeActivity extends Activity {
                 return;
             }
             // modo auto: cambia claro/oscuro según la hora
-            if (Theme.AUTO.equals(prefs.getString("mode", Theme.DARK)) && Theme.isDarkNow(Theme.AUTO) != lastDark
+            if (Theme.AUTO.equals(prefs.getString("mode", Theme.DARK)) && Theme.fromPrefs(prefs).dark != lastDark
                     && (settings == null || settings.getVisibility() != View.VISIBLE)) applyTheme();
+            applyAutoBrightness();
 
             Date now = new Date();
             boolean fr = fresh();
