@@ -2983,7 +2983,7 @@ public class HomeActivity extends Activity {
     // ======================= datos en vivo =======================
     private final Runnable tick = new Runnable() {
         public void run() {
-            if (web != null) {
+            if (web != null || modern != null) {
                 enforceMinBrightness();
                 applyAutoBrightness();
                 if ((SystemClock.elapsedRealtime() / 1000) % 3 == 0)

@@ -47,6 +47,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import kotlinx.coroutines.delay
 import org.json.JSONArray
 import org.json.JSONObject
@@ -63,7 +65,13 @@ import kotlin.math.sin
  * tarjetas Viaje / Batería / GPS / Música, dock a la izquierda (lado del conductor) y cajón de apps de 6×3 por página.
  * Gestos: ← abre el cajón; con el cajón abierto ← / → cambian de página y → en la primera lo cierra.
  */
-class ComposeHome(private val a: HomeActivity, private val data: LauncherData) : ModernHome {
+class ComposeHome(private val a: HomeActivity, private val data: LauncherData) : ModernHome,
+    androidx.lifecycle.LifecycleOwner, androidx.savedstate.SavedStateRegistryOwner {
+    // HomeActivity es una Activity simple (sin AndroidX): Compose necesita un dueño de ciclo de vida propio
+    private val lifecycleReg = androidx.lifecycle.LifecycleRegistry(this)
+    private val savedState = androidx.savedstate.SavedStateRegistryController.create(this)
+    override val lifecycle: androidx.lifecycle.Lifecycle get() = lifecycleReg
+    override val savedStateRegistry: androidx.savedstate.SavedStateRegistry get() = savedState.savedStateRegistry
     private val view = ComposeView(a)
     private val prefsVersion = mutableIntStateOf(0)
     private val appsVersion = mutableIntStateOf(0)
@@ -71,7 +79,11 @@ class ComposeHome(private val a: HomeActivity, private val data: LauncherData) :
     private val resumed = mutableStateOf(true)
 
     init {
-        view.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+        savedState.performRestore(null)
+        lifecycleReg.currentState = androidx.lifecycle.Lifecycle.State.RESUMED
+        view.setViewTreeLifecycleOwner(this)
+        view.setViewTreeSavedStateRegistryOwner(this)
+        view.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnLifecycleDestroyed(this))
         data.setListener { appsVersion.intValue++ }
         view.setContent { Root() }
     }
@@ -79,9 +91,9 @@ class ComposeHome(private val a: HomeActivity, private val data: LauncherData) :
     override fun view(): View = view
     override fun reload() { prefsVersion.intValue++ }
     override fun back() { drawerOpen.value = false }
-    override fun resume() { resumed.value = true }
-    override fun pause() { resumed.value = false }
-    override fun destroy() { data.setListener(null); view.disposeComposition() }
+    override fun resume() { resumed.value = true; lifecycleReg.currentState = androidx.lifecycle.Lifecycle.State.RESUMED }
+    override fun pause() { resumed.value = false; lifecycleReg.currentState = androidx.lifecycle.Lifecycle.State.STARTED }
+    override fun destroy() { data.setListener(null); lifecycleReg.currentState = androidx.lifecycle.Lifecycle.State.DESTROYED }
 
     // ---------- colores (mismos tokens que la web: modo y acento globales) ----------
     private class Pal(val dark: Boolean, val acc: Color) {
@@ -131,7 +143,7 @@ class ComposeHome(private val a: HomeActivity, private val data: LauncherData) :
             Column(Modifier.fillMaxSize()) {
                 StatusBar(st, p, clock12)
                 Row(Modifier.fillMaxSize().padding(start = 12.dp, end = 16.dp, bottom = 16.dp)) {
-                    Dock(all.filter { it.pinned && !it.hidden }, p)
+                    Dock(all.filter { it.pinned && !it.hidden }.ifEmpty { all.filter { !it.hidden }.sortedBy { it.label.lowercase() }.take(5) }, p)   // igual que el dock de la web
                     Spacer(Modifier.width(14.dp))
                     GaugeCard(kmh, st, p, Modifier.weight(1.15f).fillMaxHeight())
                     Spacer(Modifier.width(14.dp))
@@ -171,7 +183,7 @@ class ComposeHome(private val a: HomeActivity, private val data: LauncherData) :
         }
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width; val h = size.height; val hz = h * 0.52f
-            drawRect(Brush.radialGradient(listOf(p.acc.copy(alpha = 0.18f), Color.Transparent), Offset(w / 2, hz), w * 0.6f), Offset(0f, hz - h * 0.25f), Size(w, h * 0.35f))
+            drawRect(Brush.radialGradient(listOf(p.acc.copy(alpha = 0.16f), Color.Transparent), Offset(w / 2, hz), w * 0.5f))
             for (i in -7..7) drawLine(p.acc.copy(alpha = if (p.dark) 0.2f else 0.25f), Offset(w / 2, hz), Offset(w / 2 + i * w / 5, h), 2f)
             for (i in 0 until 12) {
                 val t = (i + offset) / 12f; val y = hz + (h - hz) * t * t
@@ -256,7 +268,7 @@ class ComposeHome(private val a: HomeActivity, private val data: LauncherData) :
                     val r = size.minDimension / 2 * 0.8f; val c = center
                     val f = (kmh / max).coerceIn(0f, 1f)
                     val tl = Offset(c.x - r, c.y - r); val sz = Size(r * 2, r * 2)
-                    drawArc(p.line.copy(alpha = 0.5f), 135f, 270f, false, tl, sz, style = Stroke(r * 0.11f))
+                    drawArc(if (p.dark) Color(0x10FFFFFF) else Color(0x12000000), 135f, 270f, false, tl, sz, style = Stroke(r * 0.11f))
                     drawArc(Brush.sweepGradient(listOf(p.acc, Color(0xFF7C4DFF), p.acc2, p.acc), c), 135f, 270f * f, false, tl, sz, style = Stroke(r * 0.11f, cap = StrokeCap.Round))
                     for (v in 0..max.toInt() step 10) {
                         val ang = Math.toRadians(135.0 + 270.0 * v / max); val major = v % 20 == 0
