@@ -58,6 +58,7 @@ jobs:
         run: |
           echo "VERSION_CODE=$((100 + ${{ github.run_number }}))" >> "$GITHUB_ENV"
           echo "VERSION_NAME=${VERSION#v}" >> "$GITHUB_ENV"
+          echo "ABIS=armeabi-v7a,arm64-v8a" >> "$GITHUB_ENV"   # la radio es ARM: APK más liviano
 
       - name: Instalar Node (interfaz React Native)
         uses: actions/setup-node@v4
@@ -72,6 +73,7 @@ jobs:
       - name: Compilar APK
         run: |
           chmod +x build.sh
+          (cd rn && npm ci)
           ./build.sh
 
       - name: Renombrar APK con la versión

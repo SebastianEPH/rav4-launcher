@@ -61,7 +61,7 @@ y se descompilan con `jadx`. Hallazgos que ya se usan en el launcher:
 
 ## Arquitectura del launcher
 
-Proyecto Android nativo **sin Gradle** — se compila con `./build.sh` (aapt2 + javac + d8 + apksigner).
+Proyecto Android compilado con **Gradle** vía `./build.sh` (incluye React Native y Flutter; ver "Interfaces compiladas").
 SDK en `/opt/homebrew/share/android-commandlinetools`, Java 17 de Homebrew. minSdk 21, targetSdk 28.
 
 Código Java en el paquete `pe.radio.rav4`:
@@ -235,16 +235,22 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
 - Hora en **12 h con AM/PM por defecto** (pref compartida `web.clock` = "12"/"24"; nativa y web). Los registros técnicos (CAN, log) usan 24 h.
 - No copiar íconos de marcas (Apple, Google, Volkswagen): se usan los íconos reales de cada app.
 
-## Prueba de rendimiento (Ajustes → Sistema)
-La misma escena Cockpit en 4 motores con el **mismo medidor** `src/pe/radio/bench/BenchProbe.java` (fuente única; `bench-rn/build.sh`
-y `bench-flutter/build.sh` lo copian). Escena común: aguja = 90·(1−cos(2πt/10 s)), rumbo 12°/s, 4 tarjetas con números vivos.
-- Nativo: `BenchActivity` (vistas `Views.CockpitRoad/CockpitGauge/Compass`), proceso `:bench_nativo`.
-- Web: `BenchActivity$Web` carga la página real `index.html?bench=1&theme=cockpit&fx=high` (modo simulador + puente `Bench`), proceso `:bench_web`.
-- React Native: `bench-rn/` (RN 0.88, Hermes, Reanimated, react-native-svg) → `OrbitaRN.apk`, paquete `pe.radio.bench.rn`.
-- Flutter: `bench-flutter/` (CustomPainter, FrameTiming) → `OrbitaFlutter.apk`, paquete `pe.radio.bench.flutter`.
-Ajustes abre cada una con extra `bench_t0` (uptime) → arranque medido desde el toque. Resultados: `OrbitaLauncher/bench_<motor>_<fecha>.txt`.
-Emulador (M-series, no vale como dato real): nativo 60 fps/toque 5 ms/RAM 28 MB · Flutter 59.5/9 ms/53 MB · RN 59.9/44 ms/134 MB ·
-Web 23.6 fps, 56 % cuadros lentos, CPU 170 %. Falta medir en la radio.
+## Interfaces compiladas: Compose, React Native y Flutter (Ajustes → General → Interfaz)
+Además de Nativa y Web, `engine` = `compose` / `rn` / `flutter`. Por ahora traen **solo el tema Cockpit** (los demás caen a
+Cockpit); el usuario pidió empezar por Cockpit y seguir con los demás temas si le gusta.
+- `ModernHome` (interfaz común) + `LauncherData` (estado cada 500 ms en hilo aparte = `HomeActivity.webState()`, apps con
+  ícono PNG en `cache/icons`, acciones launch/appMenu/openSettings/media). HomeActivity.applyTheme las crea; el `tick` nativo
+  no toca vistas cuando `modern != null`.
+- **Compose**: `ComposeHome.kt` (HomeActivity no es AndroidX: la vista tiene su propio LifecycleOwner/SavedStateRegistryOwner).
+- **React Native**: JS en `rn/App.tsx` (RN 0.88, Hermes, Reanimated, react-native-svg); host en `RnHome.kt` (ReactHost +
+  ReactSurface, módulo nativo `Launcher`). `rn/react-native.config.js` apunta el proyecto Android a `../app`; `node_modules` de la
+  raíz es un enlace a `rn/node_modules` (las librerías de RN lo buscan ahí).
+- **Flutter**: `flutter_ui/lib/main.dart`, compilado como AAR (`flutter build aar` en build.sh, repo en
+  `flutter_ui/build/host/outputs/repo`); host en `FlutterHome.kt` (FlutterEngine + FlutterView, canal `launcher`). Incluirlo como
+  código fuente choca con el Kotlin de RN, por eso va como librería.
+- **Compilación**: el launcher ahora usa **Gradle** (`settings.gradle`, `build.gradle`, `app/build.gradle` con sourceSets en
+  `src/ res/ assets/ AndroidManifest.xml`, sin mover archivos). `./build.sh` hace todo. Firma: `debug.keystore` alias `diag`
+  (la misma de siempre). Versión por `-PversionCode/-PversionName`. minSdk 24, targetSdk 28. El CI compila solo ARM (`ABIS`).
 
 ## Cómo compilar e instalar
 ```bash

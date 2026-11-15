@@ -9,3 +9,4 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
 rootProject.name = "OrbitaLauncher"
 include ":app"
 includeBuild("rn/node_modules/@react-native/gradle-plugin")
+

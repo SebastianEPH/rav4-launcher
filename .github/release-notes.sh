@@ -52,7 +52,7 @@ fi
 
 echo "## Qué trae el launcher"
 cat <<'EOF'
-- Dos interfaces: **Nativa** (Java, liviana) y **Web animada** con 6 temas: Terminal, Glass, Dusk, Cockpit, Inicio y Auto · CAN.
+- Cinco interfaces: **Nativa** (Java), **Web animada**, **Compose**, **React Native** y **Flutter** (estas tres por ahora con el tema Cockpit). La web trae 6 temas: Terminal, Glass, Dusk, Cockpit, Inicio y Auto · CAN.
 - Cockpit con tarjetas a elección (rumbo y calle, altitud y pendiente, 0–100 y fuerza G, accesos a CarPlay/mapas, controles, reloj) en Ajustes Launcher → Tema actual.
 - Tema Sonido: visualizador del audio que suena, volumen grande con deslizador y lo que se está reproduciendo.
 - Respaldo y restauración de toda la configuración (radio y USB); acelerar el velocímetro estacionado como demostración.

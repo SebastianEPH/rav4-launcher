@@ -24,6 +24,8 @@ android {
         // el CI pasa -PversionCode=… -PversionName=…
         versionCode((project.findProperty("versionCode") ?: "100") as int)
         versionName(project.findProperty("versionName") ?: "1.3-local")
+        // la radio es ARM (arm64-v8a/armeabi-v7a); x86_64 solo sirve para el emulador. El CI pasa -Pabis=armeabi-v7a,arm64-v8a
+        ndk { abiFilters.addAll(((project.findProperty("abis") ?: "armeabi-v7a,arm64-v8a,x86_64") as String).split(",")) }
     }
     // misma clave que siempre: la radio instala encima sin desinstalar
     signingConfigs {
@@ -51,9 +53,18 @@ android {
     lint { checkReleaseBuilds false; abortOnError false }
 }
 
+repositories {
+    maven { url rootProject.file("flutter_ui/build/host/outputs/repo") }
+    maven { url "https://storage.googleapis.com/download.flutter.io" }
+    google(); mavenCentral()
+}
+
 dependencies {
     implementation("com.facebook.react:react-android")
     implementation("com.facebook.react:hermes-android")
+    // interfaz Flutter: flutter_ui compilado como librería (build.sh corre "flutter build aar")
+    releaseImplementation("pe.radio.rav4.orbita_flutter:flutter_release:1.0")
+    debugImplementation("pe.radio.rav4.orbita_flutter:flutter_release:1.0")
     def bom = platform("androidx.compose:compose-bom:2025.10.00")
     implementation(bom)
     implementation("androidx.compose.ui:ui")

@@ -7,8 +7,9 @@ export JAVA_HOME="${JAVA_HOME:-/opt/homebrew/opt/openjdk@17}"; export PATH="$JAV
 export ANDROID_HOME="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}}"
 [ -d rn/node_modules ] || (cd rn && npm ci)
 ln -sfn rn/node_modules node_modules          # las librerías de RN buscan node_modules en la raíz
+(cd flutter_ui && flutter build aar --no-debug --no-profile >/dev/null)   # interfaz Flutter como librería → flutter_ui/build/host/outputs/repo
 [ -f debug.keystore ] || keytool -genkeypair -keystore debug.keystore -storepass android -keypass android -alias diag -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Radio Diag" >/dev/null 2>&1
-./gradlew --no-daemon -q assembleRelease ${VERSION_CODE:+-PversionCode=$VERSION_CODE} ${VERSION_NAME:+-PversionName=$VERSION_NAME}
+./gradlew --no-daemon -q assembleRelease ${ABIS:+-Pabis=$ABIS -PreactNativeArchitectures=$ABIS} ${VERSION_CODE:+-PversionCode=$VERSION_CODE} ${VERSION_NAME:+-PversionName=$VERSION_NAME}
 cp app/build/outputs/apk/release/app-release.apk OrbitaLauncher.apk
 echo "APK listo: $(pwd)/OrbitaLauncher.apk"
 [ -d helper ] && ./helper/build.sh "$(pwd)/${KEYSTORE_PATH:-debug.keystore}" >/dev/null && echo "Ayudante lista: $(pwd)/OrbitaVolumen.apk"
