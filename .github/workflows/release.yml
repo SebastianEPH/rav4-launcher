@@ -39,7 +39,7 @@ jobs:
       - name: Instalar Android SDK (build-tools y plataforma)
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools platforms;android-33 platforms;android-37 build-tools;34.0.0 build-tools;37.0.0 ndk;27.1.12297006 cmake;3.22.1'
+          packages: 'platform-tools platforms;android-33 build-tools;34.0.0'   # lo demás (android-37, NDK, CMake) lo baja Gradle solo
 
       # Misma clave que la del Mac: así la radio instala la versión nueva encima de la anterior.
       - name: Restaurar la clave de firma
