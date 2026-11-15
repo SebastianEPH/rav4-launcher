@@ -6,6 +6,11 @@ Launcher (pantalla de inicio) personalizado para una **autorradio Android china*
 Toyota RAV4 2013 (4ª gen, XA40), color gris. El dueño es desarrollador backend / DevSecOps,
 sin experiencia en UX/UI, por lo que la interfaz debe quedar clara y pulida.
 
+## REGLA: si hay dudas, PREGUNTAR antes de hacer
+Si un pedido se puede entender de más de una forma (ej. "temas con React Native" ≠ "pantallas de prueba de rendimiento"),
+**preguntar al usuario antes de empezar**, con opciones concretas. No suponer ni reinterpretar el pedido. Ya pasó que se
+hizo algo distinto a lo pedido y se perdió mucho tiempo.
+
 ## Idioma
 - Toda comunicación con el usuario y los textos de la app van en **español**.
 - Código y nombres de variables en inglés o español indistinto; comentarios en español.
