@@ -74,6 +74,9 @@ public class HomeActivity extends Activity {
     private Set<String> hidden, pinned, dockKeys = new HashSet<String>();
     private Theme.Pal P;
     private WebHome web;   // != null cuando la interfaz es la web (assets/web)
+    private ModernHome modern;   // != null con las interfaces Compose / React Native / Flutter
+    private String modernEngine;
+    private LauncherData data;
     private boolean lastDark;
 
     // vistas (pueden ser null según el tema)
@@ -111,7 +114,7 @@ public class HomeActivity extends Activity {
 
     /** Se instaló o quitó una app: solo entonces se rehace la lista (antes se releía en cada vuelta a Inicio). */
     private final android.content.BroadcastReceiver packagesRx = new android.content.BroadcastReceiver() {
-        public void onReceive(Context c, Intent i) { if (web != null) web.appsChanged(); }
+        public void onReceive(Context c, Intent i) { if (web != null) web.appsChanged(); if (data != null) data.reloadApps(); }
     };
 
     private final android.content.BroadcastReceiver wakeRx = new android.content.BroadcastReceiver() {
@@ -183,7 +186,8 @@ public class HomeActivity extends Activity {
         immersive();
         // solo se rearma si en "Ajustes Launcher" cambió algo
         long st = prefs.getLong("stamp", 0);
-        if (st != appliedStamp) { appliedStamp = st; if (useWeb() != (web != null) || web == null) applyTheme(); else web.js("RAV4.reloadPrefs()"); }
+        if (st != appliedStamp) { appliedStamp = st; if (modern != null || useWeb() != (web != null) || web == null) applyTheme(); else web.js("RAV4.reloadPrefs()"); }
+        if (modern != null) modern.resume();
         rebuildDock();
         brightGuard();   // la radio puede restaurar su propio brillo al despertar: se vuelve a aplicar el del horario
         if (web != null) web.js("RAV4.resume()");
@@ -194,6 +198,7 @@ public class HomeActivity extends Activity {
     protected void onPause() {
         super.onPause();
         stopViz();
+        if (modern != null) modern.pause();
     }
 
     private long appliedStamp = -1;
@@ -251,6 +256,7 @@ public class HomeActivity extends Activity {
 
     private void closeOverlays() {
         if (web != null) { web.js("RAV4.back()"); return; }
+        if (modern != null) { modern.back(); return; }
         if (settings != null && settings.getVisibility() == View.VISIBLE) { settings.setVisibility(View.GONE); immersive(); return; }
         if (isOpen(cc)) { closeCC(); return; }
         closeDrawer();
@@ -282,6 +288,18 @@ public class HomeActivity extends Activity {
         Theme.P = P;
         Views.anim = "on".equals(prefs.getString("native.anim", "on"));
         lastDark = P.dark;
+        String eng = prefs.getString("engine", "native");
+        if (ModernHome.isModern(eng)) {
+            if (web != null) { web.destroy(); web = null; }
+            if (modern != null && !eng.equals(modernEngine)) { modern.destroy(); modern = null; }
+            if (data == null) data = new LauncherData(this);
+            if (modern == null) { modern = ModernHome.create(this, eng, data); modernEngine = eng; } else modern.reload();
+            if (modern.view().getParent() != null) ((android.view.ViewGroup) modern.view().getParent()).removeView(modern.view());
+            setContentView(modern.view());
+            immersive();
+            return;
+        }
+        if (modern != null) { modern.destroy(); modern = null; }
         if (useWeb()) {
             dock = null; drawer = null; cc = null; settings = null; homeGrid = null;
             volLabel = brLabel = null; gauge = null; spark = null; clock = date = prompt = chips = sysPanel = gnssMini = null;
@@ -2778,7 +2796,7 @@ public class HomeActivity extends Activity {
         cols.addView(leftScroll, new LinearLayout.LayoutParams(0, -1, 0.85f));
 
         left.addView(section("INTERFAZ"));
-        left.addView(choice(new String[]{"Nativa", "Web (animada)"}, new String[]{"native", "web"},
+        left.addView(choice(new String[]{"Nativa", "Web (animada)", "Compose", "React Native", "Flutter"}, new String[]{"native", "web", "compose", "rn", "flutter"},
                 prefs.getString("engine", "native"), "engine"));
         left.addView(section("RELOJ"));
         left.addView(choice(new String[]{"12 h (AM/PM)", "24 h"}, new String[]{"12", "24"},
@@ -3452,6 +3470,7 @@ public class HomeActivity extends Activity {
     boolean webIsHidden(String k) { return hidden.contains(k); }
     boolean webIsPinned(String k) { return pinned.contains(k) || dockKeys.contains(k); }
     SharedPreferences webPrefs() { return prefs; }
+    Drawable webIcon(ResolveInfo r) { return appIcon(r); }
     void webStart(ResolveInfo r) { start(r); }
     void webAppMenu(ResolveInfo r) { appMenu(r); }
     void webMute() { mute(); }

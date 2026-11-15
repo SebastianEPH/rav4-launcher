@@ -150,8 +150,8 @@ public class SettingsActivity extends Activity {
     private void tabGeneral() {
         section("Interfaz");
         LinearLayout ic = card();
-        ic.addView(segRow("Tipo de interfaz", "La nativa es la más liviana", "engine",
-                new String[]{"Nativa", "Web (animada)"}, new String[]{"native", "web"}, "native"));
+        ic.addView(segRow("Tipo de interfaz", "Compose, React Native y Flutter por ahora traen el tema Cockpit", "engine",
+                new String[]{"Nativa", "Web", "Compose", "React Native", "Flutter"}, new String[]{"native", "web", "compose", "rn", "flutter"}, "native"));
         content.addView(ic);
 
         section("Tema");
@@ -614,28 +614,34 @@ public class SettingsActivity extends Activity {
     }
 
     private void cam360Fix() {
+        android.widget.Toast.makeText(this, "Creando carpetas de la cámara 360…", android.widget.Toast.LENGTH_SHORT).show();
         StringBuilder r = new StringBuilder();
-        int usbs = 0;
-        String[] roots = {android.os.Environment.getExternalStorageDirectory().getPath(), "/mnt/media_rw/udisk", "/mnt/media_rw/udiskh", "/mnt/media_rw/udisk3", "/mnt/media_rw/udisk4"};
-        String[] names = {"Memoria interna (sdcard)", "udisk (USB 1)", "udiskh (USB 2)", "udisk3 (USB 3, el que usa la cámara por defecto)", "udisk4 (USB 4)"};
-        for (int i = 0; i < roots.length; i++) {
-            java.io.File root = new java.io.File(roots[i]);
-            if (!root.isDirectory()) continue;
-            boolean ok = true;
-            for (String d : new String[]{"ivicar/video", "ivicar/picture", "ivicar/monitor"}) {
-                java.io.File f = new java.io.File(root, d);
-                ok &= f.isDirectory() || f.mkdirs();
-            }
-            usbs++;
-            long free = root.getUsableSpace() / (1024L * 1024 * 1024);
-            r.append(ok ? "✓ " : "✗ ").append(names[i]).append(ok ? ": carpetas ivicar/video, picture y monitor listas" : ": no se pudo escribir")
-                    .append(" · ").append(free).append(" GB libres").append(free < 3 ? " (necesita 3 GB, no grabará)" : "").append("\n");
+        // TODOS los lugares donde la app podría buscar: memoria interna (todas sus rutas), cada USB/tarjeta y todo /storage
+        java.util.LinkedHashSet<String> roots = new java.util.LinkedHashSet<String>();
+        roots.add(android.os.Environment.getExternalStorageDirectory().getPath());
+        for (String x : new String[]{"/sdcard", "/mnt/sdcard", "/storage/emulated/0", "/storage/self/primary", "/mnt/media_rw/sdcard",
+                "/mnt/media_rw/udisk", "/mnt/media_rw/udiskh", "/mnt/media_rw/udisk2", "/mnt/media_rw/udisk3", "/mnt/media_rw/udisk4",
+                "/mnt/media_rw/usbdisk", "/mnt/media_rw/usbdisk1", "/mnt/media_rw/card", "/mnt/media_rw/mapcard",
+                "/storage/udisk", "/storage/udiskh", "/storage/udisk3", "/storage/udisk4"}) roots.add(x);
+        java.io.File[] st = new java.io.File("/storage").listFiles();
+        if (st != null) for (java.io.File f : st) if (!f.getName().equals("self") && !f.getName().equals("emulated")) roots.add(f.getPath());
+        java.io.File[] mr = new java.io.File("/mnt/media_rw").listFiles();
+        if (mr != null) for (java.io.File f : mr) if (f.isDirectory()) roots.add(f.getPath());
+        String[] dirs = {"ivicar/video", "ivicar/picture", "ivicar/monitor", "3603D/cert", "3603D/models", "3603D/carmodel"};
+        java.util.HashSet<String> seen = new java.util.HashSet<String>();
+        for (String root : roots) {
+            java.io.File rf = new java.io.File(root);
+            if (!rf.isDirectory()) continue;
+            String real; try { real = rf.getCanonicalPath(); } catch (Exception e) { real = root; }
+            int ok = 0;
+            for (String d : dirs) { java.io.File f = new java.io.File(rf, d); if (f.isDirectory() || f.mkdirs()) ok++; }
+            long free = rf.getUsableSpace() / (1024L * 1024 * 1024);
+            r.append(ok == dirs.length ? "✓ " : ok > 0 ? "◐ " : "✗ ").append(root).append(seen.add(real) ? "" : " (mismo lugar que otro)")
+                    .append(ok == dirs.length ? "" : ok > 0 ? " · solo " + ok + "/" + dirs.length : " · sin permiso para escribir")
+                    .append(" · ").append(free).append(" GB libres\n");
         }
-        
+        r.append("\nCarpetas creadas en cada lugar: ivicar/video, ivicar/picture, ivicar/monitor, 3603D/cert, 3603D/models, 3603D/carmodel.\n\n");
         java.io.File base = new java.io.File(android.os.Environment.getExternalStorageDirectory(), "3603D");
-        boolean okm = true;
-        for (String d : new String[]{"cert", "models", "carmodel"}) { java.io.File f = new java.io.File(base, d); okm &= f.isDirectory() || f.mkdirs(); }
-        r.append(okm ? "✓ " : "✗ ").append("Memoria interna: 3603D/cert, models y carmodel\n\n");
         java.io.File cert = new java.io.File(base, "cert/cert.txt");
         if (!cert.exists()) r.append("✗ No hay certificado (3603D/cert/cert.txt). Ábrela una vez para que lo cree.\n");
         else r.append("Certificado: ").append(cert.length()).append(" bytes.\n");
