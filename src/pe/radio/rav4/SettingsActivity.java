@@ -588,10 +588,71 @@ public class SettingsActivity extends Activity {
             public void onClick(View v) { open("android.settings.SETTINGS"); }
         }));
         content.addView(sc);
+        benchSection();
         backupSection();
         TextView ver = tv("Órbita Launcher " + Updater.currentVersion(this) + " · Android " + Build.VERSION.RELEASE, 12, DIM);
         ver.setPadding(dp(4), dp(10), 0, 0);
         content.addView(ver);
+    }
+
+    // ---------- prueba de rendimiento ----------
+    /** La misma escena Cockpit en 4 motores, medida con el mismo BenchProbe. Resultados en OrbitaLauncher/bench_*.txt. */
+    private void benchSection() {
+        section("Prueba de rendimiento");
+        LinearLayout c = card();
+        TextView info = tv("La misma pantalla Cockpit hecha en 4 tecnologías. Abre cada una, toca \"Iniciar prueba\" y, mientras mide "
+                + "(30 s), toca el velocímetro unas 10 veces. Mide arranque, fluidez, demora del toque, CPU y memoria, y lo guarda en "
+                + "OrbitaLauncher del USB. React Native y Flutter son apps aparte (OrbitaRN.apk y OrbitaFlutter.apk, en el Release).", 13, DIM);
+        info.setPadding(dp(14), dp(12), dp(14), dp(4));
+        c.addView(info);
+        c.addView(linkRow("▶  Nativo (Java)", new View.OnClickListener() { public void onClick(View v) {
+            startActivity(new Intent(SettingsActivity.this, BenchActivity.class)); } }));
+        c.addView(linkRow("▶  Web (la interfaz web del launcher)", new View.OnClickListener() { public void onClick(View v) {
+            startActivity(new Intent(SettingsActivity.this, BenchActivity.Web.class)); } }));
+        c.addView(linkRow("▶  React Native", new View.OnClickListener() { public void onClick(View v) { openBenchApp("pe.radio.bench.rn", "OrbitaRN.apk"); } }));
+        c.addView(linkRow("▶  Flutter", new View.OnClickListener() { public void onClick(View v) { openBenchApp("pe.radio.bench.flutter", "OrbitaFlutter.apk"); } }));
+        c.addView(linkRow("📊  Ver resultados", new View.OnClickListener() { public void onClick(View v) { showBenchResults(); } }));
+        content.addView(c);
+    }
+
+    private void openBenchApp(String pkg, String apk) {
+        Intent i = getPackageManager().getLaunchIntentForPackage(pkg);
+        if (i != null) { startActivity(i); return; }
+        android.widget.Toast.makeText(this, "No está instalada: baja " + apk + " del Release en GitHub e instálala", android.widget.Toast.LENGTH_LONG).show();
+    }
+
+    /** Tabla con el último resultado de cada motor. */
+    private void showBenchResults() {
+        java.util.LinkedHashMap<String, java.util.Properties> last = new java.util.LinkedHashMap<String, java.util.Properties>();
+        for (java.io.File f : pe.radio.bench.BenchProbe.results()) {
+            try {
+                java.util.Properties p = new java.util.Properties();
+                java.io.Reader r = new java.io.InputStreamReader(new java.io.FileInputStream(f), "UTF-8");
+                p.load(r); r.close();
+                String m = p.getProperty("motor", "?");
+                if (!last.containsKey(m)) last.put(m, p);
+            } catch (Exception ignored) { }
+        }
+        StringBuilder s = new StringBuilder();
+        if (last.isEmpty()) s.append("Todavía no hay resultados. Corre la prueba en cada motor.");
+        else {
+            s.append(String.format(java.util.Locale.US, "%-12s %8s %6s %7s %7s %6s %6s%n", "Motor", "Arranque", "FPS", "Lentos", "Toque", "CPU", "RAM"));
+            for (String m : new String[]{"nativo", "web", "reactnative", "flutter"}) {
+                java.util.Properties p = last.get(m);
+                if (p == null) { s.append(String.format(java.util.Locale.US, "%-12s %s%n", m, "  (sin probar)")); continue; }
+                s.append(String.format(java.util.Locale.US, "%-12s %6sms %6s %6s%% %5sms %5s%% %4sMB%n", m, p.getProperty("arranque_ms"), p.getProperty("fps"),
+                        p.getProperty("cuadros_lentos_pct"), p.getProperty("toque_ms"), p.getProperty("cpu_nucleo_pct"), p.getProperty("ram_mb")));
+                if (p.getProperty("js_fps") != null) s.append("             JavaScript: ").append(p.getProperty("js_fps")).append(" fps\n");
+            }
+            s.append("\nArranque y toque: menos es mejor. FPS: más es mejor (60 = perfecto). Lentos = cuadros de más de 33 ms (tirones). "
+                    + "CPU = % de un núcleo. Los archivos completos están en OrbitaLauncher del USB.");
+        }
+        TextView t = tv(s.toString(), 14, TXT);
+        t.setTypeface(android.graphics.Typeface.MONOSPACE);
+        t.setPadding(dp(20), dp(16), dp(20), dp(16));
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.addView(t);
+        new android.app.AlertDialog.Builder(this, dlgTheme()).setTitle("Resultados · último de cada motor").setView(sv).setPositiveButton("Cerrar", null).show();
     }
 
     // ---------- respaldo y restauración ----------
