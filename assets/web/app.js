@@ -573,9 +573,6 @@
     var dt = lastT ? Math.min(0.1, (t - lastT) / 1000) : 0.016;
     lastT = t;
     var target = S.kmh || 0;
-    if (BENCH) { var bms = Date.now() - BENCH.t0;   // prueba de rendimiento: misma escena que Nativo / React Native / Flutter
-      S.kmh = 90 * (1 - Math.cos(2 * Math.PI * bms / 10000)); S.bearing = (bms * 0.012) % 360; target = S.kmh; shownKmh = target;
-      if (current && current.tick) current.tick(); benchFrame(t); }
     shownKmh += params.shot ? target - shownKmh : (target - shownKmh) * Math.min(1, dt * 4);
     if (Math.abs(target - shownKmh) < 0.05) shownKmh = target;
     setK('kmhInt', Math.round(shownKmh));
@@ -1034,38 +1031,6 @@
           doors: doors, locks: [kmh > 1 ? 1 : 0, 0, 0, 0, 0], lights: [0, night ? 1 : 0, 0, 0, night ? 1 : 0, 0, blink, 0], radar: [0, 0, 0, 0], log: simLog });
       }
     };
-  }
-
-  // ================= prueba de rendimiento (?bench=1, la abre BenchActivity.Web) =================
-  // Mide la página REAL del launcher (tema Cockpit). El medidor es BenchProbe (Java), el mismo de los otros motores.
-  var BENCH = params.bench && window.Bench ? { t0: Date.now(), pending: false, end: 0 } : null;
-  function benchFrame(t) {
-    var B = window.Bench;
-    B.frame(t);
-    if (BENCH.pending) { BENCH.pending = false; B.touchShown(); }
-    if (BENCH.end) {
-      var left = BENCH.end - Date.now();
-      $('#bStat').textContent = 'Midiendo… ' + Math.max(0, Math.ceil(left / 1000)) + ' s · toca el velocímetro varias veces';
-      if (left <= 0) { BENCH.end = 0; $('#bStat').textContent = ''; $('#bBtn').textContent = 'Repetir prueba (30 s)'; $('#bBtn').style.display = '';
-        var r = $('#bRes'); r.textContent = B.finish() + '\n\nToca para cerrar'; r.style.display = 'block'; }
-    }
-  }
-  if (BENCH) {
-    var bar = document.createElement('div');
-    bar.innerHTML = '<div style="position:fixed;bottom:14px;left:24px;right:24px;display:flex;justify-content:space-between;align-items:center;z-index:99;font-size:16px">' +
-      '<span style="color:rgba(255,255,255,.7)">Web · página real del launcher (WebView)</span><b id="bStat" style="color:#00e5ff;font-size:18px"></b>' +
-      '<button id="bBtn" style="background:#00e5ff;color:#001018;border:0;border-radius:14px;padding:10px 22px;font-size:17px;font-weight:700">Iniciar prueba (30 s)</button></div>' +
-      '<pre id="bRes" style="display:none;position:fixed;left:300px;right:300px;top:160px;z-index:100;white-space:pre-wrap;font:19px/1.4 sans-serif;color:#fff;background:rgba(8,10,18,.96);border:1px solid #00e5ff;border-radius:22px;padding:28px;margin:0"></pre>';
-    document.body.appendChild(bar);
-    $('#bBtn').addEventListener('click', function () { $('#bRes').style.display = 'none'; this.style.display = 'none'; window.Bench.start(); BENCH.end = Date.now() + 30000; });
-    $('#bRes').addEventListener('click', function () { this.style.display = 'none'; });
-    document.addEventListener('pointerdown', function (e) {
-      var g = e.target.closest ? e.target.closest('.gauge') : null;
-      if (!g) return;
-      g.classList.toggle('hot'); g.style.borderColor = g.classList.contains('hot') ? '#00e5ff' : '';
-      BENCH.pending = true;
-    }, true);
-    requestAnimationFrame(function () { window.Bench.firstFrame(); });
   }
 
   // ================= arranque =================

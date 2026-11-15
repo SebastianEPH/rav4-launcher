@@ -108,6 +108,8 @@ hay `toyota` con cajas `binary`, `daojun`, `hiworld`, `luzhen`, `oudi`, `raise`)
   en el archivo, para saber qué se hizo en cada momento.
 
 ## Cámara 360 (`com.ivicar.avm`)
+- La vista 360° NO necesita USB; solo la grabación necesita destino. La lista de destinos (StorageHelper) incluye la memoria
+  interna (/sdcard) y los USB.
 - Graba en `AVM_CAMERA_PATH` (prefs de la app), por defecto `/mnt/media_rw/udisk3` (USB 3; opciones `udisk`/`udisk2`/`udisk3`).
   Videos en `<usb>/ivicar/video/<fecha>/<hora>.ts`, fotos en `ivicar/picture`, bloqueados en `ivicar/monitor`.
   `MonitorRecording` espera a que exista `ivicar/video` y **no la crea**. Además pide grabación automática activada

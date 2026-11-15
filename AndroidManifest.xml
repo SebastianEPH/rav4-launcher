@@ -46,11 +46,6 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <!-- prueba de rendimiento: cada motor en su propio proceso para medir el arranque en frío -->
-        <activity android:name=".BenchActivity" android:process=":bench_nativo" android:exported="false" android:screenOrientation="landscape"
-            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" android:configChanges="orientation|screenSize|keyboardHidden|keyboard|navigation"/>
-        <activity android:name=".BenchActivity$Web" android:process=":bench_web" android:exported="false" android:screenOrientation="landscape"
-            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" android:configChanges="orientation|screenSize|keyboardHidden|keyboard|navigation"/>
         <service android:name=".MediaListener" android:label="Órbita Launcher (música)" android:exported="true"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>

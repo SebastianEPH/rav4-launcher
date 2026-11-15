@@ -588,7 +588,6 @@ public class SettingsActivity extends Activity {
             public void onClick(View v) { open("android.settings.SETTINGS"); }
         }));
         content.addView(sc);
-        benchSection();
         cam360Section();
         backupSection();
         TextView ver = tv("Órbita Launcher " + Updater.currentVersion(this) + " · Android " + Build.VERSION.RELEASE, 12, DIM);
@@ -605,9 +604,9 @@ public class SettingsActivity extends Activity {
     private void cam360Section() {
         section("Cámara 360");
         LinearLayout c = card();
-        TextView info = tv("Crea las carpetas que la app de cámara 360 necesita para grabar (ivicar/video en el USB) y revisa su "
-                + "activación. Ojo: en la app, el lugar de guardado viene en \"udisk3\" (USB 3); cámbialo a \"udisk\" si el pendrive "
-                + "está en el USB 1, activa la grabación automática y deja al menos 3 GB libres.", 13, DIM);
+        TextView info = tv("Crea las carpetas que la app de cámara 360 necesita para grabar (ivicar/video) y revisa su "
+                + "activación. La vista 360° funciona sin USB; esto es solo para GRABAR video: en la app elige dónde guardar (memoria "
+                + "interna o un USB; de fábrica viene \"udisk3\" = USB 3), activa la grabación automática y deja al menos 3 GB libres.", 13, DIM);
         info.setPadding(dp(14), dp(12), dp(14), dp(4));
         c.addView(info);
         c.addView(linkRow("📷  Cámara 360: crear carpetas y revisar", new View.OnClickListener() { public void onClick(View v) { cam360Fix(); } }));
@@ -617,8 +616,8 @@ public class SettingsActivity extends Activity {
     private void cam360Fix() {
         StringBuilder r = new StringBuilder();
         int usbs = 0;
-        String[] roots = {"/mnt/media_rw/udisk", "/mnt/media_rw/udiskh", "/mnt/media_rw/udisk3", "/mnt/media_rw/udisk4"};
-        String[] names = {"udisk (USB 1)", "udiskh (USB 2)", "udisk3 (USB 3, el que usa la cámara por defecto)", "udisk4 (USB 4)"};
+        String[] roots = {android.os.Environment.getExternalStorageDirectory().getPath(), "/mnt/media_rw/udisk", "/mnt/media_rw/udiskh", "/mnt/media_rw/udisk3", "/mnt/media_rw/udisk4"};
+        String[] names = {"Memoria interna (sdcard)", "udisk (USB 1)", "udiskh (USB 2)", "udisk3 (USB 3, el que usa la cámara por defecto)", "udisk4 (USB 4)"};
         for (int i = 0; i < roots.length; i++) {
             java.io.File root = new java.io.File(roots[i]);
             if (!root.isDirectory()) continue;
@@ -632,7 +631,7 @@ public class SettingsActivity extends Activity {
             r.append(ok ? "✓ " : "✗ ").append(names[i]).append(ok ? ": carpetas ivicar/video, picture y monitor listas" : ": no se pudo escribir")
                     .append(" · ").append(free).append(" GB libres").append(free < 3 ? " (necesita 3 GB, no grabará)" : "").append("\n");
         }
-        if (usbs == 0) r.append("✗ No encontré ningún USB conectado.\n");
+        
         java.io.File base = new java.io.File(android.os.Environment.getExternalStorageDirectory(), "3603D");
         boolean okm = true;
         for (String d : new String[]{"cert", "models", "carmodel"}) { java.io.File f = new java.io.File(base, d); okm &= f.isDirectory() || f.mkdirs(); }
@@ -655,71 +654,6 @@ public class SettingsActivity extends Activity {
                         if (i != null) startActivity(i);
                     }
                 }).show();
-    }
-
-    // ---------- prueba de rendimiento ----------
-    /** La misma escena Cockpit en 4 motores, medida con el mismo BenchProbe. Resultados en OrbitaLauncher/bench_*.txt. */
-    private void benchSection() {
-        section("Prueba de rendimiento");
-        LinearLayout c = card();
-        TextView info = tv("La misma pantalla Cockpit hecha en 4 tecnologías. Abre cada una, toca \"Iniciar prueba\" y, mientras mide "
-                + "(30 s), toca el velocímetro unas 10 veces. Mide arranque, fluidez, demora del toque, CPU y memoria, y lo guarda en "
-                + "OrbitaLauncher del USB. React Native y Flutter son apps aparte (OrbitaRN.apk y OrbitaFlutter.apk, en el Release).", 13, DIM);
-        info.setPadding(dp(14), dp(12), dp(14), dp(4));
-        c.addView(info);
-        c.addView(linkRow("▶  Nativo (Java)", new View.OnClickListener() { public void onClick(View v) {
-            startActivity(new Intent(SettingsActivity.this, BenchActivity.class).putExtra(pe.radio.bench.BenchProbe.EXTRA_T0, android.os.SystemClock.uptimeMillis())); } }));
-        c.addView(linkRow("▶  Web (la interfaz web del launcher)", new View.OnClickListener() { public void onClick(View v) {
-            startActivity(new Intent(SettingsActivity.this, BenchActivity.Web.class).putExtra(pe.radio.bench.BenchProbe.EXTRA_T0, android.os.SystemClock.uptimeMillis())); } }));
-        c.addView(linkRow("▶  React Native", new View.OnClickListener() { public void onClick(View v) { openBenchApp("pe.radio.bench.rn", "OrbitaRN.apk"); } }));
-        c.addView(linkRow("▶  Flutter", new View.OnClickListener() { public void onClick(View v) { openBenchApp("pe.radio.bench.flutter", "OrbitaFlutter.apk"); } }));
-        c.addView(linkRow("📊  Ver resultados", new View.OnClickListener() { public void onClick(View v) { showBenchResults(); } }));
-        content.addView(c);
-    }
-
-    private void openBenchApp(String pkg, String apk) {
-        Intent i = getPackageManager().getLaunchIntentForPackage(pkg);
-        if (i != null) {
-            // que arranque en frío: si quedó abierta de antes, Android la cierra al traerla de nuevo con CLEAR_TASK
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(i.putExtra(pe.radio.bench.BenchProbe.EXTRA_T0, android.os.SystemClock.uptimeMillis()));
-            return;
-        }
-        android.widget.Toast.makeText(this, "No está instalada: baja " + apk + " del Release en GitHub e instálala", android.widget.Toast.LENGTH_LONG).show();
-    }
-
-    /** Tabla con el último resultado de cada motor. */
-    private void showBenchResults() {
-        java.util.LinkedHashMap<String, java.util.Properties> last = new java.util.LinkedHashMap<String, java.util.Properties>();
-        for (java.io.File f : pe.radio.bench.BenchProbe.results()) {
-            try {
-                java.util.Properties p = new java.util.Properties();
-                java.io.Reader r = new java.io.InputStreamReader(new java.io.FileInputStream(f), "UTF-8");
-                p.load(r); r.close();
-                String m = p.getProperty("motor", "?");
-                if (!last.containsKey(m)) last.put(m, p);
-            } catch (Exception ignored) { }
-        }
-        StringBuilder s = new StringBuilder();
-        if (last.isEmpty()) s.append("Todavía no hay resultados. Corre la prueba en cada motor.");
-        else {
-            s.append(String.format(java.util.Locale.US, "%-12s %8s %6s %7s %7s %6s %6s%n", "Motor", "Arranque", "FPS", "Lentos", "Toque", "CPU", "RAM"));
-            for (String m : new String[]{"nativo", "web", "reactnative", "flutter"}) {
-                java.util.Properties p = last.get(m);
-                if (p == null) { s.append(String.format(java.util.Locale.US, "%-12s %s%n", m, "  (sin probar)")); continue; }
-                s.append(String.format(java.util.Locale.US, "%-12s %6sms %6s %6s%% %5sms %5s%% %4sMB%n", m, p.getProperty("arranque_ms"), p.getProperty("fps"),
-                        p.getProperty("cuadros_lentos_pct"), p.getProperty("toque_ms"), p.getProperty("cpu_nucleo_pct"), p.getProperty("ram_mb")));
-                if (p.getProperty("js_fps") != null) s.append("             JavaScript: ").append(p.getProperty("js_fps")).append(" fps\n");
-            }
-            s.append("\nArranque y toque: menos es mejor. FPS: más es mejor (60 = perfecto). Lentos = cuadros de más de 33 ms (tirones). "
-                    + "CPU = % de un núcleo. Los archivos completos están en OrbitaLauncher del USB.");
-        }
-        TextView t = tv(s.toString(), 14, TXT);
-        t.setTypeface(android.graphics.Typeface.MONOSPACE);
-        t.setPadding(dp(20), dp(16), dp(20), dp(16));
-        android.widget.ScrollView sv = new android.widget.ScrollView(this);
-        sv.addView(t);
-        new android.app.AlertDialog.Builder(this, dlgTheme()).setTitle("Resultados · último de cada motor").setView(sv).setPositiveButton("Cerrar", null).show();
     }
 
     // ---------- respaldo y restauración ----------
