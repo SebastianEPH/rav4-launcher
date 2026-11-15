@@ -1,6 +1,6 @@
 # Órbita Launcher — contexto del proyecto
 
-> Nombre de la app: **Órbita Launcher** (antes "RAV4 Launcher"). La app NO debe mencionar el modelo del auto. Se mantienen internos: paquete `pe.radio.rav4`, prefs `rav4`, `window.RAV4` (compatibilidad). Carpeta en USB: `OrbitaLauncher/`. APKs: `OrbitaLauncher.apk`, `OrbitaVolumen.apk`; el Release publica además una copia `RAV4Launcher-*.apk` para que las versiones viejas del actualizador la encuentren.
+> Nombre de la app: **Órbita Launcher** (antes "RAV4 Launcher"). La app NO debe mencionar el modelo del auto. Se mantienen internos: paquete `pe.radio.rav4`, prefs `rav4`, `window.RAV4` (compatibilidad). Carpeta en USB: `OrbitaLauncher/`. APKs: `OrbitaLauncher.apk`, `OrbitaVolumen.apk`. El Release ya NO publica la copia `RAV4Launcher-*.apk`: las versiones ≤ 1.3.60 no se auto-actualizan, hay que instalar una vez a mano.
 
 Launcher (pantalla de inicio) personalizado para una **autorradio Android china**, montada en un
 Toyota RAV4 2013 (4ª gen, XA40), color gris. El dueño es desarrollador backend / DevSecOps,
