@@ -230,6 +230,17 @@ Fondo configurable (solo Cockpit/Inicio): Ondas, Noche, Atardecer, Mi RAV4 (foto
 - Hora en **12 h con AM/PM por defecto** (pref compartida `web.clock` = "12"/"24"; nativa y web). Los registros técnicos (CAN, log) usan 24 h.
 - No copiar íconos de marcas (Apple, Google, Volkswagen): se usan los íconos reales de cada app.
 
+## Prueba de rendimiento (Ajustes → Sistema)
+La misma escena Cockpit en 4 motores con el **mismo medidor** `src/pe/radio/bench/BenchProbe.java` (fuente única; `bench-rn/build.sh`
+y `bench-flutter/build.sh` lo copian). Escena común: aguja = 90·(1−cos(2πt/10 s)), rumbo 12°/s, 4 tarjetas con números vivos.
+- Nativo: `BenchActivity` (vistas `Views.CockpitRoad/CockpitGauge/Compass`), proceso `:bench_nativo`.
+- Web: `BenchActivity$Web` carga la página real `index.html?bench=1&theme=cockpit&fx=high` (modo simulador + puente `Bench`), proceso `:bench_web`.
+- React Native: `bench-rn/` (RN 0.88, Hermes, Reanimated, react-native-svg) → `OrbitaRN.apk`, paquete `pe.radio.bench.rn`.
+- Flutter: `bench-flutter/` (CustomPainter, FrameTiming) → `OrbitaFlutter.apk`, paquete `pe.radio.bench.flutter`.
+Ajustes abre cada una con extra `bench_t0` (uptime) → arranque medido desde el toque. Resultados: `OrbitaLauncher/bench_<motor>_<fecha>.txt`.
+Emulador (M-series, no vale como dato real): nativo 60 fps/toque 5 ms/RAM 28 MB · Flutter 59.5/9 ms/53 MB · RN 59.9/44 ms/134 MB ·
+Web 23.6 fps, 56 % cuadros lentos, CPU 170 %. Falta medir en la radio.
+
 ## Cómo compilar e instalar
 ```bash
 ./build.sh                      # genera RAV4Launcher.apk

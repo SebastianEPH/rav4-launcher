@@ -76,6 +76,24 @@ jobs:
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           sha256sum "$NAME"
 
+      # Apps de la prueba de rendimiento (misma escena Cockpit en React Native y Flutter). Si fallan, el launcher sale igual.
+      - name: Instalar Node (React Native)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compilar OrbitaRN.apk (React Native)
+        continue-on-error: true
+        run: |
+          cd bench-rn && npm ci && ./build.sh
+      - name: Instalar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Compilar OrbitaFlutter.apk (Flutter)
+        continue-on-error: true
+        run: |
+          cd bench-flutter && flutter pub get && ./build.sh
+
       # Las notas automáticas de GitHub solo listan pull requests (aquí no hay): se arman desde git.
       - name: Armar las notas (qué se agregó, qué se quitó, qué trae y qué falta)
         run: |
@@ -94,5 +112,8 @@ jobs:
             ${{ steps.apk.outputs.name }}
             ${{ steps.apk.outputs.legacy }}
             OrbitaVolumen.apk
+            OrbitaRN.apk
+            OrbitaFlutter.apk
+          fail_on_unmatched_files: false
           make_latest: true
           body_path: release-notes.md
