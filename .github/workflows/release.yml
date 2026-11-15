@@ -39,7 +39,7 @@ jobs:
       - name: Instalar Android SDK (build-tools y plataforma)
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools platforms;android-33 build-tools;34.0.0'
+          packages: 'platform-tools platforms;android-33 platforms;android-37 build-tools;34.0.0 build-tools;37.0.0 ndk;27.1.12297006 cmake;3.22.1'
 
       # Misma clave que la del Mac: así la radio instala la versión nueva encima de la anterior.
       - name: Restaurar la clave de firma
@@ -54,11 +54,20 @@ jobs:
 
       # versionCode siempre creciente (si no, Android lo trata como downgrade y no instala encima)
       # y versionName = tag, que es lo que el launcher compara para saber si hay versión nueva.
-      - name: Poner la versión en el manifest
+      - name: Calcular la versión
         run: |
-          CODE=$((100 + GITHUB_RUN_NUMBER))
-          sed -i -E "s/android:versionCode=\"[0-9]+\"/android:versionCode=\"$CODE\"/; s/android:versionName=\"[^\"]+\"/android:versionName=\"${VERSION#v}\"/" AndroidManifest.xml
-          grep -o 'android:version[A-Za-z]*="[^"]*"' AndroidManifest.xml
+          echo "VERSION_CODE=$((100 + ${{ github.run_number }}))" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=${VERSION#v}" >> "$GITHUB_ENV"
+
+      - name: Instalar Node (interfaz React Native)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar Flutter (interfaz Flutter)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
 
       - name: Compilar APK
         run: |
@@ -72,24 +81,6 @@ jobs:
           cp OrbitaLauncher.apk "$NAME"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           sha256sum "$NAME"
-
-      # Apps de la prueba de rendimiento (misma escena Cockpit en React Native y Flutter). Si fallan, el launcher sale igual.
-      - name: Instalar Node (React Native)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Compilar OrbitaRN.apk (React Native)
-        continue-on-error: true
-        run: |
-          cd bench-rn && npm ci && ./build.sh
-      - name: Instalar Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-      - name: Compilar OrbitaFlutter.apk (Flutter)
-        continue-on-error: true
-        run: |
-          cd bench-flutter && flutter pub get && ./build.sh
 
       # Las notas automáticas de GitHub solo listan pull requests (aquí no hay): se arman desde git.
       - name: Armar las notas (qué se agregó, qué se quitó, qué trae y qué falta)
@@ -108,8 +99,6 @@ jobs:
           files: |
             ${{ steps.apk.outputs.name }}
             OrbitaVolumen.apk
-            OrbitaRN.apk
-            OrbitaFlutter.apk
           fail_on_unmatched_files: false
           make_latest: true
           body_path: release-notes.md

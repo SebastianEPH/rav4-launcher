@@ -56,7 +56,6 @@ cat <<'EOF'
 - Cockpit con tarjetas a elección (rumbo y calle, altitud y pendiente, 0–100 y fuerza G, accesos a CarPlay/mapas, controles, reloj) en Ajustes Launcher → Tema actual.
 - Tema Sonido: visualizador del audio que suena, volumen grande con deslizador y lo que se está reproduciendo.
 - Respaldo y restauración de toda la configuración (radio y USB); acelerar el velocímetro estacionado como demostración.
-- Prueba de rendimiento (Ajustes → Sistema): la misma pantalla Cockpit en Nativo, Web, React Native (OrbitaRN.apk) y Flutter (OrbitaFlutter.apk), con arranque, fps, demora del toque, CPU y RAM.
 - Cámara 360 (Ajustes → Sistema): crea las carpetas que necesita para grabar y revisa su activación.
 - Espectro de audio con 17 estilos (incluye solo bajos) y 8 paletas, como tarjeta en cualquier tema o de fondo; volumen sin la barra del sistema.
 - Velocidad y viaje por GPS, voltaje de la batería del auto, volumen real de la radio (NWD) y brillo con mínimo seguro.

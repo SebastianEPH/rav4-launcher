@@ -1,0 +1,11 @@
+// Órbita Launcher — compilación con Gradle (necesaria para las interfaces React Native, Flutter y Compose).
+pluginManagement { includeBuild("rn/node_modules/@react-native/gradle-plugin") }
+plugins { id("com.facebook.react.settings") }
+// librerías nativas de React Native (svg, reanimated…) a partir de rn/package.json
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+    ex.autolinkLibrariesFromCommand(["npx", "@react-native-community/cli", "config"], file("rn"),
+            files("rn/package-lock.json", "rn/package.json", "rn/react-native.config.js"))
+}
+rootProject.name = "OrbitaLauncher"
+include ":app"
+includeBuild("rn/node_modules/@react-native/gradle-plugin")

@@ -20,3 +20,10 @@ debug.keystore
 
 OrbitaVolumen.apk
 helper/build/
+.gradle/
+app/build/
+local.properties
+rn/node_modules/
+.kotlin/
+/node_modules
+app/.cxx/
