@@ -1052,7 +1052,7 @@
   }
   if (BENCH) {
     var bar = document.createElement('div');
-    bar.innerHTML = '<div style="position:fixed;top:14px;left:24px;right:24px;display:flex;justify-content:space-between;align-items:center;z-index:99;font-size:16px">' +
+    bar.innerHTML = '<div style="position:fixed;bottom:14px;left:24px;right:24px;display:flex;justify-content:space-between;align-items:center;z-index:99;font-size:16px">' +
       '<span style="color:rgba(255,255,255,.7)">Web · página real del launcher (WebView)</span><b id="bStat" style="color:#00e5ff;font-size:18px"></b>' +
       '<button id="bBtn" style="background:#00e5ff;color:#001018;border:0;border-radius:14px;padding:10px 22px;font-size:17px;font-weight:700">Iniciar prueba (30 s)</button></div>' +
       '<pre id="bRes" style="display:none;position:fixed;left:300px;right:300px;top:160px;z-index:100;white-space:pre-wrap;font:19px/1.4 sans-serif;color:#fff;background:rgba(8,10,18,.96);border:1px solid #00e5ff;border-radius:22px;padding:28px;margin:0"></pre>';

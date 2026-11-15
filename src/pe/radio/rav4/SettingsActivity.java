@@ -589,10 +589,72 @@ public class SettingsActivity extends Activity {
         }));
         content.addView(sc);
         benchSection();
+        cam360Section();
         backupSection();
         TextView ver = tv("Órbita Launcher " + Updater.currentVersion(this) + " · Android " + Build.VERSION.RELEASE, 12, DIM);
         ver.setPadding(dp(4), dp(10), 0, 0);
         content.addView(ver);
+    }
+
+    // ---------- cámara 360 (com.ivicar.avm) ----------
+    /**
+     * Crea las carpetas que espera la app de cámara 360 (vistas al descompilarla, ver FINDINGS.md):
+     * en cada USB → ivicar/video, ivicar/picture, ivicar/monitor (no las crea sola: sin ivicar/video no graba);
+     * en la memoria → 3603D/cert, 3603D/models, 3603D/carmodel. Además revisa el certificado de activación.
+     */
+    private void cam360Section() {
+        section("Cámara 360");
+        LinearLayout c = card();
+        TextView info = tv("Crea las carpetas que la app de cámara 360 necesita para grabar (ivicar/video en el USB) y revisa su "
+                + "activación. Ojo: en la app, el lugar de guardado viene en \"udisk3\" (USB 3); cámbialo a \"udisk\" si el pendrive "
+                + "está en el USB 1, activa la grabación automática y deja al menos 3 GB libres.", 13, DIM);
+        info.setPadding(dp(14), dp(12), dp(14), dp(4));
+        c.addView(info);
+        c.addView(linkRow("📷  Cámara 360: crear carpetas y revisar", new View.OnClickListener() { public void onClick(View v) { cam360Fix(); } }));
+        content.addView(c);
+    }
+
+    private void cam360Fix() {
+        StringBuilder r = new StringBuilder();
+        int usbs = 0;
+        String[] roots = {"/mnt/media_rw/udisk", "/mnt/media_rw/udiskh", "/mnt/media_rw/udisk3", "/mnt/media_rw/udisk4"};
+        String[] names = {"udisk (USB 1)", "udiskh (USB 2)", "udisk3 (USB 3, el que usa la cámara por defecto)", "udisk4 (USB 4)"};
+        for (int i = 0; i < roots.length; i++) {
+            java.io.File root = new java.io.File(roots[i]);
+            if (!root.isDirectory()) continue;
+            boolean ok = true;
+            for (String d : new String[]{"ivicar/video", "ivicar/picture", "ivicar/monitor"}) {
+                java.io.File f = new java.io.File(root, d);
+                ok &= f.isDirectory() || f.mkdirs();
+            }
+            usbs++;
+            long free = root.getUsableSpace() / (1024L * 1024 * 1024);
+            r.append(ok ? "✓ " : "✗ ").append(names[i]).append(ok ? ": carpetas ivicar/video, picture y monitor listas" : ": no se pudo escribir")
+                    .append(" · ").append(free).append(" GB libres").append(free < 3 ? " (necesita 3 GB, no grabará)" : "").append("\n");
+        }
+        if (usbs == 0) r.append("✗ No encontré ningún USB conectado.\n");
+        java.io.File base = new java.io.File(android.os.Environment.getExternalStorageDirectory(), "3603D");
+        boolean okm = true;
+        for (String d : new String[]{"cert", "models", "carmodel"}) { java.io.File f = new java.io.File(base, d); okm &= f.isDirectory() || f.mkdirs(); }
+        r.append(okm ? "✓ " : "✗ ").append("Memoria interna: 3603D/cert, models y carmodel\n\n");
+        java.io.File cert = new java.io.File(base, "cert/cert.txt");
+        if (!cert.exists()) r.append("✗ No hay certificado (3603D/cert/cert.txt). Ábrela una vez para que lo cree.\n");
+        else r.append("Certificado: ").append(cert.length()).append(" bytes.\n");
+        r.append("\n\"3D RoundView system is not activated\" NO se arregla con carpetas: es la licencia del fabricante. La app compara "
+                + "3603D/cert/cert.txt con el serial de esta radio. Si cambió el firmware o se borró la memoria, se pierde. Se reactiva "
+                + "desde la propia app (Ajustes → Activar: código o QR) con el código que da el vendedor de la cámara, o restaurando una "
+                + "copia de cert.txt de antes.");
+        TextView t = tv(r.toString(), 14, TXT);
+        t.setPadding(dp(20), dp(16), dp(20), dp(16));
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.addView(t);
+        new android.app.AlertDialog.Builder(this, dlgTheme()).setTitle("Cámara 360").setView(sv).setPositiveButton("Cerrar", null)
+                .setNeutralButton("Abrir cámara 360", new android.content.DialogInterface.OnClickListener() {
+                    public void onClick(android.content.DialogInterface d, int w) {
+                        Intent i = getPackageManager().getLaunchIntentForPackage("com.ivicar.avm");
+                        if (i != null) startActivity(i);
+                    }
+                }).show();
     }
 
     // ---------- prueba de rendimiento ----------
@@ -606,9 +668,9 @@ public class SettingsActivity extends Activity {
         info.setPadding(dp(14), dp(12), dp(14), dp(4));
         c.addView(info);
         c.addView(linkRow("▶  Nativo (Java)", new View.OnClickListener() { public void onClick(View v) {
-            startActivity(new Intent(SettingsActivity.this, BenchActivity.class)); } }));
+            startActivity(new Intent(SettingsActivity.this, BenchActivity.class).putExtra(pe.radio.bench.BenchProbe.EXTRA_T0, android.os.SystemClock.uptimeMillis())); } }));
         c.addView(linkRow("▶  Web (la interfaz web del launcher)", new View.OnClickListener() { public void onClick(View v) {
-            startActivity(new Intent(SettingsActivity.this, BenchActivity.Web.class)); } }));
+            startActivity(new Intent(SettingsActivity.this, BenchActivity.Web.class).putExtra(pe.radio.bench.BenchProbe.EXTRA_T0, android.os.SystemClock.uptimeMillis())); } }));
         c.addView(linkRow("▶  React Native", new View.OnClickListener() { public void onClick(View v) { openBenchApp("pe.radio.bench.rn", "OrbitaRN.apk"); } }));
         c.addView(linkRow("▶  Flutter", new View.OnClickListener() { public void onClick(View v) { openBenchApp("pe.radio.bench.flutter", "OrbitaFlutter.apk"); } }));
         c.addView(linkRow("📊  Ver resultados", new View.OnClickListener() { public void onClick(View v) { showBenchResults(); } }));
@@ -617,7 +679,12 @@ public class SettingsActivity extends Activity {
 
     private void openBenchApp(String pkg, String apk) {
         Intent i = getPackageManager().getLaunchIntentForPackage(pkg);
-        if (i != null) { startActivity(i); return; }
+        if (i != null) {
+            // que arranque en frío: si quedó abierta de antes, Android la cierra al traerla de nuevo con CLEAR_TASK
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(i.putExtra(pe.radio.bench.BenchProbe.EXTRA_T0, android.os.SystemClock.uptimeMillis()));
+            return;
+        }
         android.widget.Toast.makeText(this, "No está instalada: baja " + apk + " del Release en GitHub e instálala", android.widget.Toast.LENGTH_LONG).show();
     }
 

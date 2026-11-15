@@ -106,3 +106,13 @@ hay `toyota` con cajas `binary`, `daojun`, `hiworld`, `luzhen`, `oudi`, `raise`)
   (el canal "crudo" sí llega igual y sirve para deducir el perfil correcto).
 - **Prueba guiada**: al grabar, el launcher pide acciones paso a paso y escribe marcas `▶ paso` / `✓ paso`
   en el archivo, para saber qué se hizo en cada momento.
+
+## Cámara 360 (`com.ivicar.avm`)
+- Graba en `AVM_CAMERA_PATH` (prefs de la app), por defecto `/mnt/media_rw/udisk3` (USB 3; opciones `udisk`/`udisk2`/`udisk3`).
+  Videos en `<usb>/ivicar/video/<fecha>/<hora>.ts`, fotos en `ivicar/picture`, bloqueados en `ivicar/monitor`.
+  `MonitorRecording` espera a que exista `ivicar/video` y **no la crea**. Además pide grabación automática activada
+  (viene en false) y ≥ 3 GB libres (`RESERVED_SPACE_PROHIBIT_RECORDING`).
+- Config en `/sdcard/3603D/` (360CarViewconfig, 360CarCalibconfig, plate.jpg, models/, carmodel/).
+- Licencia: `/sdcard/3603D/cert/cert.txt` (si falta se copia uno genérico del APK). `libicar3dalgo.so` lo valida contra el
+  serial de la radio → "The device is not active" / "3D RoundView system is not activated". Se activa con código o QR del vendedor.
+- Ajustes Launcher → Sistema → Cámara 360 crea las carpetas y muestra el estado.

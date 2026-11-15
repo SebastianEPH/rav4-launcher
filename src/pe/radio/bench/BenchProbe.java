@@ -27,7 +27,11 @@ public class BenchProbe {
     private static final BenchProbe I = new BenchProbe();
     public static BenchProbe get() { return I; }
 
-    private long startupMs = -1;
+    private long startupMs = -1, launchT0 = 0;
+    public static final String EXTRA_T0 = "bench_t0";
+
+    /** Hora (uptime del sistema) en que Ajustes Launcher pidió abrir la prueba: mide el arranque completo, en frío. */
+    public void launchedAt(android.content.Intent i) { if (i != null && launchT0 == 0) launchT0 = i.getLongExtra(EXTRA_T0, 0); }
     private volatile long lastDown = 0;
     private boolean running = false, choreo = false;
     private long t0, cpu0, lastFrameNs;
@@ -49,7 +53,8 @@ public class BenchProbe {
     /** Primer cuadro dibujado (solo cuenta la primera vez). */
     public synchronized void firstFrame() {
         if (startupMs >= 0) return;
-        long st = Build.VERSION.SDK_INT >= 24 ? android.os.Process.getStartUptimeMillis() : 0;
+        // sin la hora del toque (abierta desde la lista de apps) se usa el inicio del proceso, que se queda corto
+        long st = launchT0 > 0 ? launchT0 : Build.VERSION.SDK_INT >= 24 ? android.os.Process.getStartUptimeMillis() : 0;
         startupMs = st > 0 ? SystemClock.uptimeMillis() - st : 0;
     }
     public long startupMs() { return startupMs; }
@@ -110,6 +115,7 @@ public class BenchProbe {
         s.append("fecha=").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date())).append('\n');
         s.append("equipo=").append(Build.MODEL).append(" · ").append(Build.HARDWARE).append(" · Android ").append(Build.VERSION.RELEASE).append(" (API ").append(Build.VERSION.SDK_INT).append(")\n");
         s.append("arranque_ms=").append(startupMs).append('\n');
+        s.append("arranque_desde=").append(launchT0 > 0 ? "toque en Ajustes Launcher" : "inicio del proceso (aprox., abrir desde Ajustes → Prueba de rendimiento)").append('\n');
         s.append("duracion_ms=").append(wall).append('\n');
         s.append("fps=").append(String.format(Locale.US, "%.1f", fps)).append('\n');
         s.append("cuadros=").append(frames).append('\n');

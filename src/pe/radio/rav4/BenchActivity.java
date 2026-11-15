@@ -50,6 +50,7 @@ public class BenchActivity extends Activity {
         super.onCreate(b);
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         t0 = SystemClock.uptimeMillis();
+        probe.launchedAt(getIntent());
         if (web()) buildWeb(); else buildNative();
     }
 
