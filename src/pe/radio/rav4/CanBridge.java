@@ -252,6 +252,7 @@ public class CanBridge {
     private long lastSync = 0, recStart = 0;
 
     /** Carpeta RAV4Launcher en el pendrive (mismas rutas que usa Radio Diagnóstico); null si no hay USB. */
+    static final String DIR = "OrbitaLauncher";
     public static File usbDir() {
         java.util.List<File> c = new java.util.ArrayList<File>();
         for (String p : new String[]{"/mnt/media_rw/udisk", "/mnt/media_rw/udiskh", "/mnt/media_rw/udisk3",
@@ -260,7 +261,7 @@ public class CanBridge {
         if (st != null) for (File f : st) if (!f.getName().equals("emulated") && !f.getName().equals("self") && f.isDirectory()) c.add(f);
         for (File base : c) {
             if (!base.isDirectory()) continue;
-            File d = new File(base, "RAV4Launcher");
+            File d = new File(base, DIR);
             d.mkdirs();
             if (d.isDirectory() && d.canWrite()) return d;
         }
@@ -273,7 +274,7 @@ public class CanBridge {
     public synchronized String startRecording(String header) {
         if (recording()) return recInfo;
         String name = "can_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".txt";
-        String head = "# RAV4 Launcher — registro del bus CAN\n# " + header + "\n# Estado del servicio: " + status
+        String head = "# Órbita Launcher — registro del bus CAN\n# " + header + "\n# Estado del servicio: " + status
                 + "\n# Perfil CAN de la radio: " + profile()
                 + "\n# Formato: hora  tipo  datos (hex completo). 'estado' = resumen decodificado cada 5 s.\n"
                 + "# Tipos: auto=datos del auto (tipo 2), puertas (3), radar (4), aire (1), crudo=caja CAN sin procesar,\n"
@@ -289,7 +290,7 @@ public class CanBridge {
             usbOut.getFD().sync();
         } catch (Exception e) { usbErr = e.getMessage(); closeQuiet(usbOut); usbOut = null; }
         try {
-            File idir = new File(android.os.Environment.getExternalStorageDirectory(), "RAV4Launcher");
+            File idir = new File(android.os.Environment.getExternalStorageDirectory(), DIR);
             idir.mkdirs();
             intFile = new File(idir, name);
             intOut = new FileOutputStream(intFile);

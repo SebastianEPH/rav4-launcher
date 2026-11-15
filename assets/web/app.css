@@ -1,4 +1,4 @@
-/* RAV4 Launcher — interfaz web. Diseñada para 1280×800; todo en rem (app.js escala la raíz).
+/* Órbita Launcher — interfaz web. Diseñada para 1280×800; todo en rem (app.js escala la raíz).
    Compatibilidad: WebView de Android 10 (Chrome ~74+): nada de :is(), inset, clamp(), aspect-ratio ni gap en flex. */
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }

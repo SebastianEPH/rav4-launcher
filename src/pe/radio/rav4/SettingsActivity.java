@@ -174,11 +174,11 @@ public class SettingsActivity extends Activity {
         content.addView(ap);
         section("Sonido");
         LinearLayout so = card();
-        so.addView(segRow("Cambiar volumen sin la ventana de la radio", "Necesita la app ayudante \"RAV4 Volumen\"", "volume.silent",
+        so.addView(segRow("Cambiar volumen sin la ventana de la radio", "Necesita la app ayudante \"Órbita Volumen\"", "volume.silent",
                 new String[]{"Sí", "No"}, new String[]{"on", "off"}, "on"));
         boolean helper = HomeActivity.hasVolHelper(this);
-        TextView hs = tv(helper ? "✓ Ayudante \"RAV4 Volumen\" instalada. Si la ventana sigue saliendo, ábrela una vez desde la lista de apps."
-                : "Falta la ayudante \"RAV4 Volumen\": bájala del mismo Release en GitHub (RAV4Volumen.apk), instálala y ábrela una vez.", 13, helper ? DIM : 0xFFFF9F0A);
+        TextView hs = tv(helper ? "✓ Ayudante \"Órbita Volumen\" instalada. Si la ventana sigue saliendo, ábrela una vez desde la lista de apps."
+                : "Falta la ayudante \"Órbita Volumen\": bájala del mismo Release en GitHub (OrbitaVolumen.apk), instálala y ábrela una vez.", 13, helper ? DIM : 0xFFFF9F0A);
         hs.setPadding(dp(14), 0, dp(14), dp(12));
         so.addView(hs);
         if (!helper) so.addView(linkRow("Abrir la página de descargas", new View.OnClickListener() { public void onClick(View v) {
@@ -221,11 +221,11 @@ public class SettingsActivity extends Activity {
                 t.addView(slotPicker("Centro (vehículo y viaje)", "terminal.slot1", "default", "Original: vehículo"));
                 t.addView(slotPicker("Derecha (telemetría)", "terminal.slot2", "default", "Original: telemetría"));
             } else if ("glass".equals(th)) {
-                t.addView(slotPicker("Arriba a la derecha (Mi RAV4)", "glass.slot1", "default", "Original: Mi RAV4"));
+                t.addView(slotPicker("Arriba a la derecha (Mi auto)", "glass.slot1", "default", "Original: Mi auto"));
                 t.addView(slotPicker("Abajo · izquierda (fecha y hora)", "glass.slot2", "default", "Original: fecha"));
                 t.addView(slotPicker("Abajo · derecha (GPS)", "glass.slot3", "default", "Original: GPS"));
             } else if ("dusk".equals(th)) {
-                t.addView(slotPicker("Segunda tarjeta (Mi RAV4)", "dusk.slot1", "default", "Original: Mi RAV4"));
+                t.addView(slotPicker("Segunda tarjeta (Mi auto)", "dusk.slot1", "default", "Original: Mi auto"));
                 t.addView(slotPicker("Tercera tarjeta (controles)", "dusk.slot2", "default", "Original: controles"));
                 t.addView(slotPicker("Cuarta tarjeta (GPS)", "dusk.slot3", "default", "Original: GPS"));
             } else if ("sound".equals(th)) {
@@ -248,7 +248,7 @@ public class SettingsActivity extends Activity {
     // ---- Fondo de pantalla (global, todos los temas) ----
     static final String[] BG_KINDS = {"theme", "spectrum", "ios", "road", "ondas", "noche", "atardecer", "rav4", "color", "gradient", "photo"};
     static final String[] BG_LBL = {"Original del tema", "Espectro de audio", "Manchas (iPhone)", "Carretera neón", "Ondas", "Noche",
-            "Atardecer", "Mi RAV4", "Color sólido", "Degradado", "Mi imagen"};
+            "Atardecer", "Mi auto", "Color sólido", "Degradado", "Mi imagen"};
     static final int[] BG_COLORS = {0xFF0B0B14, 0xFF000000, 0xFF101828, 0xFF0F2A1D, 0xFF2A0F2E, 0xFF3A1C71, 0xFF1B3BFF, 0xFFD76D77,
             0xFFFFAF7B, 0xFF00B3A4, 0xFFF2F2F7, 0xFFFFFFFF};
 
@@ -589,7 +589,7 @@ public class SettingsActivity extends Activity {
         }));
         content.addView(sc);
         backupSection();
-        TextView ver = tv("RAV4 Launcher " + Updater.currentVersion(this) + " · Android " + Build.VERSION.RELEASE, 12, DIM);
+        TextView ver = tv("Órbita Launcher " + Updater.currentVersion(this) + " · Android " + Build.VERSION.RELEASE, 12, DIM);
         ver.setPadding(dp(4), dp(10), 0, 0);
         content.addView(ver);
     }
@@ -600,7 +600,7 @@ public class SettingsActivity extends Activity {
         LinearLayout c = card();
         TextView info = tv("Guarda toda tu configuración (temas, tarjetas, fondo, espectro, brillo, apps ocultas y fijadas, íconos "
                 + "cambiados e imagen de fondo) para volver a ella cuando quieras. Se guarda en la radio y, si hay pendrive, también en "
-                + "RAV4Launcher/respaldos del USB. Al restaurar se guarda antes un respaldo automático, así siempre puedes deshacer.", 13, DIM);
+                + "OrbitaLauncher/respaldos del USB. Al restaurar se guarda antes un respaldo automático, así siempre puedes deshacer.", 13, DIM);
         info.setPadding(dp(14), dp(12), dp(14), dp(4));
         c.addView(info);
         c.addView(linkRow("💾  Guardar respaldo ahora", new View.OnClickListener() { public void onClick(View v) {
@@ -1407,7 +1407,7 @@ public class SettingsActivity extends Activity {
                 new org.json.JSONObject(new String(Backup.read(tmp), "UTF-8")).getJSONObject("prefs");   // ¿es un respaldo válido?
                 confirmRestore(tmp);
             } catch (Exception e) {
-                android.widget.Toast.makeText(this, "Ese archivo no es un respaldo del RAV4 Launcher", android.widget.Toast.LENGTH_LONG).show();
+                android.widget.Toast.makeText(this, "Ese archivo no es un respaldo del Órbita Launcher", android.widget.Toast.LENGTH_LONG).show();
             }
             return;
         }

@@ -1,11 +1,11 @@
-# RAV4 Launcher
+# Órbita Launcher
 
 [![Release](https://img.shields.io/github/v/release/SebastianEPH/rav4-launcher?label=APK&color=0a84ff)](https://github.com/SebastianEPH/rav4-launcher/releases/latest)
 [![Build](https://github.com/SebastianEPH/rav4-launcher/actions/workflows/release.yml/badge.svg)](https://github.com/SebastianEPH/rav4-launcher/actions/workflows/release.yml)
 [![Demo](https://img.shields.io/badge/demo-interactiva-bf5af2)](https://sebastianeph.github.io/rav4-launcher/)
 
 Launcher (pantalla de inicio) hecho a medida para una **autorradio Android china NWD K4811**
-montada en un **Toyota RAV4 2013**. No es solo un lanzador de apps: muestra la velocidad y el
+montada en el auto. No es solo un lanzador de apps: muestra la velocidad y el
 viaje por GPS, el voltaje de la batería del auto (vía CAN), controla el volumen real de la radio
 y se **actualiza solo desde GitHub**.
 
@@ -58,7 +58,7 @@ El **Panel** (deslizar →) reúne volumen, brillo, WiFi, Bluetooth, tema, opcio
 
 ## Instalación
 
-1. Descarga `RAV4Launcher-vX.Y.Z.apk` desde [Releases](https://github.com/SebastianEPH/rav4-launcher/releases/latest).
+1. Descarga `OrbitaLauncher-vX.Y.Z.apk` desde [Releases](https://github.com/SebastianEPH/rav4-launcher/releases/latest).
 2. Cópialo a un USB, instálalo en la radio y elígelo como launcher predeterminado.
 3. Para la interfaz animada: ⚙ **Ajustes del launcher → Interfaz → Web (animada)**.
 
@@ -84,7 +84,7 @@ descompilando las apps del sistema. Detalle en [`FINDINGS.md`](FINDINGS.md).
 ## Desarrollo
 
 ```bash
-./build.sh                                   # genera RAV4Launcher.apk
+./build.sh                                   # genera OrbitaLauncher.apk
 open assets/web/index.html                   # probar la interfaz web en el Mac (simulador)
 ```
 

@@ -137,7 +137,7 @@ public class WebHome {
                 String head = "=== " + new java.util.Date() + " · launcher " + Updater.currentVersion(a) + " · tiempos desde que Android creó el proceso\n";
                 String body;
                 synchronized (WebHome.this) { body = bootLog.toString(); }
-                File[] dirs = {new File(android.os.Environment.getExternalStorageDirectory(), "RAV4Launcher"), CanBridge.usbDir()};
+                File[] dirs = {new File(android.os.Environment.getExternalStorageDirectory(), CanBridge.DIR), CanBridge.usbDir()};
                 for (File d : dirs) {
                     if (d == null) continue;
                     try {

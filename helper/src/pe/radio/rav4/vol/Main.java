@@ -13,7 +13,7 @@ public class Main extends Activity {
         TextView t = new TextView(this);
         t.setTextSize(20);
         t.setPadding(40, 40, 40, 40);
-        t.setText(ok ? "Listo ✓\n\nEl RAV4 Launcher ya puede cambiar el volumen sin que aparezca la ventana de la radio.\nPuedes cerrar esto."
+        t.setText(ok ? "Listo ✓\n\nEl Órbita Launcher ya puede cambiar el volumen sin que aparezca la ventana de la radio.\nPuedes cerrar esto."
                 : "No se pudo activar.\nAndroid no dejó escribir el ajuste en esta radio.");
         setContentView(t);
     }

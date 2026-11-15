@@ -58,7 +58,7 @@ public class Updater {
                     JSONArray assets = rel.getJSONArray("assets");
                     for (int i = 0; i < assets.length(); i++) {
                         JSONObject a = assets.getJSONObject(i);
-                        if (a.getString("name").startsWith("RAV4Launcher") && a.getString("name").endsWith(".apk")) { /* no la ayudante RAV4Volumen */ apkUrl = a.getString("browser_download_url"); break; }
+                        if ((a.getString("name").startsWith("OrbitaLauncher") || a.getString("name").startsWith("RAV4Launcher")) && a.getString("name").endsWith(".apk")) { /* no la ayudante de volumen */ apkUrl = a.getString("browser_download_url"); break; }
                     }
                     final String fTag = tag, fNotes = notes, fUrl = apkUrl;
                     ui.post(new Runnable() { public void run() { onRelease(fTag, fNotes, fUrl); } });
@@ -174,7 +174,7 @@ public class Updater {
 
     private static HttpURLConnection open(String url) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-        c.setRequestProperty("User-Agent", "RAV4-Launcher");
+        c.setRequestProperty("User-Agent", "Orbita-Launcher");
         c.setRequestProperty("Accept", "application/vnd.github+json");
         c.setConnectTimeout(15000);
         c.setReadTimeout(30000);

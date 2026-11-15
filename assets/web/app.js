@@ -1,4 +1,4 @@
-/* RAV4 Launcher — interfaz web.
+/* Órbita Launcher — interfaz web.
    En la radio, window.Radio es el puente nativo (WebHome.java). En un navegador se usa un simulador.
    Sintaxis conservadora (ES2015, sin ?. ni ??) para el WebView de Android 10. */
 (function () {
@@ -135,7 +135,7 @@
     name: 'Terminal', pv: ['#07090d', '#3cff8f', '#58a6ff'],
     html: function () {
       return '<div class="screen term stagger">' +
-        '<div class="prompt glow">rav4@k4811:~$ <span class="cmd" id="tcmd"></span><span class="cursor"></span></div>' +
+        '<div class="prompt glow">orbita@k4811:~$ <span class="cmd" id="tcmd"></span><span class="cursor"></span></div>' +
         '<div class="card speed"><h4>speed.gps</h4><div><span class="big glow" data-k="kmhInt">0</span><span class="unit">km/h</span></div>' +
         '<div class="sub">max <b data-k="maxKmh">0</b> · prom <b data-k="avgKmh">0</b> km/h</div><canvas id="spark"></canvas></div>' +
         '<div class="card"><h4>trip + gnss</h4>' +
@@ -154,7 +154,7 @@
         div.innerHTML = '<span class="t">[' + e.t + ']</span> <span class="' + e.c + '">' + esc(e.x) + '</span>';
         el.appendChild(div);
       });
-      if (!termLog.length) { logEv('ok', 'boot: rav4-launcher web ui'); logEv('in', 'radio: NWD K4811 · ' + R.version()); }
+      if (!termLog.length) { logEv('ok', 'boot: orbita-launcher web ui'); logEv('in', 'radio: NWD K4811 · ' + R.version()); }
       termCmd = { i: 0, c: 0, t: 0 };
     },
     frame: function (dt) {
@@ -437,7 +437,7 @@
       var lg = $('#canlog');
       if (lg) {
         var lines = (C.log || []).slice(-14);
-        if (!lines.length) lg.innerHTML = '<p class="empty">Aún no llegan datos. Abre "Datos del auto" y revisa que el tipo de auto sea Toyota RAV4 y que la caja CAN esté conectada.</p>';
+        if (!lines.length) lg.innerHTML = '<p class="empty">Aún no llegan datos. Abre "Datos del auto" y revisa que el tipo de auto coincida con tu auto y que la caja CAN esté conectada.</p>';
         else lg.innerHTML = lines.map(function (l) {
           var p = l.split('|');
           return '<div><span class="t">' + esc(p[0]) + '</span><span class="k ' + esc(p[1]) + '">' + esc(p[1]) + '</span><span class="x">' + esc(p.slice(2).join('|')) + '</span></div>';
@@ -529,7 +529,7 @@
     setK('cpuTemp', S.cpuTemp || '—');
     setK('volTxt', S.vol != null ? S.vol + '/' + S.volMax : '—');
     setK('gpsLine', S.fix ? 'Rumbo ' + (S.heading || '—') + ' · ±' + Math.round(S.acc || 0) + ' m' : 'Buscando GPS…');
-    $('#stMid').textContent = prefs.theme === 'terminal' ? 'rav4@k4811 · ' + (S.fix ? 'driving' : 'idle') : (S.fix ? 'Rumbo ' + (S.heading || '—') + (S.alt != null ? ' · ' + Math.round(S.alt) + ' m s. n. m.' : '') : '');
+    $('#stMid').textContent = prefs.theme === 'terminal' ? 'orbita@k4811 · ' + (S.fix ? 'driving' : 'idle') : (S.fix ? 'Rumbo ' + (S.heading || '—') + (S.alt != null ? ' · ' + Math.round(S.alt) + ' m s. n. m.' : '') : '');
     $$('[data-w="batt"]').forEach(function (e) { e.style.width = battPct() + '%'; });
 
     toggleIco('gps', S.fix); toggleIco('bt', S.bt); toggleIco('wifi', S.wifi); toggleIco('batt', S.batteryV > 0);
@@ -697,7 +697,7 @@
     var b = {};
     try { b = JSON.parse(R.boot ? R.boot() : '{}'); } catch (e) { }
     var sec = function (ms) { return ms >= 0 ? (ms / 1000).toFixed(1) + ' s' : '—'; };
-    $('#version').textContent = 'RAV4 Launcher ' + R.version() + (SIM ? ' · simulación en navegador' : '') +
+    $('#version').textContent = 'Órbita Launcher ' + R.version() + (SIM ? ' · simulación en navegador' : '') +
       ' · Arranque: sistema→launcher ' + sec(b.proc) + ', pantalla ' + sec(b.page) + ', apps ' + sec(b.apps);
   }
 
@@ -870,7 +870,7 @@
     ['Abre y cierra el capó', 'Si no es cómodo, puedes saltar este paso.'],
     ['Prende y apaga las luces bajas', ''],
     ['Prende y apaga las luces altas', ''],
-    ['Prende y apaga los neblineros', 'Si tu RAV4 no tiene, sáltalo.'],
+    ['Prende y apaga los neblineros', 'Si tu auto no tiene, sáltalo.'],
     ['Direccional izquierda unos segundos', ''],
     ['Direccional derecha unos segundos', ''],
     ['Luces de emergencia unos segundos', ''],
@@ -922,7 +922,7 @@
       var usb = res.indexOf('USB') === 0;
       $('#rdTitle').textContent = usb ? 'Guardado en el USB ✓' : 'Guardado en la radio';
       $('#rdText').innerHTML = '<b>' + esc(res.replace(/^[^:]*: /, '')) + '</b><br>' + lines + ' líneas · ' + (usb ? 'Ya puedes sacar el USB y traer el archivo.' :
-        'No se pudo usar el USB: el archivo quedó en la memoria interna de la radio, carpeta RAV4Launcher.');
+        'No se pudo usar el USB: el archivo quedó en la memoria interna de la radio, carpeta OrbitaLauncher.');
       $('#rdOk').style.visibility = 'visible';
     }, 1600);
     setTimeout(poll, 300);
@@ -1009,7 +1009,7 @@
       },
       grant: function () { simPerm = true; toast('Simulado: se abre la pantalla del permiso'); setTimeout(renderPerms, 500); },
       canMark: function (t) { var d = new Date(); simLog.push(pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()) + '|marca|' + t); simRecN++; },
-      canRecord: function (on) { simRec = on; simRecN = 0; simRecT = Date.now(); return on ? 'USB: /storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt' : '/storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt'; },
+      canRecord: function (on) { simRec = on; simRecN = 0; simRecT = Date.now(); return on ? 'USB: /storage/XXXX-XXXX/OrbitaLauncher/can_simulado.txt' : '/storage/XXXX-XXXX/OrbitaLauncher/can_simulado.txt'; },
       can: function () {
         if (simRec) simRecN += 3;
         var t = Date.now() / 1000, rpm = kmh > 1 ? Math.round(900 + kmh * 32 + Math.sin(t * 3) * 120) : 780;
@@ -1027,7 +1027,7 @@
           if (simLog.length > 40) simLog.splice(0, simLog.length - 40);
         }
         return JSON.stringify({ status: 'Simulación en navegador (en la radio son datos reales del bus CAN)', connected: true, packets: simLog.length * 7, ageMs: 180,
-          recording: simRec ? 'USB: /storage/XXXX-XXXX/RAV4Launcher/can_simulado.txt' : '', recLines: simRecN, recMs: simRec ? Date.now() - simRecT : 0, syncAgoMs: simRec ? 1200 : -1, recUsb: true, profile: 'auto: {"brand":"toyota","model":"RAV4 2013"} (simulado) · caja CAN: hiworld', speed: Math.round(kmh), rpm: rpm, handbrake: kmh > 1 ? 0 : 1, fuel: 62, gear: kmh > 1 ? 4 : 1, beltDriver: 1, beltPassenger: 0,
+          recording: simRec ? 'USB: /storage/XXXX-XXXX/OrbitaLauncher/can_simulado.txt' : '', recLines: simRecN, recMs: simRec ? Date.now() - simRecT : 0, syncAgoMs: simRec ? 1200 : -1, recUsb: true, profile: 'auto: {"brand":"toyota","model":"RAV4 2013"} (simulado) · caja CAN: hiworld', speed: Math.round(kmh), rpm: rpm, handbrake: kmh > 1 ? 0 : 1, fuel: 62, gear: kmh > 1 ? 4 : 1, beltDriver: 1, beltPassenger: 0,
           doors: doors, locks: [kmh > 1 ? 1 : 0, 0, 0, 0, 0], lights: [0, night ? 1 : 0, 0, 0, night ? 1 : 0, 0, blink, 0], radar: [0, 0, 0, 0], log: simLog });
       }
     };

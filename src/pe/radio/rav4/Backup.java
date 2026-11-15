@@ -27,7 +27,7 @@ import java.util.Set;
  * Respaldo y restauración de TODA la configuración (Ajustes Launcher → Sistema).
  * Un respaldo es un .json con: todas las preferencias "rav4" (con su tipo) + los íconos personalizados
  * (files/icons) + la imagen de fondo (files/bg.jpg), en base64. Se guarda en la memoria interna
- * (files/respaldos) y, si hay pendrive, también en RAV4Launcher/respaldos del USB.
+ * (files/respaldos) y, si hay pendrive, también en OrbitaLauncher/respaldos del USB.
  */
 public class Backup {
     static final String[] SKIP = {"stamp"};   // claves que no tiene sentido restaurar
@@ -45,7 +45,7 @@ public class Backup {
     public static String save(Context c, String label) {
         try {
             JSONObject root = new JSONObject();
-            root.put("app", "RAV4 Launcher");
+            root.put("app", "Órbita Launcher");
             root.put("version", Updater.currentVersion(c));
             root.put("fecha", new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(new Date()));
             root.put("nombre", label);
@@ -141,7 +141,8 @@ public class Backup {
     /** Respaldos disponibles (memoria interna + USB), del más nuevo al más viejo. */
     public static List<File> list(Context c) {
         List<File> out = new ArrayList<File>();
-        for (File d : new File[]{localDir(c), usbDir()}) {
+        File u0 = CanBridge.usbDir(); File old = u0 == null ? null : new File(u0.getParentFile(), "OrbitaLauncher/respaldos");   // respaldos de antes del cambio de nombre
+        for (File d : new File[]{localDir(c), usbDir(), old}) {
             if (d == null) continue;
             File[] fs = d.listFiles();
             if (fs != null) for (File f : fs) if (f.getName().endsWith(".json")) out.add(f);

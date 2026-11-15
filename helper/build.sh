@@ -14,5 +14,5 @@ javac -source 8 -target 8 -bootclasspath $JAR -d build/classes $(find src -name 
 $BT/d8 --min-api 21 --lib $JAR --output build/dex $(find build/classes -name '*.class')
 cp build/base.apk build/unsigned.apk && (cd build/dex && zip -q ../unsigned.apk classes.dex)
 $BT/zipalign -f 4 build/unsigned.apk build/aligned.apk
-$BT/apksigner sign --ks "$KS" --ks-pass pass:android --v1-signing-enabled true --v2-signing-enabled true --out ../RAV4Volumen.apk build/aligned.apk
-echo "APK listo: $(cd .. && pwd)/RAV4Volumen.apk"
+$BT/apksigner sign --ks "$KS" --ks-pass pass:android --v1-signing-enabled true --v2-signing-enabled true --out ../OrbitaVolumen.apk build/aligned.apk
+echo "APK listo: $(cd .. && pwd)/OrbitaVolumen.apk"

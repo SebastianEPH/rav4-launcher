@@ -68,8 +68,11 @@ jobs:
       - name: Renombrar APK con la versión
         id: apk
         run: |
-          NAME="RAV4Launcher-${VERSION}.apk"
-          cp RAV4Launcher.apk "$NAME"
+          NAME="OrbitaLauncher-${VERSION}.apk"
+          cp OrbitaLauncher.apk "$NAME"
+          # copia con el nombre viejo: las versiones instaladas antes del cambio de nombre solo buscan "RAV4Launcher*.apk"
+          cp OrbitaLauncher.apk "RAV4Launcher-${VERSION}.apk"
+          echo "legacy=RAV4Launcher-${VERSION}.apk" >> "$GITHUB_OUTPUT"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           sha256sum "$NAME"
 
@@ -85,10 +88,11 @@ jobs:
         with:
           tag_name: ${{ env.VERSION }}
           target_commitish: ${{ github.sha }}
-          name: RAV4 Launcher ${{ env.VERSION }}
+          name: Órbita Launcher ${{ env.VERSION }}
           # primero el launcher (las versiones viejas del actualizador toman el primer .apk), luego la ayudante
           files: |
             ${{ steps.apk.outputs.name }}
-            RAV4Volumen.apk
+            ${{ steps.apk.outputs.legacy }}
+            OrbitaVolumen.apk
           make_latest: true
           body_path: release-notes.md

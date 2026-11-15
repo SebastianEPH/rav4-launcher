@@ -1461,7 +1461,7 @@ public class HomeActivity extends Activity {
         sp.addView(gauge, new LinearLayout.LayoutParams(-1, 0, 1f));
         cards.addView(sp, dWeight(0.9f, true));
 
-        LinearLayout car = dCard("Mi RAV4");
+        LinearLayout car = dCard("Mi auto");
         car.addView(carImage(), new LinearLayout.LayoutParams(-1, 0, 1f));
         car.addView(tripRow(true));
         addSlot(cards, "dusk.slot1", car, dWeight(1.45f, true));
@@ -1521,7 +1521,7 @@ public class HomeActivity extends Activity {
         menu.setGravity(Gravity.CENTER_VERTICAL);
         menu.setPadding(dp(18), 0, dp(18), 0);
         menu.setBackgroundColor(P.dark ? 0x59000000 : 0x8CFFFFFF);
-        TextView brand = txt("RAV4", 15, P.text);
+        TextView brand = txt("ÓRBITA", 15, P.text);
         brand.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
         menu.addView(brand);
         for (String m : new String[]{"Inicio", "Viaje", "GPS"}) { TextView t = txt(m, 14, P.text); t.setPadding(dp(18), 0, 0, 0); menu.addView(t); }
@@ -1572,7 +1572,7 @@ public class HomeActivity extends Activity {
         LinearLayout car = gCard();
         LinearLayout head = new LinearLayout(this);
         head.setGravity(Gravity.CENTER_VERTICAL);
-        head.addView(gHead("◆", "Mi RAV4", 0xFF30D158), new LinearLayout.LayoutParams(0, -2, 1f));
+        head.addView(gHead("◆", "Mi auto", 0xFF30D158), new LinearLayout.LayoutParams(0, -2, 1f));
         TextView reset = txt("Reiniciar", 14, P.accent);
         reset.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { resetTrip(); } });
         head.addView(reset);
@@ -1831,7 +1831,7 @@ public class HomeActivity extends Activity {
     private void nwdSetVolume(int v) {
         v = Math.max(0, Math.min(nwdMax(), v));
         final int want = v;
-        // 1) con la app ayudante "RAV4 Volumen" (targetSdk 22): pone show_toast_panel=1 y la radio no muestra su ventana
+        // 1) con la app ayudante "Órbita Volumen" (targetSdk 22): pone show_toast_panel=1 y la radio no muestra su ventana
         if (hasVolHelper() && !"off".equals(prefs.getString("volume.silent", "on"))) {
             Intent q = new Intent("pe.radio.rav4.vol.QUIET").setClassName("pe.radio.rav4.vol", "pe.radio.rav4.vol.Quiet");
             q.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES | Intent.FLAG_RECEIVER_FOREGROUND);
@@ -2813,7 +2813,7 @@ public class HomeActivity extends Activity {
             left.addView(row, rl);
         }
         left.addView(section("FONDO (Cockpit / Inicio)"));
-        left.addView(choice(new String[]{"Ondas", "Noche", "Atardecer", "Mi RAV4"},
+        left.addView(choice(new String[]{"Ondas", "Noche", "Atardecer", "Mi auto"},
                 new String[]{"ondas", "noche", "atardecer", "rav4"}, prefs.getString("wall", "ondas"), "wall"));
         left.addView(section("APARIENCIA"));
         left.addView(choice(new String[]{"Oscuro", "Claro", "Auto"},
@@ -2838,7 +2838,7 @@ public class HomeActivity extends Activity {
         left.addView(action("Buscar actualización", new View.OnClickListener() {
             public void onClick(View v) { new Updater(HomeActivity.this, alertStyle()).check(); }
         }));
-        TextView ver = txt("RAV4 Launcher v" + Updater.currentVersion(this), 12, P.dim);
+        TextView ver = txt("Órbita Launcher v" + Updater.currentVersion(this), 12, P.dim);
         ver.setPadding(0, dp(16), 0, 0);
         left.addView(ver);
 
@@ -3130,7 +3130,7 @@ public class HomeActivity extends Activity {
     private void drawPrompt(boolean driving) {
         if (prompt == null) return;
         String cmd = TERM_CMDS[termCmd];
-        prompt.setText("rav4@k4811:~$ " + cmd.substring(0, Math.min(termTyped, cmd.length())) + (cursorOn || termTyped < cmd.length() ? "▌" : " ")
+        prompt.setText("orbita@k4811:~$ " + cmd.substring(0, Math.min(termTyped, cmd.length())) + (cursorOn || termTyped < cmd.length() ? "▌" : " ")
                 + "   [" + (driving ? "driving" : "idle") + "]");
     }
 
